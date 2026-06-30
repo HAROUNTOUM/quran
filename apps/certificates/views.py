@@ -36,39 +36,118 @@ def certificate_generate(request):
         raise PermissionDenied
 
     templates = CertificateTemplate.objects.filter(is_active=True)
-    students = User.objects.filter(role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED, is_active=True)
+
+    from apps.circles.models import Circle
+    circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
+
+    from apps.exams.models import Exam
+    exams = Exam.objects.filter(status=Exam.Status.COMPLETED).order_by("-exam_date")
+
+    from django.db.models import Prefetch
+    from apps.circles.models import CircleEnrollment
+    students = User.objects.filter(
+        role=User.Role.STUDENT,
+        is_approved=User.ApprovalStatus.APPROVED,
+        is_active=True,
+    ).prefetch_related(
+        Prefetch(
+            "enrollments",
+            queryset=CircleEnrollment.objects.filter(status=CircleEnrollment.Status.ACTIVE).select_related("circle"),
+            to_attr="_active_enrollments",
+        )
+    ).only("id", "full_name_ar", "email")
+
+    for s in students:
+        s.circle_ids = ",".join(
+            str(e.circle_id) for e in getattr(s, "_active_enrollments", [])
+        )
 
     if request.method == "POST":
-        student_id = request.POST.get("student")
         template_id = request.POST.get("template")
         details = request.POST.get("details", "")
+        circle_name = request.POST.get("circle_name", "")
 
-        if not student_id or not template_id:
-            messages.error(request, "يرجى اختيار الطالب والقالب")
-            return render(request, "certificates/generate.html", {"templates": templates, "students": students})
+        if not template_id:
+            messages.error(request, "يرجى اختيار القالب")
+            return render(request, "certificates/generate.html", {
+                "templates": templates, "circles": circles, "exams": exams, "students": students,
+            })
 
-        student = get_object_or_404(User, id=student_id, role=User.Role.STUDENT)
         template = get_object_or_404(CertificateTemplate, id=template_id, is_active=True)
 
+        student_ids = set()
+        raw_ids = request.POST.getlist("students")
+        student_ids.update(int(x) for x in raw_ids if x.isdigit())
+
+        circle_id = request.POST.get("circle")
+        if circle_id and circle_id.isdigit():
+            from apps.circles.models import CircleEnrollment
+            enrolled = CircleEnrollment.objects.filter(
+                circle_id=int(circle_id),
+                status=CircleEnrollment.Status.ACTIVE,
+            ).values_list("student_id", flat=True)
+            student_ids.update(enrolled)
+
+        exam_id = request.POST.get("exam")
+        if exam_id and exam_id.isdigit():
+            from apps.exams.models import ExamMark
+            passed = ExamMark.objects.filter(
+                exam_id=int(exam_id),
+                is_passed=True,
+            ).values_list("student_id", flat=True)
+            student_ids.update(passed)
+
+        juz_completed = request.POST.get("juz_completed")
+        if juz_completed:
+            try:
+                min_juz = int(juz_completed)
+                from apps.memorization.models import StudentAchievement
+                achievers = StudentAchievement.objects.filter(
+                    completed_juz__gte=min_juz
+                ).values_list("student_id", flat=True)
+                student_ids.update(achievers)
+            except ValueError:
+                pass
+
+        if not student_ids:
+            messages.error(request, "لم يتم اختيار أي طالب")
+            return render(request, "certificates/generate.html", {
+                "templates": templates, "circles": circles, "exams": exams, "students": students,
+            })
+
+        students_qs = User.objects.filter(id__in=student_ids, role=User.Role.STUDENT)
         metadata = {}
-        circle_name = request.POST.get("circle_name", "")
         if circle_name:
             metadata["circle_name"] = circle_name
 
-        try:
-            cert = issue_certificate(
-                student=student,
-                template=template,
-                issued_by=request.user,
-                details=details,
-                metadata=metadata,
-            )
-            messages.success(request, f"تم إصدار الشهادة {cert.certificate_number} بنجاح")
-            return redirect("certificates:list")
-        except Exception as e:
-            messages.error(request, f"حدث خطأ: {e}")
+        success_count = 0
+        errors = []
+        for student in students_qs:
+            try:
+                issue_certificate(
+                    student=student,
+                    template=template,
+                    issued_by=request.user,
+                    details=details,
+                    metadata=metadata,
+                )
+                success_count += 1
+            except Exception as e:
+                errors.append(f"{student.full_name_ar}: {e}")
 
-    return render(request, "certificates/generate.html", {"templates": templates, "students": students})
+        if success_count:
+            messages.success(request, f"تم إصدار {success_count} شهادة بنجاح")
+        for err in errors:
+            messages.error(request, err)
+
+        return redirect("certificates:list")
+
+    return render(request, "certificates/generate.html", {
+        "templates": templates,
+        "circles": circles,
+        "exams": exams,
+        "students": students,
+    })
 
 
 @login_required

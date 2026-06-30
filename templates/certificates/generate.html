@@ -1,54 +1,194 @@
 {% extends 'dashboard/base.html' %}
 {% load static %}
 {% block title %}إصدار شهادة{% endblock %}
+{% block extra_css %}
+<style>
+  .method-tab { cursor: pointer; }
+  .method-tab.active { border-color: #10b981; color: #059669; background: #ecfdf5; }
+  .method-panel { display: none; }
+  .method-panel.active { display: block; }
+  .student-row input:checked + label { background: #ecfdf5; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-8">
-        <h1 class="text-2xl font-bold text-gray-800">إصدار شهادة جديدة</h1>
-        <p class="text-sm text-gray-500 mt-1">اختر الطالب والقالب لإصدار شهادة</p>
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">إصدار شهادات</h1>
+    <p class="text-sm text-gray-500 mt-1">اختر طريقة انتقاء الطلاب والقالب لإصدار الشهادات دفعة واحدة</p>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- Template selector (always visible) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">قالب الشهادة</label>
+          <select name="template" required class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm">
+            <option value="">-- اختر القالب --</option>
+            {% for t in templates %}
+            <option value="{{ t.id }}">{{ t.name }} ({{ t.get_category_display }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">اسم الحلقة (اختياري)</label>
+          <input type="text" name="circle_name" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" placeholder="يظهر على الشهادة">
+        </div>
+      </div>
     </div>
 
-    <form method="post" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-6">
-        {% csrf_token %}
+    <!-- Selection method tabs -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="flex border-b border-gray-100">
+        <button type="button" class="method-tab active flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 border-green-500 text-green-600 bg-green-50 transition-colors" data-tab="manual">
+          اختيار يدوي
+        </button>
+        <button type="button" class="method-tab flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors" data-tab="circle">
+          حسب الحلقة
+        </button>
+        <button type="button" class="method-tab flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors" data-tab="exam">
+          حسب الامتحان
+        </button>
+        <button type="button" class="method-tab flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors" data-tab="milestone">
+          حسب الإنجاز
+        </button>
+      </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">الطالب</label>
-            <select name="student" required class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
-                <option value="">-- اختر الطالب --</option>
-                {% for s in students %}
-                <option value="{{ s.id }}">{{ s.full_name_ar }}</option>
-                {% endfor %}
-            </select>
+      <!-- Panel 1: Manual selection -->
+      <div class="method-panel active p-6" id="panel-manual">
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+          <input type="text" id="student-search" placeholder="بحث بالاسم..." class="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 w-64">
+          <select id="circle-filter" class="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500">
+            <option value="">كل الحلقات</option>
+            {% for c in circles %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+          <label class="flex items-center gap-2 text-sm text-gray-600 mr-auto cursor-pointer">
+            <input type="checkbox" id="select-all" class="rounded border-gray-300 text-green-600 focus:ring-green-500">
+            تحديد الكل
+          </label>
+          <span class="text-xs text-gray-400" id="selected-count">0 طالب</span>
         </div>
+        <div class="max-h-96 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-50" id="student-list">
+          {% for s in students %}
+          {% with circle_ids=s.circle_ids|default:'' %}
+          <div class="student-row flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors" data-name="{{ s.full_name_ar }}" data-circle-ids="{{ circle_ids }}">
+            <input type="checkbox" name="students" value="{{ s.id }}" id="s{{ s.id }}" class="student-checkbox rounded border-gray-300 text-green-600 focus:ring-green-500">
+            <label for="s{{ s.id }}" class="flex-1 text-sm text-gray-700 cursor-pointer py-1">{{ s.full_name_ar }}</label>
+          </div>
+          {% endwith %}
+          {% empty %}
+          <p class="p-6 text-center text-gray-400 text-sm">لا يوجد طلاب معتمدون</p>
+          {% endfor %}
+        </div>
+      </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">القالب</label>
-            <select name="template" required class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
-                <option value="">-- اختر القالب --</option>
-                {% for t in templates %}
-                <option value="{{ t.id }}">{{ t.name }} ({{ t.get_category_display }})</option>
-                {% endfor %}
-            </select>
-        </div>
+      <!-- Panel 2: By circle -->
+      <div class="method-panel p-6" id="panel-circle">
+        <p class="text-sm text-gray-500 mb-4">سيتم إصدار شهادة لكل طالب نشط في الحلقة المختارة</p>
+        <select name="circle" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm">
+          <option value="">-- اختر الحلقة --</option>
+          {% for c in circles %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">الحلقة (اختياري)</label>
-            <input type="text" name="circle_name" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="اسم الحلقة">
-        </div>
+      <!-- Panel 3: By exam -->
+      <div class="method-panel p-6" id="panel-exam">
+        <p class="text-sm text-gray-500 mb-4">سيتم إصدار شهادة لكل طالب ناجح في الامتحان المختار</p>
+        <select name="exam" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm">
+          <option value="">-- اختر الامتحان --</option>
+          {% for e in exams %}
+          <option value="{{ e.id }}">{{ e.title }} — {{ e.exam_date|date:"d/m/Y" }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">التفاصيل</label>
-            <textarea name="details" rows="3" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="تفاصيل إضافية (اختياري)"></textarea>
+      <!-- Panel 4: By milestone -->
+      <div class="method-panel p-6" id="panel-milestone">
+        <p class="text-sm text-gray-500 mb-4">سيتم إصدار شهادة لكل طالب بلغ أو تجاوز عدد الأجزاء المحدد</p>
+        <div class="flex items-center gap-3">
+          <label class="text-sm font-medium text-gray-700">الطلاب الذين أتموا</label>
+          <select name="juz_completed" class="px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 text-sm">
+            <option value="">-- اختر --</option>
+            <option value="1">جزء واحد فأكثر</option>
+            <option value="5">5 أجزاء فأكثر</option>
+            <option value="10">10 أجزاء فأكثر</option>
+            <option value="15">15 جزءاً فأكثر</option>
+            <option value="20">20 جزءاً فأكثر</option>
+            <option value="25">25 جزءاً فأكثر</option>
+            <option value="30">القرآن كاملاً (30 جزءاً)</option>
+          </select>
+          <span class="text-sm text-gray-500">من الحفظ</span>
         </div>
+      </div>
+    </div>
 
-        <div class="flex items-center gap-3 pt-4">
-            <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-medium">
-                إصدار الشهادة
-            </button>
-            <a href="{% url 'certificates:list' %}" class="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors text-sm font-medium">
-                إلغاء
-            </a>
-        </div>
-    </form>
+    <!-- Details -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <label class="block text-sm font-medium text-gray-700 mb-2">تفاصيل إضافية (اختياري)</label>
+      <textarea name="details" rows="2" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" placeholder="ستظهر على الشهادة"></textarea>
+    </div>
+
+    <!-- Submit -->
+    <div class="flex items-center gap-3">
+      <button type="submit" class="px-6 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm font-medium">
+        إصدار الشهادات
+      </button>
+      <a href="{% url 'certificates:list' %}" class="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors text-sm font-medium">
+        إلغاء
+      </a>
+    </div>
+  </form>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.method-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.method-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.method-panel').forEach(p => p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('student-search')?.addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  document.querySelectorAll('.student-row').forEach(row => {
+    const match = q === '' || row.dataset.name.toLowerCase().includes(q);
+    row.style.display = match ? '' : 'none';
+  });
+});
+
+document.getElementById('circle-filter')?.addEventListener('change', function() {
+  const v = this.value;
+  document.querySelectorAll('.student-row').forEach(row => {
+    if (!v) { row.style.display = ''; return; }
+    const ids = (row.dataset.circleIds || '').split(',').filter(Boolean);
+    row.style.display = ids.includes(v) ? '' : 'none';
+  });
+});
+
+document.getElementById('select-all')?.addEventListener('change', function() {
+  document.querySelectorAll('#student-list .student-row[style*="display: none"]');
+  document.querySelectorAll('.student-checkbox').forEach(cb => {
+    const row = cb.closest('.student-row');
+    if (row && row.style.display !== 'none') cb.checked = this.checked;
+  });
+  updateCount();
+});
+
+document.querySelectorAll('.student-checkbox').forEach(cb => cb.addEventListener('change', updateCount));
+function updateCount() {
+  const n = document.querySelectorAll('.student-checkbox:checked').length;
+  const el = document.getElementById('selected-count');
+  if (el) el.textContent = n + ' طالب';
+}
+updateCount();
+</script>
 {% endblock %}
