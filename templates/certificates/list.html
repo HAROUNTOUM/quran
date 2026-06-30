@@ -48,6 +48,10 @@
                                     معاينة
                                 </a>
                                 {% if cert.status == 'issued' %}
+                                <form method="post" action="{% url 'certificates:notify' cert.pk %}">
+                                    {% csrf_token %}
+                                    <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">إرسال إشعار</button>
+                                </form>
                                 <form method="post" action="{% url 'certificates:revoke' cert.pk %}" onsubmit="return confirm('هل أنت متأكد من إلغاء الشهادة؟')">
                                     {% csrf_token %}
                                     <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">إلغاء</button>

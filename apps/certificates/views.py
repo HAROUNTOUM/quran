@@ -89,6 +89,24 @@ def certificate_preview(request, pk):
 
 
 @login_required
+def certificate_notify(request, pk):
+    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
+        raise PermissionDenied
+    cert = get_object_or_404(Certificate, pk=pk)
+    if request.method == "POST":
+        from apps.notifications.models import Notification
+        Notification.objects.create(
+            recipient=cert.student,
+            type=Notification.Type.CERTIFICATE,
+            title="شهادة جديدة",
+            message=f"تم إصدار شهادة {cert.template.name} لك. يمكنك الاطلاع عليها وتحميلها من صفحة الشهادات.",
+            link="/dashboard/certificates/own/",
+        )
+        messages.success(request, f"تم إرسال إشعار الشهادة إلى {cert.student.full_name_ar}")
+    return redirect("certificates:list")
+
+
+@login_required
 def certificate_revoke(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
         raise PermissionDenied

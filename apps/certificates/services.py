@@ -104,4 +104,13 @@ def issue_certificate(student, template, issued_by, details="", metadata=None):
     from django.core.files.base import ContentFile
     cert.pdf_file.save(f"{cert.certificate_number}.pdf", ContentFile(pdf_bytes), save=False)
     cert.save()
+
+    from apps.notifications.models import Notification
+    Notification.objects.create(
+        recipient=student,
+        type=Notification.Type.CERTIFICATE,
+        title="شهادة جديدة",
+        message=f"تم إصدار شهادة {template.name} لك. يمكنك الاطلاع عليها وتحميلها من صفحة الشهادات.",
+        link="/dashboard/certificates/own/",
+    )
     return cert

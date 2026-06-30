@@ -14,6 +14,7 @@ class Notification(models.Model):
         REVIEW_REQUEST = 'review_request', 'طلب مراجعة/تسميع'
         RESCHEDULE_REQUEST = 'reschedule_request', 'طلب تعديل موعد'
         ABSENCE_REVIEW = 'absence_review', 'مراجعة تبرير غياب'
+        CERTIFICATE = 'certificate', 'شهادة'
         SYSTEM = 'system', 'إشعار نظام'
 
     recipient = models.ForeignKey(

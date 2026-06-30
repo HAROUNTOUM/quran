@@ -11,4 +11,5 @@ urlpatterns = [
     path("certificates/<int:pk>/download/", views.certificate_download, name="download"),
     path("certificates/<int:pk>/preview/", views.certificate_preview, name="preview"),
     path("certificates/<int:pk>/revoke/", views.certificate_revoke, name="revoke"),
+    path("certificates/<int:pk>/notify/", views.certificate_notify, name="notify"),
 ]
