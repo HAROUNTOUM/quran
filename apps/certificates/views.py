@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -74,7 +76,12 @@ def certificate_generate(request):
         template = get_object_or_404(CertificateTemplate, id=template_id, is_active=True)
 
         raw_ids = request.POST.getlist("students")
-        student_ids = [int(x) for x in raw_ids if x.isdigit()]
+        student_ids = []
+        for x in raw_ids:
+            try:
+                student_ids.append(uuid.UUID(x))
+            except (ValueError, TypeError):
+                pass
 
         if not student_ids:
             messages.error(request, "لم يتم اختيار أي طالب")
