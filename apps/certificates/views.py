@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, FileResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
 
 from apps.accounts.models import User
 
@@ -37,13 +38,9 @@ def certificate_generate(request):
 
     templates = CertificateTemplate.objects.filter(is_active=True)
 
-    from apps.circles.models import Circle
+    from apps.circles.models import Circle, CircleEnrollment
     circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
 
-    from apps.exams.models import Exam
-    exams = Exam.objects.filter(status=Exam.Status.COMPLETED).order_by("-exam_date")
-
-    from apps.circles.models import CircleEnrollment
     students = list(User.objects.filter(
         role=User.Role.STUDENT,
         is_approved=User.ApprovalStatus.APPROVED,
@@ -71,52 +68,37 @@ def certificate_generate(request):
         if not template_id:
             messages.error(request, "يرجى اختيار القالب")
             return render(request, "certificates/generate.html", {
-                "templates": templates, "circles": circles, "exams": exams, "students": students,
+                "templates": templates, "circles": circles, "students": students,
             })
 
         template = get_object_or_404(CertificateTemplate, id=template_id, is_active=True)
 
-        student_ids = set()
         raw_ids = request.POST.getlist("students")
-        student_ids.update(int(x) for x in raw_ids if x.isdigit())
-
-        circle_id = request.POST.get("circle")
-        if circle_id and circle_id.isdigit():
-            from apps.circles.models import CircleEnrollment
-            enrolled = CircleEnrollment.objects.filter(
-                circle_id=int(circle_id),
-                status=CircleEnrollment.Status.ACTIVE,
-            ).values_list("student_id", flat=True)
-            student_ids.update(enrolled)
-
-        exam_id = request.POST.get("exam")
-        if exam_id and exam_id.isdigit():
-            from apps.exams.models import ExamMark
-            passed = ExamMark.objects.filter(
-                exam_id=int(exam_id),
-                is_passed=True,
-            ).values_list("student_id", flat=True)
-            student_ids.update(passed)
-
-        juz_completed = request.POST.get("juz_completed")
-        if juz_completed:
-            try:
-                min_juz = int(juz_completed)
-                from apps.memorization.models import StudentAchievement
-                achievers = StudentAchievement.objects.filter(
-                    completed_juz__gte=min_juz
-                ).values_list("student_id", flat=True)
-                student_ids.update(achievers)
-            except ValueError:
-                pass
+        student_ids = [int(x) for x in raw_ids if x.isdigit()]
 
         if not student_ids:
             messages.error(request, "لم يتم اختيار أي طالب")
             return render(request, "certificates/generate.html", {
-                "templates": templates, "circles": circles, "exams": exams, "students": students,
+                "templates": templates, "circles": circles, "students": students,
             })
 
+        if "pdf_file" not in request.FILES:
+            messages.error(request, "يرجى رفع ملف PDF")
+            return render(request, "certificates/generate.html", {
+                "templates": templates, "circles": circles, "students": students,
+            })
+
+        from django.core.files.base import ContentFile
+        uploaded = request.FILES["pdf_file"]
+        if not uploaded.name.lower().endswith(".pdf"):
+            messages.error(request, "يجب رفع ملف PDF فقط")
+            return render(request, "certificates/generate.html", {
+                "templates": templates, "circles": circles, "students": students,
+            })
+
+        pdf_data = uploaded.read()
         students_qs = User.objects.filter(id__in=student_ids, role=User.Role.STUDENT)
+
         metadata = {}
         if circle_name:
             metadata["circle_name"] = circle_name
@@ -125,12 +107,27 @@ def certificate_generate(request):
         errors = []
         for student in students_qs:
             try:
-                issue_certificate(
+                from .services import generate_certificate_number
+                cert = Certificate(
                     student=student,
                     template=template,
-                    issued_by=request.user,
+                    certificate_number=generate_certificate_number(),
+                    status="issued",
+                    issue_date=timezone.now().date(),
                     details=details,
+                    issued_by=request.user,
                     metadata=metadata,
+                )
+                cert.pdf_file.save(uploaded.name, ContentFile(pdf_data), save=False)
+                cert.save()
+
+                from apps.notifications.models import Notification
+                Notification.objects.create(
+                    recipient=student,
+                    type=Notification.Type.CERTIFICATE,
+                    title="شهادة جديدة",
+                    message=f"تم إصدار شهادة {template.name} لك. يمكنك الاطلاع عليها وتحميلها من صفحة الشهادات.",
+                    link="/dashboard/certificates/own/",
                 )
                 success_count += 1
             except Exception as e:
@@ -146,7 +143,6 @@ def certificate_generate(request):
     return render(request, "certificates/generate.html", {
         "templates": templates,
         "circles": circles,
-        "exams": exams,
         "students": students,
     })
 
@@ -164,6 +160,8 @@ def certificate_preview(request, pk):
     cert = get_object_or_404(Certificate, pk=pk)
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR) and request.user != cert.student:
         raise PermissionDenied
+    if cert.pdf_file:
+        return FileResponse(cert.pdf_file.open(), content_type="application/pdf")
     pdf_bytes = generate_certificate_pdf(cert)
     return HttpResponse(pdf_bytes, content_type="application/pdf")
 
