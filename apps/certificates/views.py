@@ -8,7 +8,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 
 from .models import Certificate, CertificateTemplate
-from .services import issue_certificate, generate_certificate_pdf
+from .services import generate_certificate_pdf
 
 
 @login_required
