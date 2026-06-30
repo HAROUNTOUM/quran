@@ -43,24 +43,25 @@ def certificate_generate(request):
     from apps.exams.models import Exam
     exams = Exam.objects.filter(status=Exam.Status.COMPLETED).order_by("-exam_date")
 
-    from django.db.models import Prefetch
     from apps.circles.models import CircleEnrollment
-    students = User.objects.filter(
+    students = list(User.objects.filter(
         role=User.Role.STUDENT,
         is_approved=User.ApprovalStatus.APPROVED,
         is_active=True,
-    ).prefetch_related(
-        Prefetch(
-            "enrollments",
-            queryset=CircleEnrollment.objects.filter(status=CircleEnrollment.Status.ACTIVE).select_related("circle"),
-            to_attr="_active_enrollments",
-        )
-    ).only("id", "full_name_ar", "email")
+    ).only("id", "full_name_ar", "email"))
+
+    sids = [s.id for s in students]
+    enrollments = CircleEnrollment.objects.filter(
+        student_id__in=sids,
+        status=CircleEnrollment.Status.ACTIVE,
+    ).values_list("student_id", "circle_id")
+
+    circle_map = {}
+    for sid, cid in enrollments:
+        circle_map.setdefault(sid, []).append(str(cid))
 
     for s in students:
-        s.circle_ids = ",".join(
-            str(e.circle_id) for e in getattr(s, "_active_enrollments", [])
-        )
+        s.circle_ids = ",".join(circle_map.get(s.id, []))
 
     if request.method == "POST":
         template_id = request.POST.get("template")
