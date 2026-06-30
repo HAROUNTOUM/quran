@@ -1,0 +1,58 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block page_title %}طلب شهادة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الشهادات / طلب جديد{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">طلب شهادة لطالب</h1>
+    <p class="text-sm text-gray-500 mt-1">اختر الطالب والقالب، وسيقوم المشرف برفع ملف PDF لاحقاً</p>
+  </div>
+
+  <form method="post" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-6">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">الطالب</label>
+      <select name="student" required class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm">
+        <option value="">-- اختر الطالب --</option>
+        {% for s in students %}
+        <option value="{{ s.id }}">{{ s.full_name_ar }}</option>
+        {% endfor %}
+      </select>
+      {% if not students %}
+      <p class="text-xs text-amber-600 mt-1">لا يوجد طلاب في حلقاتك الدراسية</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">قالب الشهادة</label>
+      <select name="template" required class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm">
+        <option value="">-- اختر القالب --</option>
+        {% for t in templates %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">اسم الحلقة (اختياري)</label>
+      <input type="text" name="circle_name" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" placeholder="يظهر على الشهادة">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">تفاصيل إضافية (اختياري)</label>
+      <textarea name="details" rows="3" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" placeholder="مثل: أتم حفظ الجزء الأول"></textarea>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
+      <p class="flex items-center gap-2"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> سيتم إشعار المشرف بطلبك لرفع ملف الشهادة. سيتم إرسال إشعار للطالب بعد اكتمال الإصدار.</p>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" class="px-6 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm font-medium">تقديم الطلب</button>
+      <a href="{% url 'certificates:teacher_list' %}" class="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors text-sm font-medium">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock dashboard_content %}

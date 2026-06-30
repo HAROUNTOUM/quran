@@ -12,4 +12,7 @@ urlpatterns = [
     path("certificates/<int:pk>/preview/", views.certificate_preview, name="preview"),
     path("certificates/<int:pk>/revoke/", views.certificate_revoke, name="revoke"),
     path("certificates/<int:pk>/notify/", views.certificate_notify, name="notify"),
+    path("certificates/<int:pk>/upload-pdf/", views.certificate_upload_pdf, name="upload_pdf"),
+    path("certificates/teacher/", views.teacher_certificate_list, name="teacher_list"),
+    path("certificates/teacher/create/", views.teacher_certificate_create, name="teacher_create"),
 ]

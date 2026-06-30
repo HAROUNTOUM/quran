@@ -4,73 +4,119 @@
 {% block page_breadcrumb %}الرئيسية / الشهادات{% endblock %}
 {% block dashboard_content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="flex items-center justify-between mb-8">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-800">الشهادات</h1>
-            <p class="text-sm text-gray-500 mt-1">جميع الشهادات الصادرة</p>
-        </div>
-        <a href="{% url 'certificates:generate' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-medium">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-            إصدار شهادة جديدة
-        </a>
-    </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100">
-                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">الرقم</th>
-                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">الطالب</th>
-                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">القالب</th>
-                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">تاريخ الإصدار</th>
-                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">الحالة</th>
-                        <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    {% for cert in certificates %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 text-sm font-medium text-gray-800">{{ cert.certificate_number }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ cert.student.full_name_ar }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ cert.template.name }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ cert.issue_date|date:"d/m/Y" }}</td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {% if cert.status == 'issued' %}bg-green-100 text-green-700{% elif cert.status == 'draft' %}bg-yellow-100 text-yellow-700{% else %}bg-red-100 text-red-700{% endif %}">
-                                {{ cert.get_status_display }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-left">
-                            <div class="flex items-center gap-2">
-                                <a href="{% url 'certificates:download' cert.pk %}" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
-                                    تحميل
-                                </a>
-                                <a href="{% url 'certificates:preview' cert.pk %}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                    معاينة
-                                </a>
-                                {% if cert.status == 'issued' %}
-                                <form method="post" action="{% url 'certificates:notify' cert.pk %}">
-                                    {% csrf_token %}
-                                    <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">إرسال إشعار</button>
-                                </form>
-                                <form method="post" action="{% url 'certificates:revoke' cert.pk %}" onsubmit="return confirm('هل أنت متأكد من إلغاء الشهادة؟')">
-                                    {% csrf_token %}
-                                    <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">إلغاء</button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
-                            لا توجد شهادات بعد
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">الشهادات</h1>
+      <p class="text-sm text-gray-500 mt-1">جميع الشهادات الصادرة وطلبات الرفع</p>
     </div>
+    <a href="{% url 'certificates:generate' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-medium">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+      إصدار شهادة جديدة
+    </a>
+  </div>
+
+  {% if pending_certificates %}
+  <div class="mb-8">
+    <h2 class="text-lg font-bold text-amber-700 mb-3 flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      بانتظار رفع الملف
+      <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ pending_certificates|length }}</span>
+    </h2>
+    <div class="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="bg-amber-50 border-b border-amber-100">
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">الرقم</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">الطالب</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">القالب</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">تاريخ الطلب</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">المعلم</th>
+              <th class="text-left px-6 py-4 text-xs font-bold text-gray-500">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-amber-50">
+            {% for cert in pending_certificates %}
+            <tr class="hover:bg-amber-50/50 transition-colors">
+              <td class="px-6 py-4 text-sm font-medium text-gray-800">{{ cert.certificate_number }}</td>
+              <td class="px-6 py-4 text-sm text-gray-600">{{ cert.student.full_name_ar }}</td>
+              <td class="px-6 py-4 text-sm text-gray-600">{{ cert.template.name }}</td>
+              <td class="px-6 py-4 text-sm text-gray-600">{{ cert.created_at|date:"d/m/Y" }}</td>
+              <td class="px-6 py-4 text-sm text-gray-600">{{ cert.issued_by.full_name_ar|default:"—" }}</td>
+              <td class="px-6 py-4 text-left">
+                <div class="flex items-center gap-2">
+                  <a href="{% url 'certificates:upload_pdf' cert.pk %}" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+                    رفع ملف PDF
+                  </a>
+                  <form method="post" action="{% url 'certificates:revoke' cert.pk %}" onsubmit="return confirm('هل أنت متأكد من إلغاء الشهادة؟')" class="inline">
+                    {% csrf_token %}
+                    <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">إلغاء</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div>
+    <h2 class="text-lg font-bold text-green-700 mb-3 flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      الشهادات الصادرة
+      <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ issued_certificates|length }}</span>
+    </h2>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-100">
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">الرقم</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">الطالب</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">القالب</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">تاريخ الإصدار</th>
+              <th class="text-right px-6 py-4 text-xs font-bold text-gray-500">الحالة</th>
+              <th class="text-left px-6 py-4 text-xs font-bold text-gray-500">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50">
+            {% for cert in issued_certificates %}
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="px-6 py-4 text-sm font-medium text-gray-800">{{ cert.certificate_number }}</td>
+              <td class="px-6 py-4 text-sm text-gray-600">{{ cert.student.full_name_ar }}</td>
+              <td class="px-6 py-4 text-sm text-gray-600">{{ cert.template.name }}</td>
+              <td class="px-6 py-4 text-sm text-gray-600">{{ cert.issue_date|date:"d/m/Y" }}</td>
+              <td class="px-6 py-4">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">صادرة</span>
+              </td>
+              <td class="px-6 py-4 text-left">
+                <div class="flex items-center gap-2">
+                  <a href="{% url 'certificates:download' cert.pk %}" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">تحميل</a>
+                  <a href="{% url 'certificates:preview' cert.pk %}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">معاينة</a>
+                  <form method="post" action="{% url 'certificates:notify' cert.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">إرسال إشعار</button>
+                  </form>
+                  <form method="post" action="{% url 'certificates:revoke' cert.pk %}" onsubmit="return confirm('هل أنت متأكد من إلغاء الشهادة؟')" class="inline">
+                    {% csrf_token %}
+                    <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">إلغاء</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="px-6 py-12 text-center text-gray-400">لا توجد شهادات صادرة بعد</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock dashboard_content %}

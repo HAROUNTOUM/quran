@@ -1,6 +1,7 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from django.conf import settings
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 from .models import Notification
 from apps.accounts.models import User
@@ -9,6 +10,47 @@ from apps.announcements.models import Announcement
 from apps.memorization.models import ReviewRequest
 from apps.circles.models import SessionRescheduleRequest
 from apps.attendance.models import Attendance
+
+
+def _send_notification_ws(notification):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    unread_count = Notification.objects.filter(
+        recipient=notification.recipient, is_read=False
+    ).count()
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_{notification.recipient_id}",
+        {
+            "type": "new_notification",
+            "id": notification.id,
+            "title": notification.title,
+            "message": notification.message,
+            "notification_type": notification.type,
+            "link": notification.link,
+            "unread_count": unread_count,
+        },
+    )
+
+
+def _send_unread_count_ws(user_id):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    unread_count = Notification.objects.filter(recipient_id=user_id, is_read=False).count()
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_{user_id}",
+        {
+            "type": "unread_count_update",
+            "unread_count": unread_count,
+        },
+    )
+
+
+@receiver(post_save, sender=Notification)
+def notify_ws_on_create(sender, instance, created, **kwargs):
+    if created:
+        _send_notification_ws(instance)
 
 
 @receiver(post_save, sender=User)

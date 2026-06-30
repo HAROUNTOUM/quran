@@ -3,7 +3,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-change-me-in-production")
+dotenv_path = BASE_DIR / ".env"
+if dotenv_path.exists():
+    import dotenv
+    dotenv.load_dotenv(dotenv_path)
+
+SECRET_KEY = os.environ["SECRET_KEY"]
 
 DEBUG = False
 

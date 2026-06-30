@@ -1,16 +1,10 @@
 from .models import Juz
 
 
-JUZ_AYAH_COUNTS = [
-    148, 111, 126, 131, 124, 110, 149, 142, 159, 127,
-    151, 170, 154, 227, 185, 269, 190, 202, 175, 171,
-    178, 169, 145, 175, 246, 195, 175, 145, 122, 312,
-]
-
-
 def seed_juz_data():
     if Juz.objects.count() >= 30:
         return
+    from .management.commands.seed_references import JUZ_AYAH_COUNTS
     for i, count in enumerate(JUZ_AYAH_COUNTS, start=1):
         Juz.objects.get_or_create(number=i, defaults={"ayah_count": count})
 

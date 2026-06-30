@@ -32,6 +32,7 @@ class CertificateTemplate(models.Model):
 class Certificate(models.Model):
     STATUS_CHOICES = [
         ("draft", "مسودة"),
+        ("pending_upload", "بانتظار رفع الملف"),
         ("issued", "صادرة"),
         ("revoked", "ملغاة"),
     ]

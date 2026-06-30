@@ -8,4 +8,3 @@ class NotificationsConfig(AppConfig):
 
     def ready(self):
         import apps.notifications.signals  # noqa
-        import apps.notifications.websocket_signals  # noqa
