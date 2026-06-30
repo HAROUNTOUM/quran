@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from apps.accounts.decorators import role_required
 from django.http import JsonResponse
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, F, IntegerField, Case, When, Prefetch
@@ -20,9 +21,8 @@ from apps.references.models import Surah
 from apps.references.utils import ayahs_to_hizb_quarters
 
 @login_required
+@role_required(User.Role.STUDENT)
 def student_dashboard(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
 
     enrollments = CircleEnrollment.objects.filter(
         student=request.user, status=CircleEnrollment.Status.ACTIVE
@@ -84,9 +84,8 @@ def student_dashboard(request):
         'recent_certificates': recent_certificates,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_circles(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
 
     enrolled_ids = CircleEnrollment.objects.filter(
         student=request.user, status=CircleEnrollment.Status.ACTIVE
@@ -120,9 +119,8 @@ def student_circles(request):
         'pending_enrollments': pending_enrollments,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_enroll_circle(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
 
     if request.method == 'POST':
         circle = get_object_or_404(Circle, pk=pk, status=Circle.Status.ACTIVE)
@@ -161,9 +159,8 @@ def student_enroll_circle(request, pk):
 
     return redirect('accounts:student_circles')
 @login_required
+@role_required(User.Role.STUDENT)
 def student_memorization(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
 
     enrollments = CircleEnrollment.objects.filter(
         student=request.user, status=CircleEnrollment.Status.ACTIVE
@@ -227,9 +224,8 @@ def student_memorization(request):
         'progress_data_json': progress_data_json,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_session_detail(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     session = get_object_or_404(Session.objects.select_related("circle"), pk=pk)
     if not CircleEnrollment.objects.filter(
         student=request.user, circle=session.circle, status=CircleEnrollment.Status.ACTIVE
@@ -250,9 +246,8 @@ def student_session_detail(request, pk):
         "can_justify": attendance and attendance.status in ("absent", "pending_justification"),
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_claim_turn(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     from apps.circles.models import Session, CircleEnrollment, SessionTurn
     session = get_object_or_404(Session.objects.select_related("circle"), pk=pk)
     if not CircleEnrollment.objects.filter(
@@ -278,9 +273,8 @@ def student_claim_turn(request, pk):
     return JsonResponse({"success": True, "turn_number": n})
 
 @login_required
+@role_required(User.Role.STUDENT)
 def student_release_turn(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     from apps.circles.models import Session, CircleEnrollment, SessionTurn
     session = get_object_or_404(Session.objects.select_related("circle"), pk=pk)
     if not CircleEnrollment.objects.filter(
@@ -297,9 +291,8 @@ def student_release_turn(request, pk):
     return JsonResponse({"success": True})
 
 @login_required
+@role_required(User.Role.STUDENT)
 def student_requests(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     qs = SupportRequest.objects.filter(submitted_by=request.user).select_related("submitted_by").order_by("-created_at")
     req_type = request.GET.get("type", "")
     if req_type:
@@ -314,9 +307,8 @@ def student_requests(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_request_create(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         body = request.POST.get("body", "").strip()
@@ -338,9 +330,8 @@ def student_request_create(request):
         return redirect("accounts:student_requests")
     return render(request, "dashboard/student/request_create.html")
 @login_required
+@role_required(User.Role.STUDENT)
 def student_announcements(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     qs = Announcement.objects.all().select_related("author").order_by("-created_at")
     search = request.GET.get("search", "")
     if search:
@@ -352,9 +343,8 @@ def student_announcements(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_notifications(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     qs = Notification.objects.filter(recipient=request.user).order_by("-created_at")
     notif_type = request.GET.get("type", "")
     if notif_type:
@@ -369,9 +359,8 @@ def student_notifications(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_attendance(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     qs = Attendance.objects.filter(student=request.user).select_related("session__circle", "session").order_by("-session__session_date")
     status_filter = request.GET.get("status", "")
     if status_filter:
@@ -391,9 +380,8 @@ def student_attendance(request):
         "excused_count": excused_count,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_review_requests(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     qs = ReviewRequest.objects.filter(student=request.user).select_related("circle", "surah").order_by("-created_at")
     status_filter = request.GET.get("status", "")
     if status_filter:
@@ -405,9 +393,8 @@ def student_review_requests(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_review_request_create(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     enrollments = CircleEnrollment.objects.filter(
         student=request.user, status=CircleEnrollment.Status.ACTIVE
     ).select_related("circle")
@@ -442,9 +429,8 @@ def student_review_request_create(request):
         "surahs": surahs,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_circle_detail(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     enrollment = get_object_or_404(CircleEnrollment, circle_id=pk, student=request.user, status=CircleEnrollment.Status.ACTIVE)
     circle = enrollment.circle
     upcoming_sessions = Session.objects.filter(circle=circle, session_date__gte=date.today()).order_by("session_date")[:10]
@@ -458,9 +444,8 @@ def student_circle_detail(request, pk):
         "next_session": next_session,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_sessions(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     circle_ids = CircleEnrollment.objects.filter(
         student=request.user, status=CircleEnrollment.Status.ACTIVE
     ).values_list("circle_id", flat=True)
@@ -480,16 +465,14 @@ def student_sessions(request):
         "intents": intents,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_exam_results(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     from apps.exams.services import get_student_marks
     results = get_student_marks(request.user)
     return render(request, "dashboard/exams/student_results.html", {"results": results})
 @login_required
+@role_required(User.Role.STUDENT)
 def student_achievements(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     achievement = getattr(request.user, "achievement", None)
     total_hifz = MemorizationProgress.objects.filter(
         enrollment__student=request.user, type='hifz', status='mastered'
@@ -513,9 +496,8 @@ def student_achievements(request):
         "recent_progress": recent_progress,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_request_detail(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     req = get_object_or_404(SupportRequest, pk=pk, submitted_by=request.user)
     comments = req.comments.select_related("author").order_by("created_at")
     return render(request, "dashboard/student/request_detail.html", {
@@ -523,9 +505,8 @@ def student_request_detail(request, pk):
         "comments": comments,
     })
 @login_required
+@role_required(User.Role.STUDENT)
 def student_unenroll(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     enrollment = get_object_or_404(
         CircleEnrollment, circle_id=pk, student=request.user, status=CircleEnrollment.Status.ACTIVE
     )
@@ -537,9 +518,8 @@ def student_unenroll(request, pk):
         return redirect("accounts:student_circles")
     return redirect("accounts:student_circle_detail", pk=pk)
 @login_required
+@role_required(User.Role.STUDENT)
 def student_justifications(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
     qs = Attendance.objects.filter(
         student=request.user, justification__gt=""
     ).select_related("session__circle", "reviewed_by").order_by("-updated_at")

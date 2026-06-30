@@ -3,6 +3,7 @@ import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from apps.accounts.decorators import role_required
 from django.http import JsonResponse
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -21,9 +22,8 @@ from apps.exams.models import Exam
 from apps.references.models import Surah, EvaluationCriterion
 
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_dashboard(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
 
     circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE).annotate(
         active_students=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
@@ -50,9 +50,8 @@ def teacher_dashboard(request):
         'recent_sessions': recent_sessions,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR, User.Role.TEACHER)
 def teacher_session_attendance(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR, User.Role.TEACHER):
-        raise PermissionDenied
 
     sessions = Session.objects.select_related('circle')
     if request.user.role == User.Role.TEACHER:
@@ -140,9 +139,8 @@ def teacher_session_attendance(request, pk):
         'attendance_choices': attendance_choices,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_create(request, circle_pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
 
     circle = get_object_or_404(
         Circle, pk=circle_pk, teacher=request.user, status=Circle.Status.ACTIVE,
@@ -205,9 +203,8 @@ def teacher_session_create(request, circle_pk):
         'circle_schedule_time': circle.schedule_time,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_manage(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
 
     circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE).annotate(
         active_students=Count("enrollments", filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
@@ -235,9 +232,8 @@ def teacher_session_manage(request):
         "recent_sessions": recent_sessions,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_progress(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
 
     circle = get_object_or_404(
         Circle.objects.annotate(
@@ -289,9 +285,8 @@ def teacher_session_progress(request, pk):
         "surahs": surahs,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_toggle_lesson(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     if request.method != "POST":
         return JsonResponse({"success": False, "error": "طلب غير صالح"}, status=400)
     progress = get_object_or_404(
@@ -306,9 +301,8 @@ def teacher_toggle_lesson(request, pk):
         return JsonResponse({"success": True, "status": progress.status, "label": progress.get_status_display()})
     return JsonResponse({"success": False, "error": "حالة غير صالحة"}, status=400)
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_absence_create(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     if request.method == "POST":
         start_date_str = request.POST.get("start_date", "")
         end_date_str = request.POST.get("end_date", "")
@@ -325,17 +319,15 @@ def teacher_absence_create(request):
         messages.error(request, "يرجى ملء جميع الحقول المطلوبة")
     return render(request, "dashboard/teacher/absence_create.html")
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_absence_list(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     absences = TeacherAbsence.objects.filter(teacher=request.user)
     return render(request, "dashboard/teacher/absence_list.html", {
         "absences": absences,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_circle_detail(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     circle = get_object_or_404(
         Circle.objects.annotate(
             active_students_count=Count("enrollments", filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
@@ -367,9 +359,8 @@ def teacher_circle_detail(request, pk):
         "sessions": sessions,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_students(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE)
     students = User.objects.filter(
         enrollments__circle__in=circles,
@@ -389,9 +380,8 @@ def teacher_students(request):
         "circles": circles,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_student_progress(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
     circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE)
     if not CircleEnrollment.objects.filter(
@@ -416,9 +406,8 @@ def teacher_student_progress(request, pk):
         "achievement": achievement,
     })
 @login_required
+@role_required(User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR)
 def teacher_announcements(request):
-    if request.user.role not in (User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     search = request.GET.get("search", "")
     announcements = Announcement.objects.select_related("author").order_by("-created_at")
     if search:
@@ -430,9 +419,8 @@ def teacher_announcements(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR)
 def teacher_requests(request):
-    if request.user.role not in (User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     qs = SupportRequest.objects.filter(submitted_by=request.user).select_related("submitted_by").order_by("-created_at")
     paginator = Paginator(qs, 15)
     page_obj = paginator.get_page(request.GET.get("page", 1))
@@ -441,9 +429,8 @@ def teacher_requests(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_request_create(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         body = request.POST.get("body", "").strip()
@@ -465,9 +452,8 @@ def teacher_request_create(request):
         return redirect("accounts:teacher_requests")
     return render(request, "dashboard/teacher/request_create.html")
 @login_required
+@role_required(User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR)
 def teacher_notifications(request):
-    if request.user.role not in (User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     qs = Notification.objects.filter(recipient=request.user).order_by("-created_at")
     notif_type = request.GET.get("type", "")
     if notif_type:
@@ -482,9 +468,8 @@ def teacher_notifications(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_review_requests(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     review_requests = ReviewRequest.objects.filter(
         circle__teacher=request.user,
     ).select_related("student", "circle", "surah").order_by("-created_at")
@@ -498,9 +483,8 @@ def teacher_review_requests(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_reschedule_requests(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     reschedule_reqs = SessionRescheduleRequest.objects.filter(
         session__circle__teacher=request.user,
     ).select_related("session__circle", "requested_by").order_by("-created_at")
@@ -514,9 +498,8 @@ def teacher_reschedule_requests(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_detail(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     session = get_object_or_404(
         Session.objects.select_related("circle__teacher"),
         pk=pk, circle__teacher=request.user,
@@ -561,9 +544,8 @@ def teacher_session_detail(request, pk):
         "total_students": len(students),
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_remove_turn(request, pk, student_id):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     session = get_object_or_404(
         Session.objects.select_related("circle__teacher"),
         pk=pk, circle__teacher=request.user,
@@ -572,9 +554,8 @@ def teacher_session_remove_turn(request, pk, student_id):
     SessionTurn.objects.filter(session=session, student_id=student_id).delete()
     return JsonResponse({"success": True})
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_reorder_turns(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     session = get_object_or_404(
         Session.objects.select_related("circle__teacher"),
         pk=pk, circle__teacher=request.user,
@@ -586,9 +567,8 @@ def teacher_session_reorder_turns(request, pk):
         SessionTurn.objects.filter(session=session, student_id=student_id).update(turn_number=i)
     return JsonResponse({"success": True})
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_edit(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     session = get_object_or_404(
         Session.objects.select_related("circle"),
         pk=pk, circle__teacher=request.user,
@@ -640,9 +620,8 @@ def teacher_session_edit(request, pk):
         'circle_schedule_time': session.circle.schedule_time,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_session_delete(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     session = get_object_or_404(
         Session.objects.select_related("circle"),
         pk=pk, circle__teacher=request.user,
@@ -654,9 +633,8 @@ def teacher_session_delete(request, pk):
         return redirect('accounts:teacher_circle_detail', pk=circle_id)
     return redirect('accounts:teacher_circle_detail', pk=session.circle_id)
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_absence_justifications(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     from apps.attendance.models import Attendance
     justifications = Attendance.objects.filter(
         session__circle__teacher=request.user,
@@ -673,9 +651,8 @@ def teacher_absence_justifications(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_exams(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     my_circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE)
     assigned = Exam.objects.filter(assigned_teacher=request.user)
     circle_exams = Exam.objects.filter(circle__in=my_circles)
@@ -686,9 +663,8 @@ def teacher_exams(request):
         "exams": exams, "my_circles": my_circles,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_exam_grade(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     exam = get_object_or_404(Exam.objects.select_related("circle", "assigned_teacher"), pk=pk)
     ok, err = verify_teacher_assignment(exam, request.user)
     if not ok:
@@ -729,9 +705,8 @@ def teacher_exam_grade(request, pk):
         "exam": exam, "students": students, "existing": existing,
     })
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_exam_submit(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     ok, err = verify_teacher_assignment(exam, request.user)
     if not ok:
@@ -743,9 +718,8 @@ def teacher_exam_submit(request, pk):
         messages.error(request, error)
     return redirect("accounts:teacher_exams")
 @login_required
+@role_required(User.Role.TEACHER)
 def teacher_exam_export_pdf(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     ok, err = verify_teacher_assignment(exam, request.user)
     if not ok:

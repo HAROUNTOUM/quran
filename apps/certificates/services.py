@@ -3,10 +3,11 @@ import subprocess
 import tempfile
 
 from django.conf import settings
+from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import Certificate, CertificateTemplate
+from .models import Certificate, CertificateTemplate, CertificateSeq
 
 
 LATEX_SPECIAL_CHARS = {
@@ -31,11 +32,17 @@ def escape_latex(text: str) -> str:
 
 
 def generate_certificate_number():
-    today = timezone.now().date()
-    prefix = "CERT"
-    date_str = today.strftime("%Y%m%d")
-    count = Certificate.objects.filter(issue_date=today).count()
-    return f"{prefix}-{date_str}-{count + 1:04d}"
+    with transaction.atomic():
+        today = timezone.now().date()
+        seq, created = CertificateSeq.objects.select_for_update().get_or_create(date=today)
+        if created:
+            existing = Certificate.objects.filter(issue_date=today).count()
+            seq.counter = existing
+        seq.counter += 1
+        seq.save(update_fields=["counter"])
+        prefix = "CERT"
+        date_str = today.strftime("%Y%m%d")
+        return f"{prefix}-{date_str}-{seq.counter:04d}"
 
 
 def generate_certificate_pdf(certificate: Certificate) -> bytes:

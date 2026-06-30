@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from apps.accounts.decorators import role_required
 from django.http import HttpResponse
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, Sum, F, FloatField, ExpressionWrapper, Avg
@@ -26,9 +27,8 @@ from apps.references.models import Surah, EvaluationCriterion
 from apps.references.utils import ayahs_to_juz_quarters
 
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_dashboard(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     total_students = User.objects.filter(
         role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED
@@ -185,9 +185,8 @@ def admin_dashboard(request):
         'inactive_circles': inactive_circles,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_inscriptions(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     status = request.GET.get('status', 'pending')
     role_filter = request.GET.get('role', '')
@@ -247,9 +246,8 @@ def admin_inscriptions(request):
         'role_tab': role_tab,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def approve_user(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     user_obj = get_object_or_404(User, pk=pk)
 
@@ -274,9 +272,8 @@ def approve_user(request, pk):
         response["HX-Trigger"] = json.dumps({"showToast": {"message": toast_msg, "type": "success"}})
     return response
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def pending_users_table(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     filter_status = request.GET.get("status", "pending")
     role = request.GET.get("role", "")
@@ -297,9 +294,8 @@ def pending_users_table(request):
     users = users.order_by("-created_at")
     return render(request, "dashboard/partials/user_rows.html", {"users": users})
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teacher_absences(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     status_filter = request.GET.get("status", "")
     qs = TeacherAbsence.objects.select_related("teacher", "substitute_teacher").order_by("-created_at")
@@ -321,9 +317,8 @@ def admin_teacher_absences(request):
         "rejected_count": rejected_count,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_absence_manage(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     absence = get_object_or_404(
         TeacherAbsence.objects.select_related("teacher", "substitute_teacher", "processed_by"),
         pk=pk,
@@ -369,9 +364,8 @@ def admin_absence_manage(request, pk):
         "circles": circles_with_sub,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_active_substitutions(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     today = date.today()
     active_absences = TeacherAbsence.objects.filter(
@@ -388,9 +382,8 @@ def admin_active_substitutions(request):
         "substitutions": substitutions,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teachers(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     search = request.GET.get("search", "")
     status_filter = request.GET.get("status", "")
@@ -432,9 +425,8 @@ def admin_teachers(request):
         'circles': circles,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_students(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     search = request.GET.get("search", "")
     status_filter = request.GET.get("status", "")
@@ -478,9 +470,8 @@ def admin_students(request):
         'circles': circles,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_student_detail(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
 
@@ -530,17 +521,15 @@ def admin_student_detail(request, pk):
         "recent_attendance": recent_attendance,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_student_toggle_status(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
     student.is_active = not student.is_active
     student.save(update_fields=["is_active"])
     return redirect("accounts:admin_student_detail", pk=pk)
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_student_create(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     if request.method == "POST":
         form = SignupForm(request.POST)
@@ -776,9 +765,8 @@ def _export_list_excel(request, title, headers, rows, filename):
     wb.save(response)
     return response
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_students_export_pdf(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     students = User.objects.filter(role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED)
     headers = ["الاسم", "البريد", "الهاتف", "الجنس", "الحلقات", "الحالة"]
     rows = [[s.full_name_ar, s.email, s.phone, {"male": "ذكر", "female": "أنثى"}.get(s.gender, s.gender) if s.gender else "—",
@@ -786,9 +774,8 @@ def admin_students_export_pdf(request):
              "نشط" if s.is_active else "غير نشط"] for s in students]
     return _export_list_pdf(request, "قائمة الطلاب", headers, rows, "students_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_students_export_excel(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     students = User.objects.filter(role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED)
     headers = ["الاسم", "البريد", "الهاتف", "الجنس", "الحلقات", "الحالة"]
     rows = [[s.full_name_ar, s.email, s.phone, {"male": "ذكر", "female": "أنثى"}.get(s.gender, s.gender) if s.gender else "—",
@@ -796,9 +783,8 @@ def admin_students_export_excel(request):
              "نشط" if s.is_active else "غير نشط"] for s in students]
     return _export_list_excel(request, "قائمة الطلاب", headers, rows, "students_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teachers_export_pdf(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     teachers = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED).annotate(
         circles_count=Count('teaching_circles', filter=Q(teaching_circles__status=Circle.Status.ACTIVE)),
         students_count=Count('teaching_circles__enrollments', filter=Q(teaching_circles__enrollments__status=CircleEnrollment.Status.ACTIVE)),
@@ -808,9 +794,8 @@ def admin_teachers_export_pdf(request):
              "نشط" if t.is_active else "غير نشط"] for t in teachers]
     return _export_list_pdf(request, "قائمة الأساتذة", headers, rows, "teachers_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teachers_export_excel(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     teachers = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED).annotate(
         circles_count=Count('teaching_circles', filter=Q(teaching_circles__status=Circle.Status.ACTIVE)),
         students_count=Count('teaching_circles__enrollments', filter=Q(teaching_circles__enrollments__status=CircleEnrollment.Status.ACTIVE)),
@@ -820,9 +805,8 @@ def admin_teachers_export_excel(request):
              "نشط" if t.is_active else "غير نشط"] for t in teachers]
     return _export_list_excel(request, "قائمة الأساتذة", headers, rows, "teachers_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_circles_export_pdf(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     circles = Circle.objects.select_related("teacher").annotate(
         student_count=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
         sessions_count=Count('sessions'),
@@ -834,9 +818,8 @@ def admin_circles_export_pdf(request):
              c.get_status_display()] for c in circles]
     return _export_list_pdf(request, "قائمة الحلقات", headers, rows, "circles_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_circles_export_excel(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     circles = Circle.objects.select_related("teacher").annotate(
         student_count=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
         sessions_count=Count('sessions'),
@@ -848,27 +831,24 @@ def admin_circles_export_excel(request):
              c.get_status_display()] for c in circles]
     return _export_list_excel(request, "قائمة الحلقات", headers, rows, "circles_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_inscriptions_export_pdf(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     users = User.objects.filter(is_approved=User.ApprovalStatus.PENDING)
     headers = ["الاسم", "البريد", "الدور", "الهاتف", "الجنس", "تاريخ التسجيل"]
     rows = [[u.full_name_ar, u.email, u.get_role_display(), u.phone,
              {"male": "ذكر", "female": "أنثى"}.get(u.gender, "") if u.gender else "—", u.created_at.strftime("%Y-%m-%d")] for u in users]
     return _export_list_pdf(request, "التسجيلات الجديدة", headers, rows, "inscriptions_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_inscriptions_export_excel(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     users = User.objects.filter(is_approved=User.ApprovalStatus.PENDING)
     headers = ["الاسم", "البريد", "الدور", "الهاتف", "الجنس", "تاريخ التسجيل"]
     rows = [[u.full_name_ar, u.email, u.get_role_display(), u.phone,
              {"male": "ذكر", "female": "أنثى"}.get(u.gender, "") if u.gender else "—", u.created_at.strftime("%Y-%m-%d")] for u in users]
     return _export_list_excel(request, "التسجيلات الجديدة", headers, rows, "inscriptions_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teacher_detail(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     teacher = get_object_or_404(User, pk=pk, role=User.Role.TEACHER)
 
@@ -903,18 +883,16 @@ def admin_teacher_detail(request, pk):
         "recent_notifications": recent_notifications,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teacher_toggle_status(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     teacher = get_object_or_404(User, pk=pk, role=User.Role.TEACHER)
     teacher.is_active = not teacher.is_active
     teacher.save(update_fields=["is_active"])
     return redirect("accounts:admin_teacher_detail", pk=pk)
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teacher_create(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     if request.method == "POST":
         form = SignupForm(request.POST)
@@ -929,9 +907,8 @@ def admin_teacher_create(request):
 
     return render(request, "dashboard/teachers/create.html", {"form": form})
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_teacher_edit(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     teacher = get_object_or_404(User, pk=pk, role=User.Role.TEACHER)
 
     if request.method == "POST":
@@ -956,9 +933,8 @@ def admin_teacher_edit(request, pk):
         "circles": circles,
     })
 @login_required
+@role_required(User.Role.ADMIN)
 def admin_supervisors(request):
-    if request.user.role not in (User.Role.ADMIN,):
-        raise PermissionDenied
 
     search = request.GET.get("search", "")
     supervisors = User.objects.filter(role=User.Role.SUPERVISOR).order_by('-created_at')
@@ -971,9 +947,8 @@ def admin_supervisors(request):
 
     return render(request, 'dashboard/supervisors/list.html', {'supervisors': page_obj, 'page_obj': page_obj})
 @login_required
+@role_required(User.Role.ADMIN)
 def admin_supervisor_create(request):
-    if request.user.role not in (User.Role.ADMIN,):
-        raise PermissionDenied
 
     if request.method == "POST":
         form = SignupForm(request.POST)
@@ -988,9 +963,8 @@ def admin_supervisor_create(request):
 
     return render(request, "dashboard/supervisors/create.html", {"form": form})
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_circles(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     search = request.GET.get("search", "")
     status_filter = request.GET.get("status", "")
@@ -1027,9 +1001,8 @@ def admin_circles(request):
         'inactive_count': inactive_count,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_circle_detail(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     circle = get_object_or_404(
         Circle.objects.select_related('teacher'),
@@ -1187,9 +1160,8 @@ def admin_circle_detail(request, pk):
         "attendance_history": attendance_history,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_circle_create(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     teachers = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED)
 
@@ -1245,9 +1217,8 @@ def admin_circle_create(request):
 
     return render(request, "dashboard/circles/create.html", {"teachers": teachers})
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_requests(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     search = request.GET.get("search", "")
     req_type = request.GET.get("type", "")
@@ -1282,9 +1253,8 @@ def admin_requests(request):
         'urgent_count': urgent_count,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_request_detail(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     request_obj = get_object_or_404(
         SupportRequest.objects.select_related('submitted_by'),
@@ -1314,9 +1284,8 @@ def admin_request_detail(request, pk):
         "comments": comments,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_announcements(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     search = request.GET.get("search", "")
     announcements = Announcement.objects.select_related('author').order_by('-created_at')
@@ -1328,9 +1297,8 @@ def admin_announcements(request):
     page_obj = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'dashboard/announcements/list.html', {'announcements': page_obj, 'page_obj': page_obj})
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_announcement_create(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         body = request.POST.get("body", "").strip()
@@ -1345,9 +1313,8 @@ def admin_announcement_create(request):
 
     return render(request, "dashboard/announcements/create.html")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_notifications(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     from apps.notifications.models import Notification
 
@@ -1373,9 +1340,8 @@ def admin_notifications(request):
         "page_obj": page_obj,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_notification_create(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     from apps.notifications.models import Notification
 
@@ -1429,9 +1395,8 @@ def admin_notification_create(request):
 
     return render(request, "dashboard/notifications/create.html")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_reports(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     attendance_data = _report_attendance("")
     grades_data = _report_grades("")
@@ -1450,9 +1415,8 @@ def admin_reports(request):
         "circles": circles,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_report_data(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     report_type = request.GET.get("type", "empty")
     circle_id = request.GET.get("circle", "")
@@ -1760,9 +1724,8 @@ def _report_murajaa(circle_id):
         "circles": circles,
     }
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_report_export_pdf(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     from io import BytesIO
     from fpdf import FPDF
@@ -1872,9 +1835,8 @@ def admin_report_export_pdf(request):
     response["Content-Disposition"] = f'attachment; filename="report_{report_type}.pdf"'
     return response
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_report_export_excel(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
 
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill
@@ -2101,9 +2063,8 @@ def _report_teachers():
         "teachers": result,
     }
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def report_exam_results(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     marks = ExamMark.objects.filter(
         status=ExamMark.Status.APPROVED,
         exam__status=Exam.Status.COMPLETED,
@@ -2142,9 +2103,8 @@ def report_exam_results(request):
         "overall_avg": round(sum(e["avg_score"] for e in exam_data) / max(len(exam_data), 1), 1),
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_list(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exams = Exam.objects.select_related("circle", "created_by", "assigned_teacher").annotate(
         student_count_annotated=Count("marks"),
         average_marks_annotated=Avg("marks__marks_obtained"),
@@ -2154,9 +2114,8 @@ def admin_exam_list(request):
     ).all()
     return render(request, "dashboard/exams/list.html", {"exams": exams})
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_create(request):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
     teachers = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED, is_active=True)
     if request.method == "POST":
@@ -2181,9 +2140,8 @@ def admin_exam_create(request):
         return redirect("accounts:admin_exam_detail", pk=exam.pk)
     return render(request, "dashboard/exams/create.html", {"circles": circles, "teachers": teachers})
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_edit(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
     teachers = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED, is_active=True)
@@ -2203,9 +2161,8 @@ def admin_exam_edit(request, pk):
         "exam": exam, "circles": circles, "teachers": teachers,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_detail(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(
         Exam.objects.select_related("circle", "created_by", "assigned_teacher"),
         pk=pk,
@@ -2233,17 +2190,15 @@ def admin_exam_detail(request, pk):
         "approval_progress": approval_progress,
     })
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_delete(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     exam.delete()
     messages.success(request, "تم حذف الامتحان")
     return redirect("accounts:admin_exam_list")
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_publish(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     exam.status = Exam.Status.PUBLISHED
     exam.save(update_fields=["status"])
@@ -2251,17 +2206,15 @@ def admin_exam_publish(request, pk):
     messages.success(request, "تم نشر الامتحان")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_approve_all(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     approve_all_marks(exam, request.user)
     messages.success(request, "تم اعتماد جميع النتائج")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_reject_marks(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     if request.method != "POST":
         messages.error(request, "طلب غير صالح")
@@ -2275,9 +2228,8 @@ def admin_exam_reject_marks(request, pk):
     messages.success(request, "تم رفض الدرجات المحددة")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_export_pdf(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     export_data = get_export_data(exam)
     pdf_bytes = generate_exam_pdf(export_data)
@@ -2286,9 +2238,8 @@ def admin_exam_export_pdf(request, pk):
     response["Content-Disposition"] = f'attachment; filename="exam_{exam.exam_code}.pdf"'
     return response
 @login_required
+@role_required(User.Role.ADMIN, User.Role.SUPERVISOR)
 def admin_exam_export_csv(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
     exam = get_object_or_404(Exam, pk=pk)
     export_data = get_export_data(exam)
     csv_str = generate_exam_csv(export_data)

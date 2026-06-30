@@ -2,6 +2,15 @@ from django.conf import settings
 from django.db import models
 
 
+class CertificateSeq(models.Model):
+    date = models.DateField("التاريخ", unique=True)
+    counter = models.PositiveIntegerField("العدد", default=0)
+
+    class Meta:
+        verbose_name = "تسلسل شهادات"
+        verbose_name_plural = "تسلسل الشهادات"
+
+
 class CertificateTemplate(models.Model):
     CATEGORY_CHOICES = [
         ("hifz", "شهادة حفظ"),

@@ -84,7 +84,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "gender", "is_approved", "status_display", "is_active",
             "date_joined", "last_login",
         ]
-        read_only_fields = ["id", "role", "is_approved", "date_joined", "last_login"]
+        read_only_fields = ["id", "role", "is_approved", "is_active", "date_joined", "last_login"]
 
 
 class ChangePasswordSerializer(serializers.Serializer):
