@@ -4,63 +4,8 @@
 {% block page_breadcrumb %}الرئيسية / لوحة المعلم{% endblock %}
 {% block dashboard_content %}
 
-<div id="lockedModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
-    <div class="absolute inset-0 bg-black/40" onclick="closeLockedModal()"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md z-10">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-gray-800">الحصة غير متاحة</h3>
-            <button onclick="closeLockedModal()" class="p-1 hover:bg-gray-100 rounded-lg">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <p class="text-sm text-gray-600 mb-6">سيتم فتح الحصة قبل موعدها بـ 15 دقيقة. يمكنك تعديل الموعد الآن وسيتم إشعار الإدارة بالتغيير.</p>
-        <div class="flex gap-3">
-            <button onclick="openRescheduleModal()" class="flex-1 py-2.5 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 transition-colors">
-                تعديل الموعد
-            </button>
-            <button onclick="closeLockedModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors">
-                حسناً
-            </button>
-        </div>
-    </div>
-</div>
 
-<div id="rescheduleModal" class="fixed inset-0 z-[110] flex items-center justify-center hidden">
-    <div class="absolute inset-0 bg-black/40" onclick="closeRescheduleModal()"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md z-10">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-gray-800">تعديل موعد الحصة</h3>
-            <button onclick="closeRescheduleModal()" class="p-1 hover:bg-gray-100 rounded-lg">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <div class="mb-4">
-            <label class="block text-xs font-medium text-gray-500 mb-1">التاريخ المقترح</label>
-            <input type="date" id="rescheduleDate"
-                   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-        </div>
-        <div class="mb-4">
-            <label class="block text-xs font-medium text-gray-500 mb-1">الوقت المقترح (اختياري)</label>
-            <input type="time" id="rescheduleTime"
-                   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-        </div>
-        <div class="mb-4">
-            <label class="block text-xs font-medium text-gray-500 mb-1">سبب التعديل</label>
-            <textarea id="rescheduleReason" rows="3"
-                      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="اذكر سبب طلب التعديل..."></textarea>
-        </div>
-        <p id="rescheduleError" class="text-red-600 text-sm mb-3 hidden"></p>
-        <div class="flex gap-3">
-            <button onclick="submitReschedule()" class="flex-1 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
-                حفظ التعديل
-            </button>
-            <button onclick="closeRescheduleModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors">
-                إلغاء
-            </button>
-        </div>
-    </div>
-</div>
+
 
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
     {% for circle in circles %}
@@ -119,10 +64,10 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="joinSession({{ session.id }})"
-                        class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                <a href="{% url 'accounts:teacher_session_detail' session.id %}"
+                   class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
                     دخول الحلقة
-                </button>
+                </a>
                 <a href="{% url 'accounts:teacher_session_attendance' session.id %}"
                    class="px-3 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
                     تسجيل الحضور
@@ -193,90 +138,5 @@
         </tbody>
     </table>
 </div>
-{% block extra_js %}
-<script>
-function getCSRFToken() {
-    const name = 'csrftoken';
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    return match ? match[2] : '';
-}
-
-var currentSessionId = null;
-
-function joinSession(sessionId) {
-    currentSessionId = sessionId;
-    fetch('/api/v1/sessions/' + sessionId + '/join-link/', {
-        headers: { 'X-CSRFToken': getCSRFToken() },
-    })
-    .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, data: j }; }); })
-    .then(function(result) {
-        if (!result.ok) {
-            document.getElementById('lockedModal').classList.remove('hidden');
-            return;
-        }
-        var data = result.data;
-        if (data.session_type === 'online' && data.meeting_url) {
-            window.open(data.meeting_url, '_blank');
-        } else {
-            window.dispatchEvent(new CustomEvent('showToast', {
-                detail: { message: 'تم فتح الحصة بنجاح', type: 'success' }
-            }));
-        }
-    })
-    .catch(function() {
-        document.getElementById('lockedModal').classList.remove('hidden');
-    });
-}
-
-function closeLockedModal() {
-    document.getElementById('lockedModal').classList.add('hidden');
-}
-
-function openRescheduleModal() {
-    closeLockedModal();
-    document.getElementById('rescheduleError').classList.add('hidden');
-    document.getElementById('rescheduleModal').classList.remove('hidden');
-}
-
-function closeRescheduleModal() {
-    document.getElementById('rescheduleModal').classList.add('hidden');
-}
-
-function submitReschedule() {
-    var date = document.getElementById('rescheduleDate').value;
-    var time = document.getElementById('rescheduleTime').value;
-    var reason = document.getElementById('rescheduleReason').value.trim();
-    if (!date) {
-        document.getElementById('rescheduleError').textContent = 'يرجى اختيار التاريخ';
-        document.getElementById('rescheduleError').classList.remove('hidden');
-        return;
-    }
-    fetch('/api/v1/sessions/' + currentSessionId + '/reschedule/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken(),
-        },
-        body: JSON.stringify({ proposed_date: date, proposed_time: time || null, reason: reason }),
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.success === false) {
-            document.getElementById('rescheduleError').textContent = data.message || 'حدث خطأ';
-            document.getElementById('rescheduleError').classList.remove('hidden');
-            return;
-        }
-        window.dispatchEvent(new CustomEvent('showToast', {
-            detail: { message: 'تم تعديل موعد الحصة', type: 'success' }
-        }));
-        closeRescheduleModal();
-        location.reload();
-    })
-    .catch(function() {
-        document.getElementById('rescheduleError').textContent = 'حدث خطأ في الاتصال';
-        document.getElementById('rescheduleError').classList.remove('hidden');
-    });
-}
-</script>
 {% endblock %}
 {% endblock %}

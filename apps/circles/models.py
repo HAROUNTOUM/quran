@@ -51,6 +51,7 @@ class Circle(models.Model):
 class CircleEnrollment(models.Model):
 
     class Status(models.TextChoices):
+        PENDING = 'pending', 'قيد الانتظار'
         ACTIVE = 'active', 'نشط'
         INACTIVE = 'inactive', 'منتهي'
         DROPPED = 'dropped', 'منسحب'
@@ -158,7 +159,8 @@ class Session(models.Model):
         now = timezone.now()
         delta = session_start - now
         session_duration = timedelta(minutes=self.duration_minutes or 60)
-        return -session_duration <= delta <= timedelta(minutes=15)
+        early_offset = timedelta(minutes=15) if self.is_online else timedelta(minutes=0)
+        return -session_duration <= delta <= early_offset
 
 
 class SessionRescheduleRequest(models.Model):
@@ -190,6 +192,27 @@ class SessionRescheduleRequest(models.Model):
 
     def __str__(self):
         return f"تعديل {self.session} ← {self.proposed_date}"
+
+
+class SessionTurn(models.Model):
+    session = models.ForeignKey(
+        Session, on_delete=models.CASCADE, related_name="turns"
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="session_turns",
+    )
+    turn_number = models.PositiveIntegerField("رقم الدور")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("session", "turn_number")
+        ordering = ["turn_number"]
+        verbose_name = "دور تسميع"
+        verbose_name_plural = "أدوار التسميع"
+
+    def __str__(self):
+        return f"{self.student.full_name_ar} — {self.session} (#{self.turn_number})"
 
 
 class SessionLessonToggle(models.Model):

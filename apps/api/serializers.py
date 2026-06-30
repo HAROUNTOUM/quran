@@ -252,9 +252,10 @@ class CircleEnrollSerializer(serializers.Serializer):
         student = data["student_id"]
 
         if CircleEnrollment.objects.filter(
-            circle=circle, student=student, status=CircleEnrollment.Status.ACTIVE
+            circle=circle, student=student,
+            status__in=[CircleEnrollment.Status.ACTIVE, CircleEnrollment.Status.PENDING]
         ).exists():
-            raise DRFValidationError("الطالب مسجل بالفعل في هذه الحلقة")
+            raise DRFValidationError("الطالب مسجل بالفعل أو لديه طلب انتظار في هذه الحلقة")
 
         if CircleEnrollment.objects.filter(
             student=student, status=CircleEnrollment.Status.ACTIVE

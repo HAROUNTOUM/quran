@@ -1,335 +1,29 @@
 import json
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, logout
+from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
-from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import transaction
-from django.db.models import Count, Q, Sum, F, FloatField, IntegerField, ExpressionWrapper, Avg, Case, When, Value, Prefetch
+from django.http import HttpResponse
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count, Q, Sum, F, FloatField, ExpressionWrapper, Avg
 from django.core.paginator import Paginator
 from datetime import date, timedelta
 from django.utils import timezone
 
-from .models import User, TeacherAbsence, TeacherSubstitution, SessionSubstitution
-from .forms import LoginForm, SignupForm, ApprovalForm, ProfileForm
+from apps.accounts.models import User, TeacherAbsence, TeacherSubstitution
+from apps.accounts.forms import SignupForm, ApprovalForm
 
 from apps.circles.models import Circle, CircleEnrollment, Session
 from apps.attendance.models import Attendance
 from apps.requests.models import SupportRequest
 from apps.announcements.models import Announcement
 from apps.notifications.models import Notification
-
-from apps.memorization.models import MemorizationProgress, RecitationGrade, StudentAchievement, ReviewRequest, ProgressLog
-from apps.circles.models import SessionRescheduleRequest
-from apps.exams.models import Exam, ExamMark, ExamNotification, ExamApprovalHistory
+from apps.memorization.models import MemorizationProgress, RecitationGrade
+from apps.exams.models import Exam, ExamMark
 from apps.certificates.models import Certificate
-from apps.references.models import Surah, EvaluationCriterion, Juz
-from apps.references.utils import ayahs_to_juz_quarters, format_juz_quarters, ayahs_to_hizb_quarters, format_hizb_quarters
-
-
-def landing_page(request):
-    if request.user.is_authenticated:
-        return redirect("accounts:dashboard")
-    return render(request, "landing.html")
-
-
-def login_view(request):
-    if request.user.is_authenticated:
-        return redirect("accounts:dashboard")
-
-    is_htmx = bool(getattr(request, "htmx", None))
-    error_message = None
-
-    if request.method == "POST":
-        form = LoginForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data["email"]
-            password = form.cleaned_data["password"]
-
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                user = None
-
-            if user and user.check_password(password):
-                if user.is_approved == User.ApprovalStatus.PENDING:
-                    return render(request, "accounts/partials/auth_message.html", {
-                        "type": "error",
-                        "message": "حسابك قيد المراجعة. يرجى الانتظار حتى يتم اعتمادك.",
-                    }, status=403)
-                if user.is_approved == User.ApprovalStatus.REJECTED:
-                    reason = user.rejection_reason or "لم يتم تحديد سبب"
-                    return render(request, "accounts/partials/auth_message.html", {
-                        "type": "error",
-                        "message": f"عذراً، لم يتم اعتماد حسابك. السبب: {reason}",
-                    }, status=403)
-                if not user.is_active:
-                    return render(request, "accounts/partials/auth_message.html", {
-                        "type": "error",
-                        "message": "حسابك معطّل. تواصل مع الإدارة.",
-                    }, status=403)
-
-                login(request, user)
-                next_url = request.POST.get("next", "/dashboard/")
-                if is_htmx:
-                    return HttpResponse(headers={"HX-Redirect": next_url})
-                return redirect(next_url)
-            else:
-                error_message = "البريد الإلكتروني أو كلمة المرور غير صحيحة"
-                form.add_error(None, error_message)
-        else:
-            error_message = "يرجى تصحيح الأخطاء أدناه"
-
-        if is_htmx:
-            return render(request, "accounts/partials/login_form.html", {"form": form}, status=400)
-
-    else:
-        form = LoginForm()
-
-    return render(request, "accounts/login_page.html", {
-        "form": form,
-        "error_message": error_message,
-    })
-
-
-def signup_view(request):
-    if request.user.is_authenticated:
-        return redirect("accounts:dashboard")
-
-    if request.method == "POST":
-        form = SignupForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            is_htmx = getattr(request, "htmx", None)
-            if is_htmx:
-                return render(request, "accounts/partials/auth_message.html", {
-                    "type": "success",
-                    "message": "تم تسجيل حسابك بنجاح! سيتم مراجعته من قبل الإدارة.",
-                    "show_login_link": True,
-                })
-            return render(request, "accounts/login_page.html", {
-                "form": LoginForm(),
-                "signup_success": True,
-            })
-        else:
-            is_htmx = getattr(request, "htmx", None)
-            if is_htmx:
-                return render(request, "accounts/partials/signup_form.html", {"form": form}, status=400)
-
-    else:
-        form = SignupForm()
-
-    return render(request, "accounts/signup_page.html", {"form": form})
-
-
-def logout_view(request):
-    logout(request)
-    return redirect("accounts:landing")
-
-
-@login_required
-def dashboard_redirect(request):
-    if request.user.role == User.Role.ADMIN:
-        return redirect("accounts:admin_dashboard")
-    if request.user.role == User.Role.SUPERVISOR:
-        return redirect("accounts:admin_dashboard")
-    if request.user.role == User.Role.TEACHER:
-        return redirect("accounts:teacher_dashboard")
-    if request.user.role == User.Role.STUDENT:
-        return redirect("accounts:student_dashboard")
-    return redirect("accounts:landing")
-
-
-# ─── Student: Dashboard ─────────────────────────
-
-@login_required
-def student_dashboard(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-
-    enrollments = CircleEnrollment.objects.filter(
-        student=request.user, status=CircleEnrollment.Status.ACTIVE
-    ).select_related('circle', 'circle__teacher', 'current_surah')
-    circle_ids = [en.circle_id for en in enrollments]
-
-    recent_attendance = Attendance.objects.filter(
-        student=request.user
-    ).select_related('session__circle').order_by('-session__session_date')[:5]
-
-    att_counts = Attendance.objects.filter(student=request.user).aggregate(
-        present=Sum(Case(When(status__in=['present', 'late', 'left_early'], then=1), default=0, output_field=IntegerField())),
-        absent=Sum(Case(When(status='absent', then=1), default=0, output_field=IntegerField())),
-        total=Count('id'),
-    )
-    present_count = att_counts['present'] or 0
-    total_attendance = att_counts['total'] or 0
-    attendance_rate = round(present_count / total_attendance * 100, 1) if total_attendance else 0
-    absent_count = att_counts['absent'] or 0
-
-    memo_counts = MemorizationProgress.objects.filter(
-        enrollment__student=request.user
-    ).values('type').annotate(cnt=Count('id'))
-    hifz_count = next((m['cnt'] for m in memo_counts if m['type'] == 'hifz'), 0)
-    murajaa_count = next((m['cnt'] for m in memo_counts if m['type'] == 'murajaa'), 0)
-
-    recent_announcements = Announcement.objects.all().order_by('-created_at')[:5]
-
-    upcoming_sessions = Session.objects.filter(
-        circle_id__in=circle_ids, session_date__gte=date.today()
-    ).select_related('circle').order_by('session_date', 'session_time')[:5]
-
-    pending_review_count = ReviewRequest.objects.filter(
-        student=request.user, status=ReviewRequest.Status.PENDING
-    ).count()
-
-    unread_notif_count = Notification.objects.filter(
-        recipient=request.user, is_read=False
-    ).count()
-
-    recent_certificates = Certificate.objects.filter(
-        student=request.user, status="issued",
-    ).select_related("template").order_by("-issue_date")[:3]
-
-    return render(request, 'dashboard/student/home.html', {
-        'circles': [en.circle for en in enrollments],
-        'enrollments': enrollments,
-        'recent_attendance': recent_attendance,
-        'attendance_rate': attendance_rate,
-        'present_count': present_count,
-        'total_attendance': total_attendance,
-        'absent_count': absent_count,
-        'hifz_count': hifz_count,
-        'murajaa_count': murajaa_count,
-        'recent_announcements': recent_announcements,
-        'upcoming_sessions': upcoming_sessions,
-        'pending_review_count': pending_review_count,
-        'unread_notif_count': unread_notif_count,
-        'recent_certificates': recent_certificates,
-    })
-
-
-@login_required
-def student_circles(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-
-    enrolled_ids = CircleEnrollment.objects.filter(
-        student=request.user, status=CircleEnrollment.Status.ACTIVE
-    ).values_list('circle_id', flat=True)
-
-    available_circles = Circle.objects.filter(
-        status=Circle.Status.ACTIVE
-    ).exclude(
-        id__in=enrolled_ids
-    ).select_related('teacher').annotate(
-        enrolled_count=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE))
-    )
-
-    my_enrollments = CircleEnrollment.objects.filter(
-        student=request.user, status=CircleEnrollment.Status.ACTIVE
-    ).select_related('circle', 'circle__teacher', 'current_surah')
-
-    return render(request, 'dashboard/student/circles.html', {
-        'available_circles': available_circles,
-        'my_enrollments': my_enrollments,
-    })
-
-
-@login_required
-def student_enroll_circle(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-
-    if request.method == 'POST':
-        circle = get_object_or_404(Circle, pk=pk, status=Circle.Status.ACTIVE)
-
-        if CircleEnrollment.objects.filter(
-            student=request.user, circle=circle, status=CircleEnrollment.Status.ACTIVE
-        ).exists():
-            return redirect('accounts:student_circles')
-
-        CircleEnrollment.objects.create(
-            circle=circle,
-            student=request.user,
-            status=CircleEnrollment.Status.ACTIVE,
-        )
-
-        return redirect('accounts:student_circles')
-
-    return redirect('accounts:student_circles')
-
-
-@login_required
-def student_memorization(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-
-    enrollments = CircleEnrollment.objects.filter(
-        student=request.user, status=CircleEnrollment.Status.ACTIVE
-    ).select_related('circle', 'current_surah').prefetch_related(
-        Prefetch(
-            'memorization_progress',
-            queryset=MemorizationProgress.objects.select_related('surah'),
-        )
-    )
-
-    progress_data = []
-    for en in enrollments:
-        all_records = list(en.memorization_progress.all())
-        hifz_records = [r for r in all_records if r.type == 'hifz']
-        murajaa_records = [r for r in all_records if r.type == 'murajaa']
-
-        def sum_ayahs(records):
-            return sum((r.ayah_to - r.ayah_from + 1) for r in records)
-
-        def sum_ayahs_mastered(records):
-            return sum((r.ayah_to - r.ayah_from + 1) for r in records if r.status == 'mastered')
-
-        hifz_total = sum_ayahs(hifz_records)
-        hifz_mastered = sum_ayahs_mastered(hifz_records)
-        murajaa_total = sum_ayahs(murajaa_records)
-        murajaa_mastered = sum_ayahs_mastered(murajaa_records)
-
-        hifz_hizb, hifz_qua = ayahs_to_hizb_quarters(hifz_total)
-        hifz_mas_hizb, hifz_mas_qua = ayahs_to_hizb_quarters(hifz_mastered)
-        muj_hizb, muj_qua = ayahs_to_hizb_quarters(murajaa_total)
-        muj_mas_hizb, muj_mas_qua = ayahs_to_hizb_quarters(murajaa_mastered)
-
-        progress_data.append({
-            'enrollment': en,
-            'circle_name': en.circle.name,
-            'current_surah': en.current_surah.name_ar if en.current_surah else '—',
-            'hifz_records': hifz_records,
-            'murajaa_records': murajaa_records,
-            'hifz_total': hifz_total,
-            'hifz_mastered': hifz_mastered,
-            'hifz_progress': round(hifz_mastered / hifz_total * 100) if hifz_total else 0,
-            'hifz_hizb': hifz_hizb, 'hifz_quarters': hifz_qua,
-            'hifz_mas_hizb': hifz_mas_hizb, 'hifz_mas_quarters': hifz_mas_qua,
-            'murajaa_total': murajaa_total,
-            'murajaa_mastered': murajaa_mastered,
-            'murajaa_progress': round(murajaa_mastered / murajaa_total * 100) if murajaa_total else 0,
-            'muj_hizb': muj_hizb, 'muj_quarters': muj_qua,
-            'muj_mas_hizb': muj_mas_hizb, 'muj_mas_quarters': muj_mas_qua,
-        })
-
-    import json
-    progress_data_json = json.dumps([{
-        'hifz_total': d['hifz_total'],
-        'hifz_mastered': d['hifz_mastered'],
-        'murajaa_total': d['murajaa_total'],
-        'murajaa_mastered': d['murajaa_mastered'],
-    } for d in progress_data])
-
-    return render(request, 'dashboard/student/memorization.html', {
-        'progress_data': progress_data,
-        'progress_data_json': progress_data_json,
-    })
-
-
-# ─── Admin: Home ────────────────────────────────
+from apps.references.models import Surah, EvaluationCriterion
+from apps.references.utils import ayahs_to_juz_quarters
 
 @login_required
 def admin_dashboard(request):
@@ -431,6 +125,14 @@ def admin_dashboard(request):
 
     recent_certificates = Certificate.objects.select_related("student", "template", "issued_by").order_by("-issue_date")[:5]
 
+    # Pending circle enrollment requests
+    pending_enrollments = CircleEnrollment.objects.filter(
+        status=CircleEnrollment.Status.PENDING
+    ).select_related('student', 'circle', 'circle__teacher').order_by('enrolled_at')[:5]
+    pending_enrollment_count = CircleEnrollment.objects.filter(
+        status=CircleEnrollment.Status.PENDING
+    ).count()
+
     # Repeated absentees (absent >3 times this month)
     this_month_start = now.replace(day=1).date()
     repeated_absentees = Attendance.objects.filter(
@@ -472,6 +174,8 @@ def admin_dashboard(request):
         'rejected_count': rejected_count,
         'recent_requests': recent_requests,
         'recent_certificates': recent_certificates,
+        'pending_enrollments': pending_enrollments,
+        'pending_enrollment_count': pending_enrollment_count,
         'urgent_requests': urgent_requests,
         'today_sessions': today_sessions,
         'today_attendance': today_attendance,
@@ -480,63 +184,6 @@ def admin_dashboard(request):
         'repeated_absentees': repeated_absentees,
         'inactive_circles': inactive_circles,
     })
-
-
-@login_required
-def profile_view(request):
-    user = request.user
-
-    profile_stats = []
-    if user.role == User.Role.ADMIN:
-        profile_stats = [
-            {"label": "الطلاب المعتمدون", "value": User.objects.filter(
-                role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED
-            ).count()},
-            {"label": "المعلمون المعتمدون", "value": User.objects.filter(
-                role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED
-            ).count()},
-            {"label": "الحلقات النشطة", "value": Circle.objects.filter(status=Circle.Status.ACTIVE).count()},
-        ]
-    elif user.role == User.Role.SUPERVISOR:
-        profile_stats = [
-            {"label": "الطلاب المعتمدون", "value": User.objects.filter(
-                role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED
-            ).count()},
-            {"label": "الحلقات النشطة", "value": Circle.objects.filter(status=Circle.Status.ACTIVE).count()},
-        ]
-    elif user.role == User.Role.TEACHER:
-        profile_stats = [
-            {"label": "حلقات التدريس", "value": Circle.objects.filter(teacher=user).count()},
-            {"label": "طلبات الغياب", "value": TeacherAbsence.objects.filter(teacher=user).count()},
-        ]
-    else:
-        profile_stats = [
-            {"label": "الحلقات المسجّل بها", "value": CircleEnrollment.objects.filter(student=user).count()},
-        ]
-
-    return render(request, "dashboard/profile.html", {
-        "profile_user": user,
-        "profile_stats": profile_stats,
-        "recent_login": user.last_login,
-    })
-
-
-@login_required
-def profile_edit_view(request):
-    form = ProfileForm(instance=request.user, data=request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "تم تحديث ملفك الشخصي بنجاح")
-        return redirect("accounts:profile")
-
-    return render(request, "dashboard/profile_edit.html", {
-        "form": form,
-        "profile_user": request.user,
-    })
-
-
-# ─── Admin: Inscriptions ────────────────────────
-
 @login_required
 def admin_inscriptions(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -599,8 +246,6 @@ def admin_inscriptions(request):
         'total_students_count': total_students_count,
         'role_tab': role_tab,
     })
-
-
 @login_required
 def approve_user(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -628,8 +273,6 @@ def approve_user(request, pk):
     if toast_msg:
         response["HX-Trigger"] = json.dumps({"showToast": {"message": toast_msg, "type": "success"}})
     return response
-
-
 @login_required
 def pending_users_table(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -653,702 +296,6 @@ def pending_users_table(request):
 
     users = users.order_by("-created_at")
     return render(request, "dashboard/partials/user_rows.html", {"users": users})
-
-
-# ─── Teacher: Dashboard ─────────────────────────
-
-@login_required
-def teacher_dashboard(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-
-    circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE).annotate(
-        active_students=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
-        total_sessions=Count('sessions'),
-    )
-
-    today_sessions = Session.objects.filter(
-        circle__teacher=request.user,
-        session_date=date.today(),
-    ).select_related('circle')
-
-    recent_sessions = Session.objects.filter(
-        circle__teacher=request.user,
-    ).select_related('circle').annotate(
-        att_total=Count('attendance_records'),
-        att_present=Count('attendance_records', filter=Q(
-            attendance_records__status__in=['present', 'late', 'left_early']
-        )),
-    ).order_by('-session_date', '-created_at')[:20]
-
-    return render(request, 'dashboard/teacher/home.html', {
-        'circles': circles,
-        'today_sessions': today_sessions,
-        'recent_sessions': recent_sessions,
-    })
-
-
-@login_required
-def teacher_session_attendance(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR, User.Role.TEACHER):
-        raise PermissionDenied
-
-    sessions = Session.objects.select_related('circle')
-    if request.user.role == User.Role.TEACHER:
-        sessions = sessions.filter(circle__teacher=request.user)
-
-    session = get_object_or_404(sessions, pk=pk)
-
-    students = User.objects.filter(
-        enrollments__circle=session.circle,
-        enrollments__status=CircleEnrollment.Status.ACTIVE,
-    ).order_by('full_name_ar')
-
-    existing_attendance = {
-        str(a.student_id): a.status
-        for a in Attendance.objects.filter(session=session)
-    }
-
-    criteria = EvaluationCriterion.objects.filter(is_active=True)
-    existing_grades = {}
-    for g in RecitationGrade.objects.filter(session=session).select_related('criterion'):
-        key = (str(g.student_id), g.criterion_id)
-        existing_grades[key] = g.score
-
-    # Build student rows with pre-processed data
-    student_rows = []
-    for student in students:
-        sid = str(student.id)
-        grade_cells = []
-        for c in criteria:
-            grade_cells.append({
-                'criterion_id': c.id,
-                'score': existing_grades.get((sid, c.id), ''),
-            })
-        student_rows.append({
-            'student_id': sid,
-            'student_name': student.full_name_ar,
-            'attendance': existing_attendance.get(sid, ''),
-            'grades': grade_cells,
-        })
-
-    attendance_choices = Attendance.Status.choices
-
-    if request.method == 'POST':
-        for student in students:
-            sid = str(student.id)
-            status_val = request.POST.get(f'attendance_{sid}')
-            if status_val and status_val in dict(Attendance.Status.choices):
-                Attendance.objects.update_or_create(
-                    session=session,
-                    student=student,
-                    defaults={'status': status_val},
-                )
-
-            for criterion in criteria:
-                score_key = f'grade_{sid}_{criterion.id}'
-                score_val = request.POST.get(score_key)
-                if score_val is not None and score_val != '':
-                    try:
-                        score = float(score_val)
-                        max_score = float(request.POST.get(f'max_{sid}_{criterion.id}', 100))
-                        RecitationGrade.objects.update_or_create(
-                            session=session,
-                            student=student,
-                            criterion=criterion,
-                            defaults={'score': score, 'max_score': max_score},
-                        )
-                    except (ValueError, TypeError):
-                        pass
-
-        is_htmx = getattr(request, "htmx", None)
-        if is_htmx or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return render(request, 'dashboard/teacher/partials/attendance_form.html', {
-                'session': session,
-                'student_rows': student_rows,
-                'criteria': criteria,
-                'attendance_choices': attendance_choices,
-            })
-
-        return redirect('accounts:teacher_session_attendance', pk=pk)
-
-    return render(request, 'dashboard/teacher/session_attendance.html', {
-        'session': session,
-        'student_rows': student_rows,
-        'criteria': criteria,
-        'attendance_choices': attendance_choices,
-    })
-
-
-@login_required
-def teacher_session_create(request, circle_pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-
-    circle = get_object_or_404(
-        Circle, pk=circle_pk, teacher=request.user, status=Circle.Status.ACTIVE,
-    )
-
-    if request.method == 'POST':
-        from datetime import datetime
-        session_date_str = request.POST.get('session_date', '')
-        if session_date_str:
-            try:
-                session_date = datetime.strptime(session_date_str, '%Y-%m-%d').date()
-            except ValueError:
-                session_date = date.today()
-        else:
-            session_date = date.today()
-
-        session_time_str = request.POST.get('session_time', '').strip()
-        session_time = None
-        if session_time_str:
-            try:
-                session_time = datetime.strptime(session_time_str, '%H:%M').time()
-            except ValueError:
-                pass
-
-        location = request.POST.get("location", "")
-
-        session, created = Session.objects.get_or_create(
-            circle=circle,
-            session_date=session_date,
-            defaults={
-                "session_time": session_time,
-                "session_type": request.POST.get("session_type", Session.Type.IN_PERSON),
-                "location": location,
-                "meeting_url": request.POST.get("meeting_url", ""),
-                "meeting_platform": request.POST.get("meeting_platform", ""),
-                "meeting_id": request.POST.get("meeting_id", ""),
-                "meeting_password": request.POST.get("meeting_password", ""),
-                "duration_minutes": request.POST.get("duration_minutes") or None,
-                "notes": request.POST.get("notes", ""),
-            },
-        )
-        if not created:
-            if session_time_str:
-                session.session_time = session_time
-            session.session_type = request.POST.get("session_type", session.session_type)
-            session.location = location or session.location
-            session.meeting_url = request.POST.get("meeting_url", session.meeting_url)
-            session.meeting_platform = request.POST.get("meeting_platform", session.meeting_platform)
-            session.meeting_id = request.POST.get("meeting_id", session.meeting_id)
-            session.meeting_password = request.POST.get("meeting_password", session.meeting_password)
-            session.duration_minutes = request.POST.get("duration_minutes") or session.duration_minutes
-            session.notes = request.POST.get("notes", session.notes)
-            session.save()
-            messages.success(request, "تم تحديث الحصة")
-        return redirect('accounts:teacher_circle_detail', pk=circle_pk)
-
-    return render(request, 'dashboard/teacher/session_create.html', {
-        'circle': circle,
-        'today': date.today(),
-        'circle_schedule_time': circle.schedule_time,
-    })
-
-
-# ─── Teacher: Session Management ──────────────
-
-@login_required
-def teacher_session_manage(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-
-    circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE).annotate(
-        active_students=Count("enrollments", filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
-        total_sessions=Count("sessions"),
-        recent_sessions=Count("sessions", filter=Q(sessions__session_date__gte=date.today() - timedelta(days=30))),
-        pending_reviews=Count("enrollments__memorization_progress", filter=Q(
-            enrollments__memorization_progress__status=MemorizationProgress.Status.MEMORIZING,
-        )),
-    )
-
-    all_pending = sum(c.pending_reviews for c in circles)
-    total_students = sum(c.active_students for c in circles)
-    total_sessions = sum(c.total_sessions for c in circles)
-
-    recent_sessions = Session.objects.filter(
-        circle__teacher=request.user,
-    ).select_related("circle").order_by("-session_date", "-session_time")[:10]
-
-    return render(request, "dashboard/teacher/session_manage.html", {
-        "circles": circles,
-        "total_circles": len(circles),
-        "total_students": total_students,
-        "total_sessions": total_sessions,
-        "all_pending": all_pending,
-        "recent_sessions": recent_sessions,
-    })
-
-
-@login_required
-def teacher_session_progress(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-
-    circle = get_object_or_404(
-        Circle.objects.annotate(
-            active_students=Count("enrollments", filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
-        ),
-        pk=pk, teacher=request.user, status=Circle.Status.ACTIVE,
-    )
-
-    progress = MemorizationProgress.objects.filter(
-        enrollment__circle=circle,
-        enrollment__status=CircleEnrollment.Status.ACTIVE,
-    ).select_related("surah", "enrollment__student").order_by("-created_at")
-
-    students = User.objects.filter(
-        enrollments__circle=circle,
-        enrollments__status=CircleEnrollment.Status.ACTIVE,
-        role=User.Role.STUDENT,
-    ).order_by("full_name_ar")
-
-    # Build weekly progress data for chart
-    weekly_data = []
-    for i in range(8, 0, -1):
-        week_start = date.today() - timedelta(days=i * 7)
-        week_end = date.today() - timedelta(days=(i - 1) * 7)
-        week_progress = MemorizationProgress.objects.filter(
-            enrollment__circle=circle,
-            created_at__date__gte=week_start,
-            created_at__date__lt=week_end,
-        )
-        weekly_data.append({
-            "week": f"الأسبوع {9 - i}",
-            "hifz": week_progress.filter(type=MemorizationProgress.Type.HIFZ).count(),
-            "murajaa": week_progress.filter(type=MemorizationProgress.Type.MURAJAA).count(),
-            "mastered": week_progress.filter(status=MemorizationProgress.Status.MASTERED).count(),
-        })
-
-    mastered_count = progress.filter(status=MemorizationProgress.Status.MASTERED).count()
-
-    sessions_list = Session.objects.filter(circle=circle).order_by("-session_date")[:20]
-    surahs = Surah.objects.all().order_by("id")
-
-    return render(request, "dashboard/teacher/session_progress.html", {
-        "circle": circle,
-        "students": students,
-        "progress": progress,
-        "mastered_count": mastered_count,
-        "weekly_data": json.dumps(weekly_data, ensure_ascii=False),
-        "sessions_list": sessions_list,
-        "surahs": surahs,
-    })
-
-
-@login_required
-def teacher_toggle_lesson(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    if request.method != "POST":
-        return JsonResponse({"success": False, "error": "طلب غير صالح"}, status=400)
-    progress = get_object_or_404(
-        MemorizationProgress.objects.select_related("enrollment__circle"),
-        pk=pk,
-        enrollment__circle__teacher=request.user,
-    )
-    new_status = request.POST.get("status", "")
-    if new_status in dict(MemorizationProgress.Status.choices):
-        progress.status = new_status
-        progress.save(update_fields=["status", "updated_at"])
-        return JsonResponse({"success": True, "status": progress.status, "label": progress.get_status_display()})
-    return JsonResponse({"success": False, "error": "حالة غير صالحة"}, status=400)
-
-
-# ─── Teacher: Absence Requests ────────────────
-
-@login_required
-def teacher_absence_create(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    if request.method == "POST":
-        start_date_str = request.POST.get("start_date", "")
-        end_date_str = request.POST.get("end_date", "")
-        reason = request.POST.get("reason", "")
-        if start_date_str and end_date_str and reason:
-            TeacherAbsence.objects.create(
-                teacher=request.user,
-                start_date=start_date_str,
-                end_date=end_date_str,
-                reason=reason,
-            )
-            messages.success(request, "تم إرسال طلب الغياب بنجاح")
-            return redirect("accounts:teacher_absence_list")
-        messages.error(request, "يرجى ملء جميع الحقول المطلوبة")
-    return render(request, "dashboard/teacher/absence_create.html")
-
-
-@login_required
-def teacher_absence_list(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    absences = TeacherAbsence.objects.filter(teacher=request.user)
-    return render(request, "dashboard/teacher/absence_list.html", {
-        "absences": absences,
-    })
-
-
-# ─── Teacher: Circles, Students, Progress ─────
-
-@login_required
-def teacher_circle_detail(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    circle = get_object_or_404(
-        Circle.objects.annotate(
-            active_students_count=Count("enrollments", filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
-            sessions_count=Count("sessions"),
-        ),
-        pk=pk, teacher=request.user, status=Circle.Status.ACTIVE,
-    )
-    students = User.objects.filter(
-        enrollments__circle=circle,
-        enrollments__status=CircleEnrollment.Status.ACTIVE,
-        role=User.Role.STUDENT,
-    ).order_by("full_name_ar")
-    from apps.attendance.models import SessionAttendanceIntent
-    sessions = Session.objects.filter(circle=circle).select_related("circle").annotate(
-        att_total=Count("attendance_records"),
-        att_present=Count("attendance_records", filter=Q(
-            attendance_records__status__in=["present", "late", "left_early"]
-        )),
-        intent_attending=Count("attendance_intents", filter=Q(
-            attendance_intents__intent=SessionAttendanceIntent.Intent.ATTENDING,
-        )),
-        intent_absent=Count("attendance_intents", filter=Q(
-            attendance_intents__intent=SessionAttendanceIntent.Intent.ABSENT,
-        )),
-    ).order_by("-session_date", "-created_at")[:30]
-    return render(request, "dashboard/teacher/circle_detail.html", {
-        "circle": circle,
-        "students": students,
-        "sessions": sessions,
-    })
-
-
-@login_required
-def teacher_students(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE)
-    students = User.objects.filter(
-        enrollments__circle__in=circles,
-        enrollments__status=CircleEnrollment.Status.ACTIVE,
-        role=User.Role.STUDENT,
-    ).distinct().order_by("full_name_ar")
-    search = request.GET.get("search", "")
-    circle_filter = request.GET.get("circle", "")
-    if search:
-        students = students.filter(
-            Q(full_name_ar__icontains=search) | Q(email__icontains=search) | Q(phone__icontains=search)
-        )
-    if circle_filter:
-        students = students.filter(enrollments__circle_id=circle_filter)
-    return render(request, "dashboard/teacher/students.html", {
-        "students": students,
-        "circles": circles,
-    })
-
-
-@login_required
-def teacher_student_progress(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
-    circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE)
-    if not CircleEnrollment.objects.filter(
-        student=student, circle__in=circles, status=CircleEnrollment.Status.ACTIVE
-    ).exists():
-        raise PermissionDenied
-    progress = MemorizationProgress.objects.filter(
-        enrollment__student=student,
-        enrollment__circle__in=circles,
-    ).select_related("surah", "enrollment__circle").order_by("-created_at")
-    stats = progress.aggregate(
-        total=Count("id"),
-        hifz=Count("id", filter=Q(type=MemorizationProgress.Type.HIFZ)),
-        murajaa=Count("id", filter=Q(type=MemorizationProgress.Type.MURAJAA)),
-        mastered=Count("id", filter=Q(status=MemorizationProgress.Status.MASTERED)),
-    )
-    achievement, _ = StudentAchievement.objects.get_or_create(student=student)
-    return render(request, "dashboard/teacher/student_progress.html", {
-        "student": student,
-        "progress": progress,
-        "stats": stats,
-        "achievement": achievement,
-    })
-
-
-# ─── Teacher: Announcements ─────────────────────
-
-@login_required
-def teacher_announcements(request):
-    if request.user.role not in (User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
-    search = request.GET.get("search", "")
-    announcements = Announcement.objects.select_related("author").order_by("-created_at")
-    if search:
-        announcements = announcements.filter(Q(title__icontains=search) | Q(body__icontains=search))
-    paginator = Paginator(announcements, 15)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/teacher/announcements.html", {
-        "announcements": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-# ─── Teacher: Support Requests ──────────────────
-
-@login_required
-def teacher_requests(request):
-    if request.user.role not in (User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
-    qs = SupportRequest.objects.filter(submitted_by=request.user).select_related("submitted_by").order_by("-created_at")
-    paginator = Paginator(qs, 15)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/teacher/requests.html", {
-        "requests": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-@login_required
-def teacher_request_create(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        body = request.POST.get("body", "").strip()
-        req_type = request.POST.get("type", "other")
-        priority = request.POST.get("priority", "normal")
-        if not title or not body:
-            return render(request, "dashboard/teacher/request_create.html", {
-                "error": "يرجى ملء جميع الحقول المطلوبة",
-                "form_data": request.POST,
-            })
-        SupportRequest.objects.create(
-            submitted_by=request.user,
-            title=title,
-            body=body,
-            type=req_type,
-            priority=priority,
-        )
-        messages.success(request, "تم إرسال الطلب بنجاح")
-        return redirect("accounts:teacher_requests")
-    return render(request, "dashboard/teacher/request_create.html")
-
-
-# ─── Teacher: Notifications ─────────────────────
-
-@login_required
-def teacher_notifications(request):
-    if request.user.role not in (User.Role.TEACHER, User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
-    from apps.notifications.models import Notification
-    qs = Notification.objects.filter(recipient=request.user).order_by("-created_at")
-    notif_type = request.GET.get("type", "")
-    if notif_type:
-        qs = qs.filter(type=notif_type)
-    is_read = request.GET.get("is_read", "")
-    if is_read in ("true", "false"):
-        qs = qs.filter(is_read=(is_read == "true"))
-    paginator = Paginator(qs, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/teacher/notifications.html", {
-        "notifications": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-# ─── Teacher: Review Requests ────────────────────
-
-@login_required
-def teacher_review_requests(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    review_requests = ReviewRequest.objects.filter(
-        circle__teacher=request.user,
-    ).select_related("student", "circle", "surah").order_by("-created_at")
-    status_filter = request.GET.get("status", "")
-    if status_filter:
-        review_requests = review_requests.filter(status=status_filter)
-    paginator = Paginator(review_requests, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/teacher/review_requests.html", {
-        "requests": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-# ─── Teacher: Reschedule Requests ────────────────
-
-@login_required
-def teacher_reschedule_requests(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    reschedule_reqs = SessionRescheduleRequest.objects.filter(
-        session__circle__teacher=request.user,
-    ).select_related("session__circle", "requested_by").order_by("-created_at")
-    status_filter = request.GET.get("status", "")
-    if status_filter:
-        reschedule_reqs = reschedule_reqs.filter(status=status_filter)
-    paginator = Paginator(reschedule_reqs, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/teacher/reschedule_requests.html", {
-        "requests": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-# ─── Teacher: Session Detail ──────────────────────
-
-@login_required
-def teacher_session_detail(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    session = get_object_or_404(
-        Session.objects.select_related("circle__teacher"),
-        pk=pk, circle__teacher=request.user,
-    )
-    students = User.objects.filter(
-        enrollments__circle=session.circle,
-        enrollments__status=CircleEnrollment.Status.ACTIVE,
-        role=User.Role.STUDENT,
-    ).order_by("full_name_ar")
-
-    attendance_records = {
-        str(a.student_id): a
-        for a in Attendance.objects.filter(session=session).select_related("student")
-    }
-
-    student_attendance = []
-    for student in students:
-        att = attendance_records.get(str(student.id))
-        student_attendance.append({
-            "student": student,
-            "attendance": att,
-        })
-
-    present_count = sum(1 for a in attendance_records.values() if a.status in ["present", "late", "left_early"])
-    absent_count = sum(1 for a in attendance_records.values() if a.status == "absent")
-    excused_count = sum(1 for a in attendance_records.values() if a.status == "excused")
-
-    return render(request, "dashboard/teacher/session_detail.html", {
-        "session": session,
-        "student_attendance": student_attendance,
-        "present_count": present_count,
-        "absent_count": absent_count,
-        "excused_count": excused_count,
-        "total_students": len(students),
-    })
-
-
-# ─── Teacher: Session Edit / Delete ─────────────
-
-@login_required
-def teacher_session_edit(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    session = get_object_or_404(
-        Session.objects.select_related("circle"),
-        pk=pk, circle__teacher=request.user,
-    )
-    if request.method == 'POST':
-        from datetime import datetime
-        session_date_str = request.POST.get('session_date', '')
-        if session_date_str:
-            try:
-                session.session_date = datetime.strptime(session_date_str, '%Y-%m-%d').date()
-            except ValueError:
-                pass
-        session_time_str = request.POST.get('session_time', '').strip()
-        if session_time_str:
-            try:
-                session.session_time = datetime.strptime(session_time_str, '%H:%M').time()
-            except ValueError:
-                pass
-        session.session_type = request.POST.get("session_type", session.session_type)
-        session.location = request.POST.get("location", session.location)
-        session.meeting_url = request.POST.get("meeting_url", session.meeting_url)
-        session.meeting_platform = request.POST.get("meeting_platform", session.meeting_platform)
-        session.meeting_id = request.POST.get("meeting_id", session.meeting_id)
-        session.meeting_password = request.POST.get("meeting_password", session.meeting_password)
-        session.duration_minutes = request.POST.get("duration_minutes") or session.duration_minutes
-        session.notes = request.POST.get("notes", session.notes)
-        session.save()
-        messages.success(request, "تم تحديث الحصة بنجاح")
-        return redirect('accounts:teacher_circle_detail', pk=session.circle_id)
-    return render(request, 'dashboard/teacher/session_create.html', {
-        'circle': session.circle,
-        'session': session,
-        'today': date.today(),
-        'circle_schedule_time': session.circle.schedule_time,
-    })
-
-
-@login_required
-def teacher_session_delete(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    session = get_object_or_404(
-        Session.objects.select_related("circle"),
-        pk=pk, circle__teacher=request.user,
-    )
-    if request.method == "POST":
-        circle_id = session.circle_id
-        session.delete()
-        messages.success(request, "تم حذف الحصة بنجاح")
-        return redirect('accounts:teacher_circle_detail', pk=circle_id)
-    return redirect('accounts:teacher_circle_detail', pk=session.circle_id)
-
-
-# ─── Student: Session Detail ──────────────────────
-
-@login_required
-def student_session_detail(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    session = get_object_or_404(Session.objects.select_related("circle"), pk=pk)
-    if not CircleEnrollment.objects.filter(
-        student=request.user, circle=session.circle, status=CircleEnrollment.Status.ACTIVE
-    ).exists():
-        raise PermissionDenied
-
-    attendance = Attendance.objects.filter(session=session, student=request.user).first()
-
-    return render(request, "dashboard/student/session_detail.html", {
-        "session": session,
-        "attendance": attendance,
-        "can_justify": attendance and attendance.status in ("absent", "pending_justification"),
-    })
-
-
-# ─── Teacher: Absence Justifications ──────────────
-
-@login_required
-def teacher_absence_justifications(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    from apps.attendance.models import Attendance
-    justifications = Attendance.objects.filter(
-        session__circle__teacher=request.user,
-    ).filter(
-        Q(justification__gt="") | Q(status=Attendance.Status.PENDING_JUSTIFICATION)
-    ).select_related("student", "session__circle", "reviewed_by").order_by("-updated_at")
-    status_filter = request.GET.get("status", "")
-    if status_filter:
-        justifications = justifications.filter(status=status_filter)
-    paginator = Paginator(justifications, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/teacher/absence_justifications.html", {
-        "justifications": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-# ─── Admin: Absence Management ─────────────────
-
 @login_required
 def admin_teacher_absences(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1373,8 +320,6 @@ def admin_teacher_absences(request):
         "approved_count": approved_count,
         "rejected_count": rejected_count,
     })
-
-
 @login_required
 def admin_absence_manage(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1423,8 +368,6 @@ def admin_absence_manage(request, pk):
         "teachers": teachers,
         "circles": circles_with_sub,
     })
-
-
 @login_required
 def admin_active_substitutions(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1444,10 +387,6 @@ def admin_active_substitutions(request):
         "absences": active_absences,
         "substitutions": substitutions,
     })
-
-
-# ─── Admin: Teachers ────────────────────────────
-
 @login_required
 def admin_teachers(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1492,8 +431,6 @@ def admin_teachers(request):
         'active_circles_count': active_circles_count,
         'circles': circles,
     })
-
-
 @login_required
 def admin_students(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1540,8 +477,6 @@ def admin_students(request):
         'inactive_students': inactive_students,
         'circles': circles,
     })
-
-
 @login_required
 def admin_student_detail(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1594,8 +529,6 @@ def admin_student_detail(request, pk):
         "mas_juz": mas_juz, "mas_quarters": mas_qua,
         "recent_attendance": recent_attendance,
     })
-
-
 @login_required
 def admin_student_toggle_status(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1604,8 +537,6 @@ def admin_student_toggle_status(request, pk):
     student.is_active = not student.is_active
     student.save(update_fields=["is_active"])
     return redirect("accounts:admin_student_detail", pk=pk)
-
-
 @login_required
 def admin_student_create(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1844,10 +775,6 @@ def _export_list_excel(request, title, headers, rows, filename):
     response["Content-Disposition"] = f'attachment; filename="{filename}.xlsx"'
     wb.save(response)
     return response
-
-
-# ─── Export: Students ──────────────────────────────
-
 @login_required
 def admin_students_export_pdf(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1858,8 +785,6 @@ def admin_students_export_pdf(request):
              s.enrollments.filter(status=CircleEnrollment.Status.ACTIVE).count(),
              "نشط" if s.is_active else "غير نشط"] for s in students]
     return _export_list_pdf(request, "قائمة الطلاب", headers, rows, "students_list")
-
-
 @login_required
 def admin_students_export_excel(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1870,10 +795,6 @@ def admin_students_export_excel(request):
              s.enrollments.filter(status=CircleEnrollment.Status.ACTIVE).count(),
              "نشط" if s.is_active else "غير نشط"] for s in students]
     return _export_list_excel(request, "قائمة الطلاب", headers, rows, "students_list")
-
-
-# ─── Export: Teachers ──────────────────────────────
-
 @login_required
 def admin_teachers_export_pdf(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1886,8 +807,6 @@ def admin_teachers_export_pdf(request):
     rows = [[t.full_name_ar, t.email, t.phone, t.circles_count, t.students_count,
              "نشط" if t.is_active else "غير نشط"] for t in teachers]
     return _export_list_pdf(request, "قائمة الأساتذة", headers, rows, "teachers_list")
-
-
 @login_required
 def admin_teachers_export_excel(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1900,10 +819,6 @@ def admin_teachers_export_excel(request):
     rows = [[t.full_name_ar, t.email, t.phone, t.circles_count, t.students_count,
              "نشط" if t.is_active else "غير نشط"] for t in teachers]
     return _export_list_excel(request, "قائمة الأساتذة", headers, rows, "teachers_list")
-
-
-# ─── Export: Circles ──────────────────────────────
-
 @login_required
 def admin_circles_export_pdf(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1918,8 +833,6 @@ def admin_circles_export_pdf(request):
              c.student_count, c.sessions_count,
              c.get_status_display()] for c in circles]
     return _export_list_pdf(request, "قائمة الحلقات", headers, rows, "circles_list")
-
-
 @login_required
 def admin_circles_export_excel(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1934,10 +847,6 @@ def admin_circles_export_excel(request):
              c.student_count, c.sessions_count,
              c.get_status_display()] for c in circles]
     return _export_list_excel(request, "قائمة الحلقات", headers, rows, "circles_list")
-
-
-# ─── Export: Inscriptions (pending users) ─────────
-
 @login_required
 def admin_inscriptions_export_pdf(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1947,8 +856,6 @@ def admin_inscriptions_export_pdf(request):
     rows = [[u.full_name_ar, u.email, u.get_role_display(), u.phone,
              {"male": "ذكر", "female": "أنثى"}.get(u.gender, "") if u.gender else "—", u.created_at.strftime("%Y-%m-%d")] for u in users]
     return _export_list_pdf(request, "التسجيلات الجديدة", headers, rows, "inscriptions_list")
-
-
 @login_required
 def admin_inscriptions_export_excel(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1958,8 +865,6 @@ def admin_inscriptions_export_excel(request):
     rows = [[u.full_name_ar, u.email, u.get_role_display(), u.phone,
              {"male": "ذكر", "female": "أنثى"}.get(u.gender, "") if u.gender else "—", u.created_at.strftime("%Y-%m-%d")] for u in users]
     return _export_list_excel(request, "التسجيلات الجديدة", headers, rows, "inscriptions_list")
-
-
 @login_required
 def admin_teacher_detail(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -1985,7 +890,6 @@ def admin_teacher_detail(request, pk):
         "circle"
     ).order_by("-session_date")[:5]
 
-    from apps.notifications.models import Notification
     recent_notifications = Notification.objects.filter(recipient=teacher).order_by("-created_at")[:5]
 
     return render(request, "dashboard/teachers/detail.html", {
@@ -1998,8 +902,6 @@ def admin_teacher_detail(request, pk):
         "recent_sessions": recent_sessions,
         "recent_notifications": recent_notifications,
     })
-
-
 @login_required
 def admin_teacher_toggle_status(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2009,8 +911,6 @@ def admin_teacher_toggle_status(request, pk):
     teacher.is_active = not teacher.is_active
     teacher.save(update_fields=["is_active"])
     return redirect("accounts:admin_teacher_detail", pk=pk)
-
-
 @login_required
 def admin_teacher_create(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2028,8 +928,6 @@ def admin_teacher_create(request):
         form = SignupForm()
 
     return render(request, "dashboard/teachers/create.html", {"form": form})
-
-
 @login_required
 def admin_teacher_edit(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2057,10 +955,6 @@ def admin_teacher_edit(request, pk):
         "teacher": teacher,
         "circles": circles,
     })
-
-
-# ─── Admin: Supervisors ─────────────────────────
-
 @login_required
 def admin_supervisors(request):
     if request.user.role not in (User.Role.ADMIN,):
@@ -2076,8 +970,6 @@ def admin_supervisors(request):
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
     return render(request, 'dashboard/supervisors/list.html', {'supervisors': page_obj, 'page_obj': page_obj})
-
-
 @login_required
 def admin_supervisor_create(request):
     if request.user.role not in (User.Role.ADMIN,):
@@ -2095,10 +987,6 @@ def admin_supervisor_create(request):
         form = SignupForm()
 
     return render(request, "dashboard/supervisors/create.html", {"form": form})
-
-
-# ─── Admin: Circles ─────────────────────────────
-
 @login_required
 def admin_circles(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2138,8 +1026,6 @@ def admin_circles(request):
         'paused_count': paused_count,
         'inactive_count': inactive_count,
     })
-
-
 @login_required
 def admin_circle_detail(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2164,17 +1050,82 @@ def admin_circle_detail(request, pk):
                 pass
         elif action == "remove_student":
             enrollment_id = request.POST.get("enrollment_id")
-            CircleEnrollment.objects.filter(
-                pk=enrollment_id, circle=circle, status=CircleEnrollment.Status.ACTIVE
-            ).update(status=CircleEnrollment.Status.INACTIVE, left_at=timezone.now())
+            enrollment = get_object_or_404(
+                CircleEnrollment, pk=enrollment_id, circle=circle,
+                status=CircleEnrollment.Status.ACTIVE,
+            )
+            enrollment.status = CircleEnrollment.Status.INACTIVE
+            enrollment.left_at = timezone.now()
+            enrollment.save()
+            Notification.objects.create(
+                recipient=enrollment.student,
+                type=Notification.Type.SYSTEM,
+                title="تم إزالتك من الحلقة",
+                message=f"لقد تم إزالتك من حلقة {circle.name}",
+            )
+            messages.success(request, f'تم إزالة {enrollment.student.full_name_ar} من الحلقة')
+            return redirect("accounts:admin_circles")
+        elif action == "approve_enrollment":
+            enrollment_id = request.POST.get("enrollment_id")
+            enrollment = get_object_or_404(
+                CircleEnrollment, pk=enrollment_id, circle=circle,
+                status=CircleEnrollment.Status.PENDING,
+            )
+            enrollment.status = CircleEnrollment.Status.ACTIVE
+            enrollment.save()
+            Notification.objects.create(
+                recipient=enrollment.student,
+                type=Notification.Type.SYSTEM,
+                title="تم قبول طلب التسجيل",
+                message=f"تم قبول طلب تسجيلك في حلقة {circle.name}",
+                link=reverse("accounts:student_circle_detail", args=[circle.pk]),
+            )
+        elif action == "reject_enrollment":
+            enrollment_id = request.POST.get("enrollment_id")
+            enrollment = get_object_or_404(
+                CircleEnrollment, pk=enrollment_id, circle=circle,
+                status=CircleEnrollment.Status.PENDING,
+            )
+            enrollment.status = CircleEnrollment.Status.INACTIVE
+            enrollment.left_at = timezone.now()
+            enrollment.save()
+            Notification.objects.create(
+                recipient=enrollment.student,
+                type=Notification.Type.SYSTEM,
+                title="تم رفض طلب التسجيل",
+                message=f"عذراً، لم يتم قبول طلب تسجيلك في حلقة {circle.name}",
+            )
+        elif action == "reject_enrollment_with_reason":
+            enrollment_id = request.POST.get("enrollment_id")
+            reason = request.POST.get("reason", "")
+            enrollment = get_object_or_404(
+                CircleEnrollment, pk=enrollment_id, circle=circle,
+                status=CircleEnrollment.Status.PENDING,
+            )
+            enrollment.status = CircleEnrollment.Status.INACTIVE
+            enrollment.left_at = timezone.now()
+            enrollment.save()
+            msg = f"عذراً، لم يتم قبول طلب تسجيلك في حلقة {circle.name}"
+            if reason:
+                msg += f". السبب: {reason}"
+            Notification.objects.create(
+                recipient=enrollment.student,
+                type=Notification.Type.SYSTEM,
+                title="تم رفض طلب التسجيل",
+                message=msg,
+            )
         return redirect("accounts:admin_circle_detail", pk=pk)
+
+    pending_enrollments = circle.enrollments.filter(
+        status=CircleEnrollment.Status.PENDING
+    ).select_related('student').order_by('enrolled_at')
 
     active_enrollments = circle.enrollments.filter(
         status=CircleEnrollment.Status.ACTIVE
     ).select_related('student').order_by('-enrolled_at')
 
-    past_enrollments = circle.enrollments.exclude(
-        status=CircleEnrollment.Status.ACTIVE
+    past_enrollments = circle.enrollments.filter(
+        status__in=[CircleEnrollment.Status.INACTIVE, CircleEnrollment.Status.DROPPED]
     ).select_related('student').order_by('-left_at')[:10]
 
     other_circles = Circle.objects.filter(status=Circle.Status.ACTIVE).exclude(pk=circle.pk)
@@ -2182,7 +1133,9 @@ def admin_circle_detail(request, pk):
     students_list = User.objects.filter(
         role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED, is_active=True
     ).exclude(
-        enrollments__in=circle.enrollments.filter(status=CircleEnrollment.Status.ACTIVE)
+        enrollments__in=circle.enrollments.filter(
+            status__in=[CircleEnrollment.Status.ACTIVE, CircleEnrollment.Status.PENDING]
+        )
     ).order_by('full_name_ar')[:50]
 
     sessions = Session.objects.filter(circle=circle).order_by('-session_date')[:10]
@@ -2216,6 +1169,8 @@ def admin_circle_detail(request, pk):
     return render(request, "dashboard/circles/detail.html", {
         "circle": circle,
         "active_enrollments": active_enrollments,
+        "pending_enrollments": pending_enrollments,
+        "pending_count": pending_enrollments.count(),
         "active_count": active_enrollments.count(),
         "past_enrollments": past_enrollments,
         "other_circles": other_circles,
@@ -2231,8 +1186,6 @@ def admin_circle_detail(request, pk):
         "murajaa_total": murajaa_total,
         "attendance_history": attendance_history,
     })
-
-
 @login_required
 def admin_circle_create(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2291,10 +1244,6 @@ def admin_circle_create(request):
         return redirect("accounts:admin_circles")
 
     return render(request, "dashboard/circles/create.html", {"teachers": teachers})
-
-
-# ─── Admin: Requests ────────────────────────────
-
 @login_required
 def admin_requests(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2332,8 +1281,6 @@ def admin_requests(request):
         'approved_count': approved_count,
         'urgent_count': urgent_count,
     })
-
-
 @login_required
 def admin_request_detail(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2366,10 +1313,6 @@ def admin_request_detail(request, pk):
         "request_obj": request_obj,
         "comments": comments,
     })
-
-
-# ─── Admin: Announcements ───────────────────────
-
 @login_required
 def admin_announcements(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2384,8 +1327,6 @@ def admin_announcements(request):
     paginator = Paginator(announcements, 15)
     page_obj = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'dashboard/announcements/list.html', {'announcements': page_obj, 'page_obj': page_obj})
-
-
 @login_required
 def admin_announcement_create(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2403,17 +1344,6 @@ def admin_announcement_create(request):
         return render(request, "dashboard/announcements/create.html", {"error": "يرجى ملء جميع الحقول"})
 
     return render(request, "dashboard/announcements/create.html")
-
-
-# ─── Notifications ──────────────────────────────
-
-@login_required
-def notification_list(request):
-    from apps.notifications.models import Notification
-    notifications = Notification.objects.filter(recipient=request.user)[:10]
-    return render(request, "dashboard/partials/notification_items.html", {"notifications": notifications})
-
-
 @login_required
 def admin_notifications(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2442,8 +1372,6 @@ def admin_notifications(request):
         "notifications": page_obj,
         "page_obj": page_obj,
     })
-
-
 @login_required
 def admin_notification_create(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2500,31 +1428,6 @@ def admin_notification_create(request):
         return redirect("accounts:admin_notifications")
 
     return render(request, "dashboard/notifications/create.html")
-
-
-@login_required
-def notification_mark_read(request, pk):
-    from apps.notifications.models import Notification
-    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
-    notification.is_read = True
-    notification.save(update_fields=["is_read"])
-    return redirect(notification.link or "/dashboard/")
-
-
-@login_required
-def notification_mark_all_read(request):
-    if request.method == "POST":
-        from apps.notifications.models import Notification
-        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
-        if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({"status": "ok"})
-        messages.success(request, "تم تحديد جميع الإشعارات كمقروءة")
-        return redirect(request.META.get("HTTP_REFERER", "/dashboard/"))
-    return redirect("/dashboard/")
-
-
-# ─── Admin: Reports ─────────────────────────────
-
 @login_required
 def admin_reports(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2546,8 +1449,6 @@ def admin_reports(request):
         "circles_summary": circles_data,
         "circles": circles,
     })
-
-
 @login_required
 def admin_report_data(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2858,10 +1759,6 @@ def _report_murajaa(circle_id):
         "frequency_chart": frequency_chart,
         "circles": circles,
     }
-
-
-# ─── Reports: PDF Export ─────────────────────────
-
 @login_required
 def admin_report_export_pdf(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -2974,11 +1871,6 @@ def admin_report_export_pdf(request):
     response = HttpResponse(buf.read(), content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="report_{report_type}.pdf"'
     return response
-
-
-# ─── Reports: Excel Export ────────────────────────
-
-
 @login_required
 def admin_report_export_excel(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3208,8 +2100,6 @@ def _report_teachers():
         "avg_grade": avg_grade_all,
         "teachers": result,
     }
-
-
 @login_required
 def report_exam_results(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3251,10 +2141,6 @@ def report_exam_results(request):
         "total_students": len(exam_data),
         "overall_avg": round(sum(e["avg_score"] for e in exam_data) / max(len(exam_data), 1), 1),
     })
-
-
-# ─── ADMIN EXAMS ──────────────────────────────
-
 @login_required
 def admin_exam_list(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3267,8 +2153,6 @@ def admin_exam_list(request):
         rejected_count=Count("marks", filter=Q(marks__status=ExamMark.Status.REJECTED)),
     ).all()
     return render(request, "dashboard/exams/list.html", {"exams": exams})
-
-
 @login_required
 def admin_exam_create(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3296,8 +2180,6 @@ def admin_exam_create(request):
         messages.success(request, "تم إنشاء الامتحان بنجاح")
         return redirect("accounts:admin_exam_detail", pk=exam.pk)
     return render(request, "dashboard/exams/create.html", {"circles": circles, "teachers": teachers})
-
-
 @login_required
 def admin_exam_edit(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3314,15 +2196,12 @@ def admin_exam_edit(request, pk):
         exam.exam_date = request.POST.get("exam_date", exam.exam_date)
         exam.max_marks = float(request.POST.get("max_marks", 100))
         exam.pass_percentage = float(request.POST.get("pass_percentage", 50))
-        exam.status = request.POST.get("status", exam.status)
         exam.save()
         messages.success(request, "تم تحديث الامتحان")
         return redirect("accounts:admin_exam_detail", pk=exam.pk)
     return render(request, "dashboard/exams/edit.html", {
         "exam": exam, "circles": circles, "teachers": teachers,
     })
-
-
 @login_required
 def admin_exam_detail(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3353,8 +2232,6 @@ def admin_exam_detail(request, pk):
         "history": history,
         "approval_progress": approval_progress,
     })
-
-
 @login_required
 def admin_exam_delete(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3363,8 +2240,6 @@ def admin_exam_delete(request, pk):
     exam.delete()
     messages.success(request, "تم حذف الامتحان")
     return redirect("accounts:admin_exam_list")
-
-
 @login_required
 def admin_exam_publish(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3375,21 +2250,6 @@ def admin_exam_publish(request, pk):
     notify_published(exam, request.user)
     messages.success(request, "تم نشر الامتحان")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
-
-
-@login_required
-def admin_exam_submit_approval(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
-    exam = get_object_or_404(Exam, pk=pk)
-    success, error = submit_for_approval(exam, request.user)
-    if success:
-        messages.success(request, "تم تقديم الامتحان للاعتماد")
-    else:
-        messages.error(request, error)
-    return redirect("accounts:admin_exam_detail", pk=exam.pk)
-
-
 @login_required
 def admin_exam_approve_all(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3398,8 +2258,6 @@ def admin_exam_approve_all(request, pk):
     approve_all_marks(exam, request.user)
     messages.success(request, "تم اعتماد جميع النتائج")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
-
-
 @login_required
 def admin_exam_reject_marks(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3416,36 +2274,6 @@ def admin_exam_reject_marks(request, pk):
     reject_marks(exam, [int(m) for m in mark_ids], request.user, reason)
     messages.success(request, "تم رفض الدرجات المحددة")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
-
-
-@login_required
-def admin_exam_bulk_grade(request, pk):
-    if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
-        raise PermissionDenied
-    exam = get_object_or_404(Exam, pk=pk)
-    if request.method == "POST":
-        with transaction.atomic():
-            for key, value in request.POST.items():
-                if key.startswith("mark_") and value:
-                    student_id = key.replace("mark_", "")
-                    marks_obtained = float(value)
-                    ok, err = validate_mark_value(marks_obtained, exam.max_marks)
-                    if ok:
-                        save_mark(
-                            exam=exam,
-                            student_id=student_id,
-                            marks_obtained=marks_obtained,
-                            entered_by=request.user,
-                            teacher_notes=request.POST.get(f"notes_{student_id}", ""),
-                            private_notes=request.POST.get(f"private_{student_id}", ""),
-                        )
-            if exam.status == Exam.Status.PUBLISHED:
-                exam.status = Exam.Status.GRADING
-                exam.save(update_fields=["status"])
-        messages.success(request, "تم تسجيل الدرجات بنجاح")
-    return redirect("accounts:admin_exam_detail", pk=exam.pk)
-
-
 @login_required
 def admin_exam_export_pdf(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3457,8 +2285,6 @@ def admin_exam_export_pdf(request, pk):
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="exam_{exam.exam_code}.pdf"'
     return response
-
-
 @login_required
 def admin_exam_export_csv(request, pk):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
@@ -3470,388 +2296,3 @@ def admin_exam_export_csv(request, pk):
     response = HttpResponse(csv_str, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="exam_{exam.exam_code}.csv"'
     return response
-
-
-# ─── TEACHER EXAMS ────────────────────────────
-
-@login_required
-def teacher_exams(request):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    my_circles = Circle.objects.filter(teacher=request.user, status=Circle.Status.ACTIVE)
-    assigned = Exam.objects.filter(assigned_teacher=request.user)
-    circle_exams = Exam.objects.filter(circle__in=my_circles)
-    exams = (assigned | circle_exams).filter(
-        status__in=[Exam.Status.PUBLISHED, Exam.Status.GRADING]
-    ).select_related("circle", "assigned_teacher").distinct().order_by("-exam_date")
-    return render(request, "dashboard/exams/teacher_list.html", {
-        "exams": exams, "my_circles": my_circles,
-    })
-
-
-@login_required
-def teacher_exam_grade(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    exam = get_object_or_404(Exam.objects.select_related("circle", "assigned_teacher"), pk=pk)
-    ok, err = verify_teacher_assignment(exam, request.user)
-    if not ok:
-        raise PermissionDenied(err)
-    ok, err = verify_exam_status(exam, [Exam.Status.PUBLISHED, Exam.Status.GRADING])
-    if not ok:
-        raise PermissionDenied(err)
-    if exam.circle:
-        students = User.objects.filter(
-            enrollments__circle=exam.circle,
-            enrollments__status=CircleEnrollment.Status.ACTIVE,
-            role=User.Role.STUDENT,
-        ).distinct()
-    else:
-        students = User.objects.filter(
-            role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED
-        )
-    existing = {m.student_id: m for m in exam.marks.select_related("student").all()}
-    if request.method == "POST":
-        with transaction.atomic():
-            for student in students:
-                marks_obtained = request.POST.get(f"mark_{student.id}")
-                if marks_obtained:
-                    ok_val, err_val = validate_mark_value(float(marks_obtained), exam.max_marks)
-                    if ok_val:
-                        save_mark(
-                            exam=exam, student=student,
-                            marks_obtained=float(marks_obtained),
-                            entered_by=request.user,
-                            teacher_notes=request.POST.get(f"notes_{student.id}", ""),
-                            private_notes=request.POST.get(f"private_{student.id}", ""),
-                        )
-            exam.status = Exam.Status.GRADING
-            exam.save(update_fields=["status"])
-        messages.success(request, "تم تسجيل الدرجات. يمكنك تقديمها للاعتماد الآن.")
-        return redirect("accounts:teacher_exam_submit", pk=exam.pk)
-    return render(request, "dashboard/exams/teacher_grade.html", {
-        "exam": exam, "students": students, "existing": existing,
-    })
-
-
-@login_required
-def teacher_exam_submit(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    exam = get_object_or_404(Exam, pk=pk)
-    ok, err = verify_teacher_assignment(exam, request.user)
-    if not ok:
-        raise PermissionDenied
-    success, error = submit_for_approval(exam, request.user)
-    if success:
-        messages.success(request, "تم تقديم النتائج للاعتماد")
-    else:
-        messages.error(request, error)
-    return redirect("accounts:teacher_exams")
-
-
-@login_required
-def teacher_exam_export_pdf(request, pk):
-    if request.user.role != User.Role.TEACHER:
-        raise PermissionDenied
-    exam = get_object_or_404(Exam, pk=pk)
-    ok, err = verify_teacher_assignment(exam, request.user)
-    if not ok:
-        raise PermissionDenied
-    export_data = get_export_data(exam)
-    pdf_bytes = generate_exam_pdf(export_data)
-    from django.http import HttpResponse
-    response = HttpResponse(pdf_bytes, content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="exam_{exam.exam_code}.pdf"'
-    return response
-
-
-# ─── STUDENT EXAMS ────────────────────────────
-
-@login_required
-def student_requests(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    qs = SupportRequest.objects.filter(submitted_by=request.user).select_related("submitted_by").order_by("-created_at")
-    req_type = request.GET.get("type", "")
-    if req_type:
-        qs = qs.filter(type=req_type)
-    req_status = request.GET.get("status", "")
-    if req_status:
-        qs = qs.filter(status=req_status)
-    paginator = Paginator(qs, 15)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/student/requests.html", {
-        "requests": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-@login_required
-def student_request_create(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        body = request.POST.get("body", "").strip()
-        req_type = request.POST.get("type", "other")
-        priority = request.POST.get("priority", "normal")
-        if not title or not body:
-            return render(request, "dashboard/student/request_create.html", {
-                "error": "يرجى ملء جميع الحقول المطلوبة",
-                "form_data": request.POST,
-            })
-        SupportRequest.objects.create(
-            submitted_by=request.user,
-            title=title,
-            body=body,
-            type=req_type,
-            priority=priority,
-        )
-        messages.success(request, "تم إرسال الطلب بنجاح")
-        return redirect("accounts:student_requests")
-    return render(request, "dashboard/student/request_create.html")
-
-
-@login_required
-def student_announcements(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    qs = Announcement.objects.all().select_related("author").order_by("-created_at")
-    search = request.GET.get("search", "")
-    if search:
-        qs = qs.filter(Q(title__icontains=search) | Q(body__icontains=search))
-    paginator = Paginator(qs, 15)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/student/announcements.html", {
-        "announcements": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-@login_required
-def student_notifications(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    qs = Notification.objects.filter(recipient=request.user).order_by("-created_at")
-    notif_type = request.GET.get("type", "")
-    if notif_type:
-        qs = qs.filter(type=notif_type)
-    is_read = request.GET.get("is_read", "")
-    if is_read in ("true", "false"):
-        qs = qs.filter(is_read=(is_read == "true"))
-    paginator = Paginator(qs, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/student/notifications.html", {
-        "notifications": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-@login_required
-def student_attendance(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    qs = Attendance.objects.filter(student=request.user).select_related("session__circle", "session").order_by("-session__session_date")
-    status_filter = request.GET.get("status", "")
-    if status_filter:
-        qs = qs.filter(status=status_filter)
-    paginator = Paginator(qs, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    present_count = Attendance.objects.filter(student=request.user, status__in=["present", "late", "left_early"]).count()
-    total_count = Attendance.objects.filter(student=request.user).count()
-    absent_count = Attendance.objects.filter(student=request.user, status="absent").count()
-    excused_count = Attendance.objects.filter(student=request.user, status="excused").count()
-    return render(request, "dashboard/student/attendance.html", {
-        "attendance": page_obj,
-        "page_obj": page_obj,
-        "present_count": present_count,
-        "total_count": total_count,
-        "absent_count": absent_count,
-        "excused_count": excused_count,
-    })
-
-
-@login_required
-def student_review_requests(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    qs = ReviewRequest.objects.filter(student=request.user).select_related("circle", "surah").order_by("-created_at")
-    status_filter = request.GET.get("status", "")
-    if status_filter:
-        qs = qs.filter(status=status_filter)
-    paginator = Paginator(qs, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/student/review_requests.html", {
-        "requests": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-@login_required
-def student_review_request_create(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    enrollments = CircleEnrollment.objects.filter(
-        student=request.user, status=CircleEnrollment.Status.ACTIVE
-    ).select_related("circle")
-    surahs = Surah.objects.all().order_by("id")
-    if request.method == "POST":
-        circle_id = request.POST.get("circle")
-        req_type = request.POST.get("type", "review")
-        surah_id = request.POST.get("surah")
-        ayah_from = request.POST.get("ayah_from")
-        ayah_to = request.POST.get("ayah_to")
-        notes = request.POST.get("notes", "").strip()
-        if not circle_id:
-            return render(request, "dashboard/student/review_request_create.html", {
-                "error": "يرجى اختيار الحلقة",
-                "enrollments": enrollments,
-                "surahs": surahs,
-                "form_data": request.POST,
-            })
-        ReviewRequest.objects.create(
-            student=request.user,
-            circle_id=circle_id,
-            type=req_type,
-            surah_id=surah_id or None,
-            ayah_from=ayah_from or None,
-            ayah_to=ayah_to or None,
-            notes=notes,
-        )
-        messages.success(request, "تم إرسال الطلب بنجاح")
-        return redirect("accounts:student_review_requests")
-    return render(request, "dashboard/student/review_request_create.html", {
-        "enrollments": enrollments,
-        "surahs": surahs,
-    })
-
-
-@login_required
-def student_circle_detail(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    enrollment = get_object_or_404(CircleEnrollment, circle_id=pk, student=request.user, status=CircleEnrollment.Status.ACTIVE)
-    circle = enrollment.circle
-    upcoming_sessions = Session.objects.filter(circle=circle, session_date__gte=date.today()).order_by("session_date")[:10]
-    past_sessions = Session.objects.filter(circle=circle, session_date__lt=date.today()).order_by("-session_date")[:10]
-    next_session = upcoming_sessions.first()
-    return render(request, "dashboard/student/circle_detail.html", {
-        "circle": circle,
-        "enrollment": enrollment,
-        "upcoming_sessions": upcoming_sessions,
-        "past_sessions": past_sessions,
-        "next_session": next_session,
-    })
-
-
-@login_required
-def student_sessions(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    circle_ids = CircleEnrollment.objects.filter(
-        student=request.user, status=CircleEnrollment.Status.ACTIVE
-    ).values_list("circle_id", flat=True)
-    upcoming = Session.objects.filter(circle_id__in=circle_ids, session_date__gte=date.today()).select_related("circle").order_by("session_date", "session_time")
-    past = Session.objects.filter(circle_id__in=circle_ids, session_date__lt=date.today()).select_related("circle").order_by("-session_date", "-session_time")[:30]
-    from apps.attendance.models import SessionAttendanceIntent
-    intents = {
-        i.session_id: i
-        for i in SessionAttendanceIntent.objects.filter(
-            session__in=upcoming, student=request.user,
-        )
-    }
-    return render(request, "dashboard/student/sessions.html", {
-        "upcoming": upcoming,
-        "past": past,
-        "today": date.today(),
-        "intents": intents,
-    })
-
-
-@login_required
-def student_exam_results(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    from apps.exams.services import get_student_marks
-    results = get_student_marks(request.user)
-    return render(request, "dashboard/exams/student_results.html", {"results": results})
-
-
-# ─── Student: Achievements ──────────────────────
-
-@login_required
-def student_achievements(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    achievement = getattr(request.user, "achievement", None)
-    total_hifz = MemorizationProgress.objects.filter(
-        enrollment__student=request.user, type='hifz', status='mastered'
-    ).aggregate(t=Sum(F('ayah_to') - F('ayah_from') + 1))['t'] or 0
-    total_murajaa = MemorizationProgress.objects.filter(
-        enrollment__student=request.user, type='murajaa', status='mastered'
-    ).aggregate(t=Sum(F('ayah_to') - F('ayah_from') + 1))['t'] or 0
-    hifz_hizb, hifz_qua = ayahs_to_hizb_quarters(total_hifz)
-    murajaa_hizb, murajaa_qua = ayahs_to_hizb_quarters(total_murajaa)
-    recent_progress = MemorizationProgress.objects.filter(
-        enrollment__student=request.user
-    ).select_related('surah').order_by('-created_at')[:10]
-    return render(request, "dashboard/student/achievements.html", {
-        "achievement": achievement,
-        "total_hifz_ayahs": total_hifz,
-        "total_murajaa_ayahs": total_murajaa,
-        "hifz_hizb": hifz_hizb,
-        "hifz_quarters": hifz_qua,
-        "murajaa_hizb": murajaa_hizb,
-        "murajaa_quarters": murajaa_qua,
-        "recent_progress": recent_progress,
-    })
-
-
-# ─── Student: Request Detail ────────────────────
-
-@login_required
-def student_request_detail(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    req = get_object_or_404(SupportRequest, pk=pk, submitted_by=request.user)
-    comments = req.comments.select_related("author").order_by("created_at")
-    return render(request, "dashboard/student/request_detail.html", {
-        "request": req,
-        "comments": comments,
-    })
-
-
-# ─── Student: Unenroll from Circle ─────────────
-
-@login_required
-def student_unenroll(request, pk):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    enrollment = get_object_or_404(
-        CircleEnrollment, circle_id=pk, student=request.user, status=CircleEnrollment.Status.ACTIVE
-    )
-    if request.method == "POST":
-        enrollment.status = CircleEnrollment.Status.DROPPED
-        enrollment.left_at = timezone.now()
-        enrollment.save()
-        messages.success(request, "تم الانسحاب من الحلقة بنجاح")
-        return redirect("accounts:student_circles")
-    return redirect("accounts:student_circle_detail", pk=pk)
-
-
-# ─── Student: Justification History ─────────────
-
-@login_required
-def student_justifications(request):
-    if request.user.role != User.Role.STUDENT:
-        raise PermissionDenied
-    qs = Attendance.objects.filter(
-        student=request.user, justification__gt=""
-    ).select_related("session__circle", "reviewed_by").order_by("-updated_at")
-    paginator = Paginator(qs, 20)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-    return render(request, "dashboard/student/justifications.html", {
-        "justifications": page_obj,
-        "page_obj": page_obj,
-    })

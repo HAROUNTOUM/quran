@@ -51,10 +51,6 @@
         <a href="{% url 'accounts:admin_exam_publish' exam.pk %}" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors">
             نشر الامتحان
         </a>
-        {% elif exam.status == 'grading' or exam.status == 'published' %}
-        <a href="{% url 'accounts:admin_exam_submit_approval' exam.pk %}" class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 transition-colors">
-            تقديم للاعتماد
-        </a>
         {% elif exam.status == 'pending_approval' %}
         <a href="{% url 'accounts:admin_exam_approve_all' exam.pk %}" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors" onclick="return confirm('اعتماد جميع النتائج؟')">
             اعتماد الكل
@@ -91,87 +87,75 @@
 
 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-6">
     <div class="p-6 border-b border-gray-100">
-        <h3 class="font-bold text-gray-800">إدخال الدرجات</h3>
+        <h3 class="font-bold text-gray-800">نتائج الامتحان</h3>
     </div>
     <div class="overflow-x-auto">
-        <form method="POST" action="{% url 'accounts:admin_exam_bulk_grade' exam.pk %}">
-            {% csrf_token %}
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="bg-gray-50">
-                        <th class="text-right px-4 py-3 font-medium text-gray-600">الطالب</th>
-                        <th class="text-center px-4 py-3 font-medium text-gray-600">الدرجة (0-{{ exam.max_marks }})</th>
-                        <th class="text-center px-4 py-3 font-medium text-gray-600">النسبة</th>
-                        <th class="text-center px-4 py-3 font-medium text-gray-600">التقدير</th>
-                        <th class="text-center px-4 py-3 font-medium text-gray-600">النتيجة</th>
-                        <th class="text-center px-4 py-3 font-medium text-gray-600">ملاحظات</th>
-                        <th class="text-center px-4 py-3 font-medium text-gray-600">حالة الاعتماد</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    {% for student in enrolled_students %}
-                    {% with mark=existing_marks|get_item:student.id %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-4 py-3 font-medium text-gray-800">{{ student.full_name_ar }}</td>
-                        <td class="px-4 py-3 text-center">
-                            <input type="number" name="mark_{{ student.id }}" min="0" max="{{ exam.max_marks }}" step="0.5"
-                                   value="{{ mark.marks_obtained|default:'' }}"
-                                   class="w-20 px-2 py-1.5 border border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                   placeholder="0">
-                        </td>
-                        <td class="px-4 py-3 text-center font-bold text-gray-800">
-                            {% if mark %}{{ mark.percentage }}%{% else %}—{% endif %}
-                        </td>
-                        <td class="px-4 py-3 text-center font-bold
-                            {% if mark.grade == 'A' %}text-green-600
-                            {% elif mark.grade == 'B' %}text-blue-600
-                            {% elif mark.grade == 'C' %}text-amber-600
-                            {% elif mark.grade == 'D' %}text-orange-600
-                            {% elif mark.grade == 'F' %}text-red-600
-                            {% else %}text-gray-400{% endif %}">
-                            {% if mark %}{{ mark.grade }}{% else %}—{% endif %}
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            {% if mark %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
-                                {% if mark.is_passed %}bg-green-50 text-green-700{% else %}bg-red-50 text-red-700{% endif %}">
-                                {{ mark.is_passed|yesno:"ناجح,راسب" }}
-                            </span>
-                            {% else %}—{% endif %}
-                        </td>
-                        <td class="px-4 py-3">
-                            <input type="text" name="notes_{{ student.id }}" value="{{ mark.teacher_notes|default:'' }}"
-                                   class="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                   placeholder="ملاحظات">
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            {% if mark %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
-                                {% if mark.status == 'approved' %}bg-green-50 text-green-700
-                                {% elif mark.status == 'rejected' %}bg-red-50 text-red-700
-                                {% else %}bg-amber-50 text-amber-700{% endif %}">
-                                {{ mark.get_status_display }}
-                            </span>
-                            {% else %}—{% endif %}
-                        </td>
-                    </tr>
-                    {% endwith %}
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-gray-400">لا يوجد طلاب</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% if enrolled_students %}
-            <div class="p-4 border-t border-gray-100 flex justify-between items-center">
-                <p class="text-xs text-gray-400">أدخل الدرجات لكل طالب (من 0 إلى {{ exam.max_marks }})</p>
-                <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-md shadow-primary-500/25">
-                    حفظ الدرجات
-                </button>
-            </div>
-            {% endif %}
-        </form>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="text-right px-4 py-3 font-medium text-gray-600">الطالب</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">الدرجة</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">النسبة</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">التقدير</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">النتيجة</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">ملاحظات المعلم</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">حالة الاعتماد</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for student in enrolled_students %}
+                {% with mark=existing_marks|get_item:student.id %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-800">{{ student.full_name_ar }}</td>
+                    <td class="px-4 py-3 text-center font-bold text-gray-800">
+                        {% if mark %}{{ mark.marks_obtained }}/{{ exam.max_marks }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center font-bold text-gray-800">
+                        {% if mark %}{{ mark.percentage }}%{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center font-bold
+                        {% if mark.grade == 'A' %}text-green-600
+                        {% elif mark.grade == 'B' %}text-blue-600
+                        {% elif mark.grade == 'C' %}text-amber-600
+                        {% elif mark.grade == 'D' %}text-orange-600
+                        {% elif mark.grade == 'F' %}text-red-600
+                        {% else %}text-gray-400{% endif %}">
+                        {% if mark %}{{ mark.grade }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if mark %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
+                            {% if mark.is_passed %}bg-green-50 text-green-700{% else %}bg-red-50 text-red-700{% endif %}">
+                            {{ mark.is_passed|yesno:"ناجح,راسب" }}
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-500 max-w-[200px] truncate">
+                        {% if mark %}{{ mark.teacher_notes|default:"—" }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if mark %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
+                            {% if mark.status == 'approved' %}bg-green-50 text-green-700
+                            {% elif mark.status == 'rejected' %}bg-red-50 text-red-700
+                            {% else %}bg-amber-50 text-amber-700{% endif %}">
+                            {{ mark.get_status_display }}
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold bg-gray-50 text-gray-400">
+                            لم يسجل بعد
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-gray-400">لا يوجد طلاب</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 

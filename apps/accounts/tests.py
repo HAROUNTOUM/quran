@@ -166,7 +166,7 @@ class TeacherSessionAttendanceAccessTests(TestCase):
         response = teacher_session_attendance(request, self.session.id)
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("تسجيل الحضور والدرجات", response.content.decode())
+        self.assertIn("تسجيل حضور", response.content.decode())
 
     def test_teacher_can_open_own_session_attendance_page(self):
         request = self.factory.get(

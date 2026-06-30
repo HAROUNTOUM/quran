@@ -120,7 +120,7 @@ class AuthAPITest(APITestBase):
     def test_me_unauthenticated(self):
         self.client.force_authenticate(user=None)
         resp = self.client.get("/api/v1/auth/me/")
-        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(resp.status_code, 403)
 
 
 class UserAPITest(APITestBase):

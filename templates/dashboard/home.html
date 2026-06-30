@@ -229,7 +229,7 @@
 </div>
 
 <!-- ═══ Urgent Alerts ═══ -->
-{% if pending_count > 0 or repeated_absentees > 0 or inactive_circles > 0 or urgent_requests > 0 %}
+{% if pending_count > 0 or pending_enrollment_count > 0 or repeated_absentees > 0 or inactive_circles > 0 or urgent_requests > 0 %}
 <h3 class="font-bold text-gray-800 text-lg mb-4">التنبيهات العاجلة</h3>
 <div class="space-y-3 mb-8">
     {% if pending_count > 0 %}
@@ -244,6 +244,20 @@
             </div>
         </div>
         <a href="{% url 'accounts:admin_inscriptions' %}" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">عرض التفاصيل</a>
+    </div>
+    {% endif %}
+    {% if pending_enrollment_count > 0 %}
+    <div class="bg-white rounded-2xl border border-amber-200 p-5 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <div>
+                <p class="font-bold text-gray-800">طلبات تسجيل في حلقات</p>
+                <p class="text-sm text-gray-400">{{ pending_enrollment_count }} طلب تسجيل في حلقة بانتظار المراجعة</p>
+            </div>
+        </div>
+        <a href="{% url 'accounts:admin_circles' %}" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">عرض التفاصيل</a>
     </div>
     {% endif %}
     {% if repeated_absentees > 0 %}
@@ -356,6 +370,33 @@
         </div>
     </div>
 </div>
+
+{% if pending_enrollments %}
+<div class="bg-white rounded-2xl border border-amber-200 overflow-hidden mb-8">
+    <div class="p-6 border-b border-amber-100 bg-amber-50 flex items-center justify-between">
+        <h3 class="font-bold text-amber-800">طلبات التسجيل في الحلقات</h3>
+        <a href="{% url 'accounts:admin_circles' %}" class="text-xs text-amber-700 hover:underline">عرض الكل</a>
+    </div>
+    <div class="divide-y divide-gray-50">
+        {% for enrollment in pending_enrollments %}
+        <a href="{% url 'accounts:admin_circle_detail' enrollment.circle.id %}" class="px-6 py-4 flex items-center justify-between hover:bg-amber-50/30 transition-colors">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-amber-700 font-bold text-xs">{{ enrollment.student.full_name_ar.0 }}</span>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ enrollment.student.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ enrollment.circle.name }} · {{ enrollment.enrolled_at|date:"Y-m-d H:i" }}</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium bg-amber-100 text-amber-700 flex-shrink-0">
+                قيد الانتظار
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
     <div class="p-6 border-b border-gray-100 flex items-center justify-between">

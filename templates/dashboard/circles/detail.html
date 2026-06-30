@@ -46,6 +46,62 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
     <div class="lg:col-span-2">
+        {% if pending_enrollments %}
+        <div class="bg-white rounded-2xl border border-amber-200 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-amber-100 bg-amber-50">
+                <h3 class="font-bold text-amber-800">طلبات التسجيل قيد الانتظار ({{ pending_count }})</h3>
+            </div>
+            <table class="w-full">
+                <thead class="bg-amber-50/50 text-sm text-amber-700">
+                    <tr>
+                        <th class="px-6 py-3 text-right font-medium">الطالب</th>
+                        <th class="px-6 py-3 text-right font-medium">الهاتف</th>
+                        <th class="px-6 py-3 text-right font-medium">تاريخ الطلب</th>
+                        <th class="px-6 py-3 text-left font-medium">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for enrollment in pending_enrollments %}
+                    <tr class="hover:bg-amber-50/30 transition-colors" id="pending-{{ enrollment.id }}">
+                        <td class="px-6 py-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                                    <span class="text-amber-700 font-bold text-xs">{{ enrollment.student.full_name_ar.0 }}</span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800">{{ enrollment.student.full_name_ar }}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-3 text-sm text-gray-500">{{ enrollment.student.phone|default:"—" }}</td>
+                        <td class="px-6 py-3 text-sm text-gray-400">{{ enrollment.enrolled_at|date:"Y-m-d H:i" }}</td>
+                        <td class="px-6 py-3 text-left">
+                            <div class="flex items-center gap-2">
+                                <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}"
+                                      onsubmit="return confirm('قبول {{ enrollment.student.full_name_ar }} في الحلقة؟')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="approve_enrollment">
+                                    <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                                    <button type="submit" class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                                        قبول
+                                    </button>
+                                </form>
+                                <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}"
+                                      onsubmit="return confirm('رفض {{ enrollment.student.full_name_ar }}؟')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="reject_enrollment">
+                                    <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                                    <button type="submit" class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors">
+                                        رفض
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
                 <h3 class="font-bold text-gray-800">الطلاب النشطون ({{ active_count }}/{{ circle.max_students }})</h3>
