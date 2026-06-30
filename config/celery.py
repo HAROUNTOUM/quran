@@ -9,11 +9,15 @@ app.autodiscover_tasks()
 
 app.conf.beat_schedule = {
     "session-reminders-every-30min": {
-        "task": "tasks.attendance.send_session_reminders",
+        "task": "apps.attendance.tasks.send_session_reminders",
+        "schedule": 1800,
+    },
+    "flag-pending-justifications-daily": {
+        "task": "apps.attendance.tasks.flag_pending_justifications",
         "schedule": 1800,
     },
     "flag-unjustified-daily": {
-        "task": "tasks.attendance.flag_unjustified_absences",
+        "task": "apps.attendance.tasks.flag_unjustified_absences",
         "schedule": 86400,
     },
 }

@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -125,7 +126,18 @@ def create_notifications(
 
 
 def send_email_notification(user: User, subject: str, message: str) -> None:
-    pass
+    if not user.email:
+        return
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=None,  # uses DEFAULT_FROM_EMAIL
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass  # Email failure should not block the main flow
 
 
 def notify_published(exam: Exam, user: User) -> None:
@@ -225,7 +237,35 @@ def check_all_marks_entered(
 
 
 def suggest_submission(exam: Exam, user: User) -> None:
-    pass
+    from apps.notifications.models import Notification as InAppNotification
+
+    # Notify the teacher that all marks are entered and suggest submission
+    teachers = get_class_teachers(exam)
+    link = f"/dashboard/teacher/exams/{exam.pk}/grade/"
+    for teacher in teachers:
+        InAppNotification.objects.create(
+            recipient=teacher,
+            type=InAppNotification.Type.SYSTEM,
+            title=f"اكتمال تصحيح: {exam.title}",
+            message=f"تم إدخال درجات جميع الطلاب في الامتحان {exam.title}. يُرجى تقديم النتائج للاعتماد.",
+            link=link,
+        )
+
+    # Also notify admins/supervisors if no assigned teacher
+    if not teachers:
+        admins = User.objects.filter(
+            Q(role=User.Role.ADMIN) | Q(role=User.Role.SUPERVISOR),
+            is_approved=User.ApprovalStatus.APPROVED,
+            is_active=True,
+        )
+        for admin in admins:
+            InAppNotification.objects.create(
+                recipient=admin,
+                type=InAppNotification.Type.SYSTEM,
+                title=f"اكتمال تصحيح: {exam.title}",
+                message=f"تم إدخال درجات جميع الطلاب في الامتحان {exam.title} وهو جاهز للاعتماد.",
+                link=f"/dashboard/exams/{exam.pk}/",
+            )
 
 
 # ─── SEQUENCE 4: Submit for Approval ───────────────────────────────

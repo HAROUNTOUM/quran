@@ -191,4 +191,26 @@ class Command(BaseCommand):
                 defaults=dict(body=body, author=author),
             )
 
-        self.stdout.write(self.style.SUCCESS("Done! Seeded Users, Circles, Sessions, Attendance, Requests, Announcements."))
+        # ── Certificate Templates ─────────────────────────
+        from apps.certificates.models import CertificateTemplate
+        templates = [
+            {"name": "شهادة حفظ", "category": "hifz", "header_text": "بسم الله الرحمن الرحيم",
+             "body_template": "في إطار برامج الطبيب الحافظ لحفظ القرآن الكريم، أثبت {student_name} كفاءته في حفظ {details} بنجاح.",
+             "footer_text": "نسأل الله أن يبارك في علمه ويزيده من فضله"},
+            {"name": "شهادة مراجعة", "category": "murajaa", "header_text": "بسم الله الرحمن الرحيم",
+             "body_template": "تشهد إدارة الطبيب الحافظ بأن {student_name} قد أتم بنجاح مراجعة {details} في حلقة {circle_name}.",
+             "footer_text": "وكان فضل الله عليك عظيماً"},
+            {"name": "شهادة امتحان", "category": "exam", "header_text": "بسم الله الرحمن الرحيم",
+             "body_template": "قد اجتاز {student_name} الامتحان في {details} بنجاح في حلقة {circle_name}.",
+             "footer_text": "جزاك الله خيراً على جهودك"},
+            {"name": "شهادة إتمام", "category": "completion", "header_text": "بسم الله الرحمن الرحيم",
+             "body_template": "نبارك للطالب {student_name} إتمامه حفظ القرآن الكريم كاملاً في حلقة {circle_name}. جزاك الله خيراً وجعلك من أهل القرآن.",
+             "footer_text": "خيركم من تعلم القرآن وعلمه"},
+            {"name": "شهادة تميز", "category": "distinction", "header_text": "بسم الله الرحمن الرحيم",
+             "body_template": "نمنح الطالب {student_name} شهادة تميز لتفوقه في {details} في حلقة {circle_name}. نسأل الله له دوام التوفيق والنجاح.",
+             "footer_text": "ومن يؤت الحكمة فقد أوتي خيراً كثيراً"},
+        ]
+        for t in templates:
+            CertificateTemplate.objects.get_or_create(name=t["name"], defaults=t)
+
+        self.stdout.write(self.style.SUCCESS("Done! Seeded Users, Circles, Sessions, Attendance, Requests, Announcements, Certificates."))

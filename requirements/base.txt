@@ -14,3 +14,6 @@ redis==5.*
 fpdf2==2.8.*
 openpyxl==3.1.*
 uharfbuzz==0.55.*
+
+# PDF generation for exam result sheets
+weasyprint==62.*

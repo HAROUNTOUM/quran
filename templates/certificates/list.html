@@ -1,0 +1,71 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block title %}الشهادات{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">الشهادات</h1>
+            <p class="text-sm text-gray-500 mt-1">جميع الشهادات الصادرة</p>
+        </div>
+        <a href="{% url 'certificates:generate' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            إصدار شهادة جديدة
+        </a>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">الرقم</th>
+                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">الطالب</th>
+                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">القالب</th>
+                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">تاريخ الإصدار</th>
+                        <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">الحالة</th>
+                        <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for cert in certificates %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-800">{{ cert.certificate_number }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ cert.student.full_name_ar }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ cert.template.name }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ cert.issue_date|date:"d/m/Y" }}</td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {% if cert.status == 'issued' %}bg-green-100 text-green-700{% elif cert.status == 'draft' %}bg-yellow-100 text-yellow-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ cert.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-left">
+                            <div class="flex items-center gap-2">
+                                <a href="{% url 'certificates:download' cert.pk %}" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
+                                    تحميل
+                                </a>
+                                <a href="{% url 'certificates:preview' cert.pk %}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                    معاينة
+                                </a>
+                                {% if cert.status == 'issued' %}
+                                <form method="post" action="{% url 'certificates:revoke' cert.pk %}" onsubmit="return confirm('هل أنت متأكد من إلغاء الشهادة؟')">
+                                    {% csrf_token %}
+                                    <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">إلغاء</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                            لا توجد شهادات بعد
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
