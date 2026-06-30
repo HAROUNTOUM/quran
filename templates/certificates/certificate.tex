@@ -1,0 +1,44 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage{babel}
+\babelprovide[import=ar,main]{arabic}
+\babelfont{rm}[Script=Arabic]{Noto Naskh Arabic}
+\pagestyle{empty}
+
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1e3a8a}
+\definecolor{accent}{HTML}{1d4ed8}
+\definecolor{muted}{HTML}{6b7280}
+
+\begin{document}
+
+\vspace*{2cm}
+
+\begin{center}
+{\Huge\bfseries\color{primary} {{ header_text }}\par}
+\vspace{1.5cm}
+
+{\LARGE\bfseries\color{accent} شهادة تقدير\par}
+\vspace{1cm}
+
+\rule{0.6\textwidth}{1pt}\\[0.5cm]
+
+{\large تشهد إدارة الطبيب الحافظ بأن}\\[0.8cm]
+{\huge\bfseries\color{primary} {{ student_name }}\\[0.8cm]}
+{\large {{ body }}\par}
+
+\vspace{1.5cm}
+\rule{0.6\textwidth}{1pt}
+
+\vfill
+
+{% if footer_text %}
+{\large\color{muted} {{ footer_text }}\par}
+\vspace{0.5cm}
+{% endif %}
+
+{\small\color{muted} رقم الشهادة: {{ certificate_number }} -- تاريخ الإصدار: {{ date }}\par}
+\end{center}
+
+\end{document}
