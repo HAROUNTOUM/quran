@@ -20,10 +20,11 @@ def generate_certificate_number():
 def generate_certificate_pdf(certificate: Certificate) -> bytes:
     template = certificate.template
     student = certificate.student
+    issue_date = certificate.issue_date or timezone.now().date()
     context = {
         "student_name": student.full_name_ar,
         "circle_name": certificate.metadata.get("circle_name", ""),
-        "date": certificate.issue_date.strftime("%d/%m/%Y"),
+        "date": issue_date.strftime("%d/%m/%Y"),
         "details": certificate.details,
         "certificate_number": certificate.certificate_number,
         "header_text": template.header_text,
@@ -46,13 +47,13 @@ def issue_certificate(student, template, issued_by, details="", metadata=None):
         template=template,
         certificate_number=generate_certificate_number(),
         status="issued",
+        issue_date=timezone.now().date(),
         details=details,
         issued_by=issued_by,
         metadata=metadata or {},
     )
     pdf_bytes = generate_certificate_pdf(cert)
-    filename = f"certificates/{cert.certificate_number}.pdf"
     from django.core.files.base import ContentFile
-    cert.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
+    cert.pdf_file.save(f"{cert.certificate_number}.pdf", ContentFile(pdf_bytes), save=False)
     cert.save()
     return cert
