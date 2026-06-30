@@ -61,5 +61,14 @@ function dashboard() {
     }
 }
 </script>
+{% if messages %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% for msg in messages %}
+    window.dispatchEvent(new CustomEvent('showToast', {detail: {message: '{{ msg|escapejs }}', type: '{% if msg.tags == "success" %}success{% else %}error{% endif %}'}}));
+    {% endfor %}
+});
+</script>
+{% endif %}
 {% block extra_js %}{% endblock %}
 {% endblock %}
