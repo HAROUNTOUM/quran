@@ -113,6 +113,8 @@
             <div class="grid grid-cols-2 gap-2">
                 <a href="{% url 'accounts:admin_reports' %}" class="px-3 py-2 bg-gray-50 text-gray-600 text-xs font-medium rounded-lg hover:bg-primary-50 hover:text-primary-700">كل التقارير</a>
                 <a href="{% url 'accounts:report_exam_results' %}" class="px-3 py-2 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-lg hover:bg-indigo-100">نتائج الامتحانات</a>
+                <a href="{% url 'certificates:list' %}" class="px-3 py-2 bg-amber-50 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-100">كل الشهادات</a>
+                <a href="{% url 'certificates:generate' %}" class="px-3 py-2 bg-green-50 text-green-700 text-xs font-medium rounded-lg hover:bg-green-100">إصدار شهادة</a>
                 <a href="{% url 'accounts:admin_report_export_pdf' %}" class="px-3 py-2 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100">PDF التقارير</a>
                 <a href="{% url 'accounts:admin_teacher_absences' %}" class="px-3 py-2 bg-gray-50 text-gray-600 text-xs font-medium rounded-lg hover:bg-primary-50 hover:text-primary-700">طلبات الغياب</a>
                 <a href="{% url 'accounts:admin_teacher_absences' %}?status=pending" class="px-3 py-2 bg-amber-50 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-100">غياب قيد الانتظار</a>
@@ -131,6 +133,7 @@
     {% include "dashboard/partials/stat_card.html" with label="إجمالي الطلاب" value=stats.total_students icon="students" color="blue" filter_url=students_url %}
     {% include "dashboard/partials/stat_card.html" with label="الحلقات النشطة" value=stats.active_circles icon="circles" color="green" filter_url=circles_url %}
     {% include "dashboard/partials/stat_card.html" with label="المعلمون" value=stats.total_teachers icon="teachers" color="purple" filter_url=teachers_url %}
+    {% include "dashboard/partials/stat_card.html" with label="الشهادات" value=stats.total_certificates icon="certificates" color="amber" %}
     {% include "dashboard/partials/stat_card.html" with label="نسبة الحضور" value=stats.attendance_rate|stringformat:"d%%" icon="attendance" color="amber" %}
 </div>
 
@@ -351,6 +354,33 @@
             {% include "dashboard/partials/empty_state.html" with message="لا يوجد حسابات معلّقة" %}
             {% endfor %}
         </div>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">آخر الشهادات</h3>
+        <a href="{% url 'certificates:list' %}" class="text-xs text-primary-600 hover:underline">عرض الكل</a>
+    </div>
+    <div class="divide-y divide-gray-50">
+        {% for cert in recent_certificates %}
+        <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 bg-green-50 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ cert.student.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ cert.template.name }} · {{ cert.issue_date|date:"d/m/Y" }}</p>
+                </div>
+            </div>
+            <a href="{% url 'certificates:download' cert.pk %}" class="p-1.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors" title="تحميل">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </a>
+        </div>
+        {% empty %}
+        {% include "dashboard/partials/empty_state.html" with message="لا توجد شهادات" %}
+        {% endfor %}
     </div>
 </div>
 

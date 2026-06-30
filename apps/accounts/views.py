@@ -386,6 +386,7 @@ def admin_dashboard(request):
     recent_users = User.objects.order_by('-created_at')[:5]
     pending_users = User.objects.filter(is_approved='pending')[:5]
     pending_count = User.objects.filter(is_approved='pending').count()
+    total_certificates = Certificate.objects.filter(status="issued").count()
     approved_count = User.objects.filter(is_approved='approved').count()
     rejected_count = User.objects.filter(is_approved='rejected').count()
 
@@ -428,6 +429,8 @@ def admin_dashboard(request):
             "absent": absent,
         })
 
+    recent_certificates = Certificate.objects.select_related("student", "template", "issued_by").order_by("-issue_date")[:5]
+
     # Repeated absentees (absent >3 times this month)
     this_month_start = now.replace(day=1).date()
     repeated_absentees = Attendance.objects.filter(
@@ -462,11 +465,13 @@ def admin_dashboard(request):
             'total_murajaa_juz': murajaa_juz,
             'total_murajaa_quarters': murajaa_quarters,
             'total_murajaa_ayahs': total_murajaa_ayahs,
+            'total_certificates': total_certificates,
         },
         'pending_count': pending_count,
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'recent_requests': recent_requests,
+        'recent_certificates': recent_certificates,
         'urgent_requests': urgent_requests,
         'today_sessions': today_sessions,
         'today_attendance': today_attendance,
