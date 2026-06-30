@@ -1,7 +1,8 @@
 {% extends 'dashboard/base.html' %}
 {% load static %}
-{% block title %}الشهادات{% endblock %}
-{% block content %}
+{% block page_title %}الشهادات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الشهادات{% endblock %}
+{% block dashboard_content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="flex items-center justify-between mb-8">
         <div>
@@ -72,4 +73,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock dashboard_content %}
