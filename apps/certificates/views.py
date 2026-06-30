@@ -20,6 +20,17 @@ def certificate_list(request):
 
 
 @login_required
+def student_certificates(request):
+    if request.user.role != User.Role.STUDENT:
+        raise PermissionDenied
+
+    certs = Certificate.objects.filter(
+        student=request.user, status="issued",
+    ).select_related("template", "issued_by").order_by("-issue_date")
+    return render(request, "certificates/student_list.html", {"certificates": certs})
+
+
+@login_required
 def certificate_generate(request):
     if request.user.role not in (User.Role.ADMIN, User.Role.SUPERVISOR):
         raise PermissionDenied

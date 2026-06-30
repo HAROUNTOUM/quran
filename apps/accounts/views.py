@@ -24,6 +24,7 @@ from apps.notifications.models import Notification
 from apps.memorization.models import MemorizationProgress, RecitationGrade, StudentAchievement, ReviewRequest, ProgressLog
 from apps.circles.models import SessionRescheduleRequest
 from apps.exams.models import Exam, ExamMark, ExamNotification, ExamApprovalHistory
+from apps.certificates.models import Certificate
 from apps.references.models import Surah, EvaluationCriterion, Juz
 from apps.references.utils import ayahs_to_juz_quarters, format_juz_quarters, ayahs_to_hizb_quarters, format_hizb_quarters
 
@@ -187,6 +188,10 @@ def student_dashboard(request):
         recipient=request.user, is_read=False
     ).count()
 
+    recent_certificates = Certificate.objects.filter(
+        student=request.user, status="issued",
+    ).select_related("template").order_by("-issue_date")[:3]
+
     return render(request, 'dashboard/student/home.html', {
         'circles': [en.circle for en in enrollments],
         'enrollments': enrollments,
@@ -201,6 +206,7 @@ def student_dashboard(request):
         'upcoming_sessions': upcoming_sessions,
         'pending_review_count': pending_review_count,
         'unread_notif_count': unread_notif_count,
+        'recent_certificates': recent_certificates,
     })
 
 

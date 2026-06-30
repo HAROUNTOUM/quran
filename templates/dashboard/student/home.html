@@ -149,6 +149,31 @@
             <a href="{% url 'accounts:student_announcements' %}" class="text-xs text-primary-600 hover:text-primary-700 font-medium">عرض كل الإعلانات</a>
         </div>
     </div>
+
+    {% if recent_certificates %}
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+            <h3 class="font-bold text-gray-800">الشهادات</h3>
+            <a href="{% url 'certificates:own' %}" class="text-xs text-primary-600 hover:text-primary-700 font-medium">عرض الكل</a>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for cert in recent_certificates %}
+            <div class="px-6 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center">
+                        <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">{{ cert.template.name }}</p>
+                        <p class="text-xs text-gray-400">{{ cert.issue_date|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+                <a href="{% url 'certificates:download' cert.pk %}" class="text-xs font-medium text-primary-600 hover:text-primary-700">تحميل</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
