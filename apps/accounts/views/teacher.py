@@ -561,10 +561,30 @@ def teacher_session_reorder_turns(request, pk):
         pk=pk, circle__teacher=request.user,
     )
     from apps.circles.models import SessionTurn
+    from django.db import transaction
     data = json.loads(request.body)
     order = data.get("order", [])
-    for i, student_id in enumerate(order, start=1):
-        SessionTurn.objects.filter(session=session, student_id=student_id).update(turn_number=i)
+
+    existing_ids = set(
+        SessionTurn.objects.filter(session=session).values_list("student_id", flat=True)
+    )
+    invalid = [sid for sid in order if sid not in existing_ids]
+    if invalid:
+        return JsonResponse(
+            {"success": False, "message": "بعض الطلاب ليس لديهم دور", "invalid_ids": invalid},
+            status=400,
+        )
+
+    with transaction.atomic():
+        turns = SessionTurn.objects.select_for_update().filter(session=session)
+        turn_map = {str(t.student_id): t for t in turns}
+        for i, student_id in enumerate(order, start=1):
+            turn_map[student_id].turn_number = -i
+        SessionTurn.objects.bulk_update(turn_map.values(), ["turn_number"])
+        for t in turn_map.values():
+            t.turn_number = -t.turn_number
+        SessionTurn.objects.bulk_update(turn_map.values(), ["turn_number"])
+
     return JsonResponse({"success": True})
 @login_required
 @role_required(User.Role.TEACHER)

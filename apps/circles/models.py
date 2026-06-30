@@ -159,8 +159,7 @@ class Session(models.Model):
         now = timezone.now()
         delta = session_start - now
         session_duration = timedelta(minutes=self.duration_minutes or 60)
-        early_offset = timedelta(minutes=15) if self.is_online else timedelta(minutes=0)
-        return -session_duration <= delta <= early_offset
+        return -session_duration <= delta <= timedelta(minutes=15)
 
 
 class SessionRescheduleRequest(models.Model):

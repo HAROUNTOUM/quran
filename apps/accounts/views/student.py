@@ -263,11 +263,17 @@ def student_claim_turn(request, pk):
         from django.http import JsonResponse
         return JsonResponse({"success": False, "message": "لديك دور بالفعل"}, status=400)
 
-    taken = set(SessionTurn.objects.filter(session=session).values_list("turn_number", flat=True))
-    n = 1
-    while n in taken:
-        n += 1
-    SessionTurn.objects.create(session=session, student=request.user, turn_number=n)
+    from django.db import IntegrityError, transaction
+    try:
+        with transaction.atomic():
+            locked = SessionTurn.objects.select_for_update().filter(session=session)
+            taken = set(locked.values_list("turn_number", flat=True))
+            n = 1
+            while n in taken:
+                n += 1
+            SessionTurn.objects.create(session=session, student=request.user, turn_number=n)
+    except IntegrityError:
+        return JsonResponse({"success": False, "message": "تم أخذ هذا الدور للتو، حاول مرة أخرى"}, status=409)
 
     from django.http import JsonResponse
     return JsonResponse({"success": True, "turn_number": n})
