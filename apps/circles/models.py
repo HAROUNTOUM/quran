@@ -32,6 +32,7 @@ class Circle(models.Model):
     schedule = models.CharField(max_length=255, blank=True)
     schedule_days = models.JSONField("أيام الحلقة", default=list, blank=True)
     schedule_time = models.TimeField("وقت الحلقة", null=True, blank=True)
+    batch_number = models.PositiveIntegerField("رقم الدفعة", null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

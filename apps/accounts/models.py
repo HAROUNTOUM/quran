@@ -33,6 +33,11 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
     )
     rejection_reason = models.TextField("سبب الرفض", blank=True)
 
+    specialization = models.CharField("التخصص", max_length=100, blank=True)
+    state = models.CharField("الولاية", max_length=100, blank=True)
+    level = models.CharField("المستوى", max_length=100, blank=True)
+    memorization_amount = models.CharField("مقدار الحفظ", max_length=100, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
 

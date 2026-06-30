@@ -94,6 +94,22 @@
                     <p class="text-sm text-gray-600">{% if student.gender == 'male' %}ذكر{% elif student.gender == 'female' %}أنثى{% else %}—{% endif %}</p>
                 </div>
                 <div>
+                    <p class="text-xs text-gray-400 mb-1">التخصص</p>
+                    <p class="text-sm text-gray-600">{{ student.specialization|default:"—" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">الولاية</p>
+                    <p class="text-sm text-gray-600">{{ student.state|default:"—" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">المستوى</p>
+                    <p class="text-sm text-gray-600">{{ student.level|default:"—" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">مقدار الحفظ</p>
+                    <p class="text-sm text-gray-600">{{ student.memorization_amount|default:"—" }}</p>
+                </div>
+                <div>
                     <p class="text-xs text-gray-400 mb-1">تاريخ التسجيل</p>
                     <p class="text-sm text-gray-600">{{ student.created_at|date:"d/m/Y" }}</p>
                 </div>

@@ -56,7 +56,10 @@
                     <th class="px-6 py-3 text-right font-medium">الاسم واللقب</th>
                     <th class="px-6 py-3 text-right font-medium">البريد الإلكتروني</th>
                     <th class="px-6 py-3 text-right font-medium">الهاتف</th>
-                    <th class="px-6 py-3 text-right font-medium">الجنس</th>
+                    <th class="px-6 py-3 text-right font-medium">التخصص</th>
+                    <th class="px-6 py-3 text-right font-medium">الولاية</th>
+                    <th class="px-6 py-3 text-right font-medium">المستوى</th>
+                    <th class="px-6 py-3 text-right font-medium">مقدار الحفظ</th>
                     <th class="px-6 py-3 text-right font-medium">تاريخ التسجيل</th>
                     <th class="px-6 py-3 text-left font-medium">قبول او رفض</th>
                 </tr>
@@ -74,7 +77,10 @@
                     </td>
                     <td class="px-6 py-3 text-sm text-gray-500">{{ user.email }}</td>
                     <td class="px-6 py-3 text-sm text-gray-500">{{ user.phone|default:"—" }}</td>
-                    <td class="px-6 py-3 text-sm text-gray-500">{% if user.gender == 'male' %}ذكر{% elif user.gender == 'female' %}أنثى{% else %}—{% endif %}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.specialization|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.state|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.level|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.memorization_amount|default:"—" }}</td>
                     <td class="px-6 py-3 text-sm text-gray-400">{{ user.created_at|date:"Y-m-d" }}</td>
                     <td class="px-6 py-3 text-left">
                         <div class="flex items-center gap-2" id="user-action-{{ user.id }}">
@@ -83,7 +89,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="6">{% include "dashboard/partials/empty_state.html" with message="لا يوجد طلاب في هذه المجموعة" %}</td></tr>
+                <tr><td colspan="9">{% include "dashboard/partials/empty_state.html" with message="لا يوجد طلاب في هذه المجموعة" %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>

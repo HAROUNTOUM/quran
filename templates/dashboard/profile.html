@@ -20,6 +20,10 @@
             <p><span class="font-medium text-gray-800">البريد:</span> {{ profile_user.email }}</p>
             <p><span class="font-medium text-gray-800">الهاتف:</span> {{ profile_user.phone|default:"—" }}</p>
             <p><span class="font-medium text-gray-800">الجنس:</span> {{ profile_user.gender|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">التخصص:</span> {{ profile_user.specialization|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">الولاية:</span> {{ profile_user.state|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">المستوى:</span> {{ profile_user.level|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">مقدار الحفظ:</span> {{ profile_user.memorization_amount|default:"—" }}</p>
             <p><span class="font-medium text-gray-800">الحالة:</span> {{ profile_user.get_is_approved_display }}</p>
             <p><span class="font-medium text-gray-800">آخر دخول:</span> {{ recent_login|default:"—" }}</p>
         </div>

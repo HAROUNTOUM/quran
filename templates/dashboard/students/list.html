@@ -79,7 +79,10 @@
             <tr>
                 <th class="px-6 py-4 text-right font-medium">الطالب</th>
                 <th class="px-6 py-4 text-right font-medium">الهاتف</th>
-                <th class="px-6 py-4 text-right font-medium">الجنس</th>
+                <th class="px-6 py-4 text-right font-medium">التخصص</th>
+                <th class="px-6 py-4 text-right font-medium">الولاية</th>
+                <th class="px-6 py-4 text-right font-medium">المستوى</th>
+                <th class="px-6 py-4 text-center font-medium">الجنس</th>
                 <th class="px-6 py-4 text-center font-medium">الحلقات</th>
                 <th class="px-6 py-4 text-center font-medium">الحضور</th>
                 <th class="px-6 py-4 text-center font-medium">الحالة</th>
@@ -101,6 +104,9 @@
                     </div>
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-500">{{ student.phone|default:"—" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ student.specialization|default:"—" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ student.state|default:"—" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ student.level|default:"—" }}</td>
                 <td class="px-6 py-4">
                     {% if student.gender %}
                     <span class="text-xs font-medium px-2 py-1 rounded-lg {% if student.gender == 'male' %}bg-blue-50 text-blue-700{% else %}bg-pink-50 text-pink-700{% endif %}">

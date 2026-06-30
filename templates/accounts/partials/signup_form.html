@@ -38,6 +38,26 @@
                 <p class="text-red-500 text-xs mt-1">{{ form.role.errors.0 }}</p>
             {% endif %}
         </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">التخصص</label>
+                {{ form.specialization }}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">الولاية</label>
+                {{ form.state }}
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">المستوى</label>
+                {{ form.level }}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">مقدار الحفظ</label>
+                {{ form.memorization_amount }}
+            </div>
+        </div>
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-2">كلمة المرور</label>
             {{ form.password1 }}

@@ -38,7 +38,7 @@ class SignupForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ["full_name_ar", "email", "phone", "role", "gender"]
+        fields = ["full_name_ar", "email", "phone", "gender", "role", "specialization", "state", "level", "memorization_amount"]
         widgets = {
             "full_name_ar": forms.TextInput(attrs={
                 "class": "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors",
@@ -57,6 +57,22 @@ class SignupForm(forms.ModelForm):
             }),
             "gender": forms.Select(attrs={
                 "class": "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors",
+            }),
+            "specialization": forms.TextInput(attrs={
+                "class": "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors",
+                "placeholder": "مثال: علوم إسلامية",
+            }),
+            "state": forms.TextInput(attrs={
+                "class": "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors",
+                "placeholder": "مثال: الجزائر",
+            }),
+            "level": forms.TextInput(attrs={
+                "class": "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors",
+                "placeholder": "مثال: متوسط",
+            }),
+            "memorization_amount": forms.TextInput(attrs={
+                "class": "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors",
+                "placeholder": "مثال: 5 أجزاء",
             }),
         }
 
@@ -111,7 +127,7 @@ class ApprovalForm(forms.Form):
 class ProfileForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ["full_name_ar", "email", "phone", "gender"]
+        fields = ["full_name_ar", "email", "phone", "gender", "specialization", "state", "level", "memorization_amount"]
         widgets = {
             "full_name_ar": forms.TextInput(attrs={
                 "class": "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors",
