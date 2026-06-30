@@ -1,0 +1,79 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلب مراجعة أو تسميع{% endblock %}
+{% block page_heading %}طلب مراجعة أو تسميع{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:student_review_requests' %}">طلبات المراجعة</a> / طلب جديد{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">الحلقة *</label>
+                <select name="circle" required class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">اختر الحلقة</option>
+                    {% for en in enrollments %}
+                    <option value="{{ en.circle.id }}" {% if form_data.circle|add:"0" == en.circle.id %}selected{% endif %}>{{ en.circle.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">نوع الطلب *</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:bg-amber-50 has-[:checked]:border-amber-300 transition-colors">
+                        <input type="radio" name="type" value="review" checked class="w-4 h-4 text-amber-600">
+                        <span class="text-sm font-medium text-gray-700">مراجعة</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-300 transition-colors">
+                        <input type="radio" name="type" value="recitation" class="w-4 h-4 text-blue-600">
+                        <span class="text-sm font-medium text-gray-700">تسميع</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">السورة</label>
+                    <select name="surah" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="">اختر</option>
+                        {% for s in surahs %}
+                        <option value="{{ s.id }}" {% if form_data.surah|add:"0" == s.id %}selected{% endif %}>{{ s.name_ar }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">من آية</label>
+                    <input type="number" name="ayah_from" min="1" value="{{ form_data.ayah_from|default:'' }}"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">إلى آية</label>
+                    <input type="number" name="ayah_to" min="1" value="{{ form_data.ayah_to|default:'' }}"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">ملاحظات</label>
+                <textarea name="notes" rows="4"
+                          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="أضف ملاحظاتك هنا...">{{ form_data.notes|default:'' }}</textarea>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    إرسال الطلب
+                </button>
+                <a href="{% url 'accounts:student_review_requests' %}" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors text-center">
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

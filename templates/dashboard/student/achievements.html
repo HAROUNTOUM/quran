@@ -1,0 +1,73 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}إنجازاتي{% endblock %}
+{% block page_heading %}إنجازاتي{% endblock %}
+{% block page_breadcrumb %}الرئيسية / إنجازاتي{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">إجمالي آيات الحفظ</p>
+        <p class="text-2xl font-bold text-gray-800">{{ total_hifz_ayahs }}</p>
+        <p class="text-xs text-gray-400 mt-1">{{ hifz_hizb }}.{{ hifz_quarters }} حزب</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">إجمالي آيات المراجعة</p>
+        <p class="text-2xl font-bold text-gray-800">{{ total_murajaa_ayahs }}</p>
+        <p class="text-xs text-gray-400 mt-1">{{ murajaa_hizb }}.{{ murajaa_quarters }} حزب</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">الأجزاء المنجزة</p>
+        <p class="text-2xl font-bold text-green-600">{{ achievement.completed_juz|default:0 }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">الجزء الحالي</p>
+        <p class="text-2xl font-bold text-blue-600">{{ achievement.current_juz|default:1 }}</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50">
+        <h3 class="font-bold text-gray-800">آخر التحديثات</h3>
+    </div>
+    <div class="divide-y divide-gray-50">
+        {% for record in recent_progress %}
+        <div class="px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 {% if record.type == 'hifz' %}bg-primary-50{% else %}bg-amber-50{% endif %} rounded-lg flex items-center justify-center">
+                    <span class="text-xs font-bold {% if record.type == 'hifz' %}text-primary-700{% else %}text-amber-700{% endif %}">
+                        {{ record.type|slice:":1" }}
+                    </span>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-800">{{ record.surah.name_ar }} ({{ record.ayah_from }}-{{ record.ayah_to }})</p>
+                    <p class="text-xs text-gray-400">{{ record.get_type_display }} — {{ record.created_at|date:"Y-m-d" }}</p>
+                </div>
+            </div>
+            <span class="text-xs font-medium px-2 py-1 rounded-lg
+                {% if record.status == 'mastered' %}bg-green-50 text-green-700
+                {% elif record.status == 'memorizing' %}bg-amber-50 text-amber-700
+                {% elif record.status == 'tested' %}bg-blue-50 text-blue-700
+                {% else %}bg-gray-50 text-gray-600{% endif %}">
+                {{ record.get_status_display }}
+            </span>
+        </div>
+        {% empty %}
+        <div class="p-8 text-center">
+            {% include "dashboard/partials/empty_state.html" with message="لا توجد سجلات تقدم بعد" %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

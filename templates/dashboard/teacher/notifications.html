@@ -1,0 +1,67 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}الإشعارات{% endblock %}
+{% block page_heading %}الإشعارات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الإشعارات{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex items-center justify-between mb-6">
+    <form method="GET" class="flex items-center gap-3">
+        <select name="type" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="">كل الأنواع</option>
+            <option value="approval" {% if request.GET.type == 'approval' %}selected{% endif %}>اعتماد</option>
+            <option value="rejection" {% if request.GET.type == 'rejection' %}selected{% endif %}>رفض</option>
+            <option value="announcement" {% if request.GET.type == 'announcement' %}selected{% endif %}>إعلان</option>
+            <option value="reminder" {% if request.GET.type == 'reminder' %}selected{% endif %}>تذكير</option>
+            <option value="system" {% if request.GET.type == 'system' %}selected{% endif %}>النظام</option>
+        </select>
+        <select name="is_read" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="">الكل</option>
+            <option value="false" {% if request.GET.is_read == 'false' %}selected{% endif %}>غير مقروء</option>
+            <option value="true" {% if request.GET.is_read == 'true' %}selected{% endif %}>مقروء</option>
+        </select>
+    </form>
+    <span class="text-xs text-gray-400">{{ notifications|length }} إشعار</span>
+</div>
+
+<div class="space-y-3">
+    {% for notification in notifications %}
+    <a href="{% url 'accounts:notification_mark_read' notification.id %}"
+       class="block bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow {% if not notification.is_read %}border-r-4 border-r-primary-500 bg-primary-50/30{% endif %}">
+        <div class="flex items-start justify-between">
+            <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5
+                    {% if notification.type == 'approval' %}bg-green-50 text-green-600
+                    {% elif notification.type == 'rejection' %}bg-red-50 text-red-600
+                    {% elif notification.type == 'announcement' %}bg-primary-50 text-primary-600
+                    {% else %}bg-gray-50 text-gray-600{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {% if notification.type == 'approval' %}<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        {% elif notification.type == 'rejection' %}<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        {% elif notification.type == 'announcement' %}<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+                        {% else %}<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>{% endif %}
+                    </svg>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-gray-800">{{ notification.title }}</h4>
+                    <p class="text-sm text-gray-500 mt-1">{{ notification.message }}</p>
+                    <p class="text-xs text-gray-400 mt-2">{{ notification.created_at|date:"Y-m-d H:i" }}</p>
+                </div>
+            </div>
+            {% if not notification.is_read %}
+            <span class="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0 mt-2"></span>
+            {% endif %}
+        </div>
+    </a>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        {% include "dashboard/partials/empty_state.html" with icon="notifications" message="لا توجد إشعارات" %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="mt-6">
+    {% include "dashboard/partials/pagination.html" %}
+</div>
+{% endif %}
+{% endblock %}

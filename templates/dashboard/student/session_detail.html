@@ -1,0 +1,142 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تفاصيل الحصة{% endblock %}
+{% block page_heading %}تفاصيل الحصة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:student_sessions' %}">جدول الحصص</a> / {{ session.circle.name }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
+    <dl class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm mb-6">
+        <div>
+            <dt class="text-gray-400">الحلقة</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">{{ session.circle.name }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">التاريخ</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">{{ session.session_date|date:"Y-m-d" }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">الوقت</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">{{ session.session_time|time:"H:i"|default:"—" }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">النوع</dt>
+            <dd class="font-medium mt-0.5">
+                <span class="text-xs px-2 py-0.5 rounded-lg {% if session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                    {{ session.get_session_type_display }}
+                </span>
+            </dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">المكان / الرابط</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">
+                {% if session.location %}
+                    {{ session.location }}
+                {% elif session.meeting_url %}
+                    <a href="{{ session.meeting_url }}" target="_blank" class="text-primary-600 hover:text-primary-700 underline">
+                        {% if session.meeting_platform %}{{ session.get_meeting_platform_display }}{% else %}رابط الحصة{% endif %}
+                    </a>
+                {% else %}—{% endif %}
+            </dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">المدة</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">{{ session.duration_minutes|default:"—" }}{% if session.duration_minutes %} دقيقة{% endif %}</dd>
+        </div>
+    </dl>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 p-6">
+    <h3 class="font-bold text-gray-800 mb-4">حالة الحضور</h3>
+    {% if attendance %}
+    <div class="flex items-center gap-4">
+        <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium
+            {% if attendance.status == 'present' %}bg-green-50 text-green-700
+            {% elif attendance.status == 'late' %}bg-amber-50 text-amber-700
+            {% elif attendance.status == 'absent' %}bg-red-50 text-red-700
+            {% elif attendance.status == 'excused' %}bg-blue-50 text-blue-700
+            {% elif attendance.status == 'left_early' %}bg-purple-50 text-purple-700
+            {% elif attendance.status == 'pending_justification' %}bg-orange-50 text-orange-700
+            {% endif %}">
+            {{ attendance.get_status_display }}
+        </span>
+        {% if can_justify %}
+        <button onclick="openJustifyModal({{ session.id }})"
+                class="px-4 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+            تقديم تبرير
+        </button>
+        {% endif %}
+        {% if attendance.justification %}
+        <div class="bg-gray-50 rounded-xl px-4 py-2 text-sm text-gray-600">
+            <span class="text-xs text-gray-400">تبريرك: </span>{{ attendance.justification }}
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">لم يتم تسجيل حضور لهذه الحصة بعد</p>
+    {% endif %}
+</div>
+
+<div id="justifyModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeJustifyModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md z-10">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">تبرير الغياب</h3>
+            <button onclick="closeJustifyModal()" class="p-1 hover:bg-gray-100 rounded-lg">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">سبب التغيب</label>
+            <textarea id="justifyReason" rows="4"
+                      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="اكتب سبب غيابك..."></textarea>
+        </div>
+        <div id="justifyError" class="text-red-600 text-sm mb-3 hidden"></div>
+        <button onclick="submitJustification()" class="w-full py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+            إرسال التبرير
+        </button>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : '';
+}
+function openJustifyModal() { document.getElementById('justifyModal').classList.remove('hidden'); }
+function closeJustifyModal() { document.getElementById('justifyModal').classList.add('hidden'); document.getElementById('justifyError').classList.add('hidden'); }
+function submitJustification() {
+    const sessionId = {{ session.id }};
+    const reason = document.getElementById('justifyReason').value.trim();
+    if (!reason) {
+        document.getElementById('justifyError').textContent = 'يرجى كتابة سبب التغيب';
+        document.getElementById('justifyError').classList.remove('hidden');
+        return;
+    }
+    fetch('/api/v1/justifications/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+        body: JSON.stringify({ session_id: sessionId, reason: reason }),
+    })
+    .then(r => r.json().then(j => ({ ok: r.ok, data: j })))
+    .then(({ ok, data }) => {
+        if (!ok) {
+            document.getElementById('justifyError').textContent = data.message || 'حدث خطأ';
+            document.getElementById('justifyError').classList.remove('hidden');
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'تم تقديم التبرير بنجاح', type: 'success' }
+        }));
+        closeJustifyModal();
+        location.reload();
+    })
+    .catch(() => {
+        document.getElementById('justifyError').textContent = 'حدث خطأ في الاتصال';
+        document.getElementById('justifyError').classList.remove('hidden');
+    });
+}
+</script>
+{% endblock %}

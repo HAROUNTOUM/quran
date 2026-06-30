@@ -1,0 +1,109 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}{{ request_obj.title }}{% endblock %}
+{% block title %}{{ request_obj.title }} — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+<div class="mb-8">
+    <a href="{% url 'accounts:admin_requests' %}" class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-primary-600 mb-4 transition-colors">
+        <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        العودة للطلبات
+    </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ request_obj.title }}</h2>
+            <p class="text-gray-600 leading-relaxed">{{ request_obj.body|default:"لا توجد تفاصيل" }}</p>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">التعليقات ({{ comments|length }})</h3>
+            <div class="space-y-4 mb-6 max-h-96 overflow-y-auto">
+                {% for comment in comments %}
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <span class="text-gray-600 font-bold text-xs">{{ comment.author.full_name_ar.0 }}</span>
+                    </div>
+                    <div class="flex-1 bg-gray-50 rounded-xl px-4 py-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-bold text-gray-700">{{ comment.author.full_name_ar }}</span>
+                            <span class="text-xs text-gray-400">{{ comment.created_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                        <p class="text-sm text-gray-600">{{ comment.body }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-center text-gray-400 py-4">لا توجد تعليقات بعد</p>
+                {% endfor %}
+            </div>
+            <form method="post" class="flex gap-3">
+                {% csrf_token %}
+                <input type="text" name="comment_body" placeholder="اكتب تعليقاً..." required
+                       class="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <button type="submit" class="px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors flex-shrink-0">
+                    إرسال
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">تفاصيل الطلب</h3>
+            <dl class="space-y-3">
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">المرسل</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ request_obj.submitted_by.full_name_ar }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">الحالة</dt>
+                    <dd>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
+                            {% if request_obj.status == 'resolved' %}bg-green-50 text-green-700
+                            {% elif request_obj.status == 'approved' %}bg-blue-50 text-blue-700
+                            {% elif request_obj.status == 'under_review' %}bg-amber-50 text-amber-700
+                            {% elif request_obj.status == 'rejected' %}bg-red-50 text-red-700
+                            {% else %}bg-gray-50 text-gray-700{% endif %}">
+                            {{ request_obj.get_status_display }}
+                        </span>
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">النوع</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ request_obj.get_type_display }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">الأولوية</dt>
+                    <dd>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
+                            {% if request_obj.priority == 'urgent' %}bg-red-50 text-red-700
+                            {% elif request_obj.priority == 'high' %}bg-amber-50 text-amber-700
+                            {% else %}bg-gray-50 text-gray-700{% endif %}">
+                            {{ request_obj.get_priority_display }}
+                        </span>
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">التاريخ</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ request_obj.created_at|date:"Y-m-d" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mt-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">تحديث الحالة</h3>
+            <form method="post" action="{% url 'accounts:admin_request_detail' request_obj.id %}">
+                {% csrf_token %}
+                <select name="status" class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                    {% for key, label in request_obj.Status.choices %}
+                    <option value="{{ key }}" {% if request_obj.status == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="w-full mt-3 px-4 py-2.5 bg-primary-600 text-white font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    تحديث
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

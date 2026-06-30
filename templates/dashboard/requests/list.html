@@ -1,0 +1,94 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}الطلبات والبلاغات{% endblock %}
+{% block page_heading %}الطلبات والبلاغات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الطلبات والبلاغات{% endblock %}
+{% block dashboard_content %}
+<div class="grid grid-cols-4 gap-4 mb-6">
+    {% include "dashboard/partials/stat_card.html" with label="إجمالي الطلبات" value=total_count icon="requests" color="blue" %}
+    {% include "dashboard/partials/stat_card.html" with label="قيد المراجعة" value=under_review_count icon="requests" color="amber" %}
+    {% include "dashboard/partials/stat_card.html" with label="مقبولة" value=approved_count icon="students" color="green" %}
+    {% include "dashboard/partials/stat_card.html" with label="عاجلة" value=urgent_count icon="requests" color="red" %}
+</div>
+
+<form method="GET" class="bg-white rounded-2xl border border-gray-100 p-4 mb-6 flex items-center gap-3 flex-wrap">
+    <select name="type" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <option value="">كل الأنواع</option>
+        <option value="technical" {% if request.GET.type == 'technical' %}selected{% endif %}>دعم فني</option>
+        <option value="administrative" {% if request.GET.type == 'administrative' %}selected{% endif %}>إداري</option>
+        <option value="academic" {% if request.GET.type == 'academic' %}selected{% endif %}>أكاديمي</option>
+        <option value="other" {% if request.GET.type == 'other' %}selected{% endif %}>أخرى</option>
+    </select>
+    <select name="status" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <option value="">كل الحالات</option>
+        <option value="submitted" {% if request.GET.status == 'submitted' %}selected{% endif %}>مقدّم</option>
+        <option value="under_review" {% if request.GET.status == 'under_review' %}selected{% endif %}>قيد المراجعة</option>
+        <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>مقبول</option>
+        <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>مرفوض</option>
+        <option value="resolved" {% if request.GET.status == 'resolved' %}selected{% endif %}>تم الحل</option>
+    </select>
+    <select name="priority" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <option value="">كل الأولويات</option>
+        <option value="urgent" {% if request.GET.priority == 'urgent' %}selected{% endif %}>عاجل</option>
+        <option value="high" {% if request.GET.priority == 'high' %}selected{% endif %}>عالية</option>
+        <option value="normal" {% if request.GET.priority == 'normal' %}selected{% endif %}>عادية</option>
+        <option value="low" {% if request.GET.priority == 'low' %}selected{% endif %}>منخفضة</option>
+    </select>
+    <div class="mr-auto relative">
+        <input type="text" name="search" placeholder="بحث..." value="{{ request.GET.search }}"
+               oninput="clearTimeout(this._timer); this._timer = setTimeout(() => this.closest('form').submit(), 500)"
+               class="text-sm border border-gray-200 rounded-lg px-4 py-2 pr-9 w-56 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    </div>
+</form>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">رقم</th>
+                <th class="px-6 py-4 text-right font-medium">الموضوع</th>
+                <th class="px-6 py-4 text-right font-medium">مقدّم الطلب</th>
+                <th class="px-6 py-4 text-right font-medium">النوع</th>
+                <th class="px-6 py-4 text-right font-medium">الأولوية</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">التاريخ</th>
+                <th class="px-6 py-4 text-right font-medium">إجراء</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for req in requests %}
+            <tr class="hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{% url 'accounts:admin_request_detail' req.id %}'">
+                <td class="px-6 py-4 text-sm text-gray-400 font-mono">#{{ req.id|stringformat:"s"|slice:":8" }}</td>
+                <td class="px-6 py-4">
+                    <p class="text-sm font-medium text-gray-800">{{ req.title }}</p>
+                    <p class="text-xs text-gray-400 truncate max-w-xs">{{ req.body|truncatewords:8 }}</p>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ req.submitted_by.full_name_ar }}</td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg bg-gray-50 text-gray-600">{{ req.get_type_display }}</span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if req.priority == 'urgent' %}bg-red-50 text-red-700{% elif req.priority == 'high' %}bg-orange-50 text-orange-700{% elif req.priority == 'normal' %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ req.get_priority_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium {% if req.status == 'submitted' %}bg-blue-50 text-blue-700{% elif req.status == 'under_review' %}bg-amber-50 text-amber-700{% elif req.status in 'approved,resolved' %}bg-green-50 text-green-700{% elif req.status == 'rejected' %}bg-red-50 text-red-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ req.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-400">{{ req.created_at|date:"d/m/Y" }}</td>
+                <td class="px-6 py-4">
+                    <a href="{% url 'accounts:admin_request_detail' req.id %}" class="p-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors inline-block">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">{% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

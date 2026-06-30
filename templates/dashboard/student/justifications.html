@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تبريرات الغياب{% endblock %}
+{% block page_heading %}تبريرات الغياب{% endblock %}
+{% block page_breadcrumb %}الرئيسية / تبريرات الغياب{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">سجل تبريرات الغياب الخاصة بك</p>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">الحصة</th>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-right font-medium">التبرير</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-center font-medium">تاريخ التبرير</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for att in justifications %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm text-gray-800">{{ att.session.session_date|date:"Y-m-d" }}{% if att.session.session_time %} {{ att.session.session_time|time:"H:i" }}{% endif %}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ att.session.circle.name }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{{ att.justification }}</td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg
+                        {% if att.status == 'excused' %}bg-green-50 text-green-700
+                        {% elif att.status == 'pending_justification' %}bg-amber-50 text-amber-700
+                        {% elif att.status == 'absent' and att.justification %}bg-red-50 text-red-700
+                        {% else %}bg-gray-50 text-gray-600{% endif %}">
+                        {% if att.status == 'excused' %}مقبول{% elif att.status == 'pending_justification' %}قيد المراجعة{% else %}{{ att.get_status_display }}{% endif %}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-center text-sm text-gray-400">{{ att.updated_at|date:"Y-m-d" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">{% include "dashboard/partials/empty_state.html" with message="لا توجد تبريرات غياب" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

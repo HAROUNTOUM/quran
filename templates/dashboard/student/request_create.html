@@ -1,0 +1,62 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلب جديد{% endblock %}
+{% block page_heading %}طلب جديد{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:student_requests' %}">طلباتي</a> / طلب جديد{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">عنوان الطلب *</label>
+                <input type="text" name="title" required maxlength="200"
+                       value="{{ form_data.title|default:'' }}"
+                       class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                       placeholder="ملخص مختصر للطلب">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">النوع</label>
+                    <select name="type" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="technical" {% if form_data.type == 'technical' %}selected{% endif %}>تقني</option>
+                        <option value="administrative" {% if form_data.type == 'administrative' %}selected{% endif %}>إداري</option>
+                        <option value="academic" {% if form_data.type == 'academic' %}selected{% endif %}>أكاديمي</option>
+                        <option value="other" {% if form_data.type == 'other' or not form_data.type %}selected{% endif %}>أخرى</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">الأولوية</label>
+                    <select name="priority" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="low" {% if form_data.priority == 'low' %}selected{% endif %}>منخفضة</option>
+                        <option value="normal" {% if form_data.priority == 'normal' or not form_data.priority %}selected{% endif %}>عادية</option>
+                        <option value="high" {% if form_data.priority == 'high' %}selected{% endif %}>عالية</option>
+                        <option value="urgent" {% if form_data.priority == 'urgent' %}selected{% endif %}>عاجلة</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">الوصف *</label>
+                <textarea name="body" required rows="6"
+                          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="اشرح طلبك بالتفصيل...">{{ form_data.body|default:'' }}</textarea>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    إرسال الطلب
+                </button>
+                <a href="{% url 'accounts:student_requests' %}" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors text-center">
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

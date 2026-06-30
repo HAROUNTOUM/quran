@@ -1,0 +1,13 @@
+<a href="{% url 'accounts:admin_circle_detail' circle.id %}" class="block group">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300">
+        <div class="w-12 h-12 bg-cyan-50 group-hover:bg-cyan-100 rounded-2xl flex items-center justify-center mb-4 transition-colors">
+            <svg class="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2 group-hover:text-primary-600 transition-colors">{{ circle.name }}</h3>
+        <p class="text-sm text-gray-400 mb-4">{{ circle.teacher.full_name_ar|default:"—" }}</p>
+        <div class="flex items-center justify-between text-sm">
+            <span class="text-gray-400">{{ circle.students.count|default:0 }} طالب</span>
+            <span class="text-primary-600 font-medium">عرض التفاصيل</span>
+        </div>
+    </div>
+</a>

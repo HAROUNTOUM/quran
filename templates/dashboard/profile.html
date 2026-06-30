@@ -1,0 +1,42 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}ملفي الشخصي{% endblock %}
+{% block page_heading %}ملفي الشخصي{% endblock %}
+{% block page_breadcrumb %}الرئيسية / ملفي الشخصي{% endblock %}
+
+{% block dashboard_content %}
+<div class="flex items-center justify-end mb-4">
+    <a href="{% url 'accounts:profile_edit' %}" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+        تعديل الملف الشخصي
+    </a>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+            <span class="text-primary-700 font-bold text-2xl">{{ profile_user.full_name_ar.0 }}</span>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800">{{ profile_user.full_name_ar }}</h3>
+        <p class="text-sm text-gray-500 mt-1">{{ profile_user.get_role_display }}</p>
+        <div class="mt-4 space-y-2 text-sm text-gray-600">
+            <p><span class="font-medium text-gray-800">البريد:</span> {{ profile_user.email }}</p>
+            <p><span class="font-medium text-gray-800">الهاتف:</span> {{ profile_user.phone|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">الجنس:</span> {{ profile_user.gender|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">الحالة:</span> {{ profile_user.get_is_approved_display }}</p>
+            <p><span class="font-medium text-gray-800">آخر دخول:</span> {{ recent_login|default:"—" }}</p>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
+        <h3 class="font-bold text-gray-800 mb-4">ملخص النشاط</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {% for stat in profile_stats %}
+            <div class="rounded-xl border border-gray-100 p-4 bg-gray-50">
+                <p class="text-xs text-gray-500">{{ stat.label }}</p>
+                <p class="text-2xl font-bold text-gray-800 mt-1">{{ stat.value }}</p>
+            </div>
+            {% empty %}
+            <p class="text-sm text-gray-500">لا توجد بيانات إضافية لعرضها الآن.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

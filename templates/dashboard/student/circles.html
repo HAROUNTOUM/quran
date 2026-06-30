@@ -1,0 +1,103 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}حلقاتي{% endblock %}
+{% block page_heading %}حلقاتي{% endblock %}
+{% block page_breadcrumb %}الرئيسية / حلقاتي{% endblock %}
+{% block dashboard_content %}
+
+{% if my_enrollments %}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-50">
+        <h3 class="font-bold text-gray-800">حلقاتي المسجل فيها</h3>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+        {% for enrollment in my_enrollments %}
+        <a href="{% url 'accounts:student_circle_detail' enrollment.circle.id %}" class="border border-gray-100 rounded-xl p-4 bg-gray-50 hover:shadow-md transition-shadow block">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <p class="font-bold text-gray-800 text-sm">{{ enrollment.circle.name }}</p>
+                    <p class="text-xs text-gray-400">{{ enrollment.circle.teacher.full_name_ar|default:"—" }}</p>
+                </div>
+            </div>
+            <div class="space-y-1 text-xs">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">اليوم / الوقت:</span>
+                    <span class="text-gray-600">{{ enrollment.circle.schedule|default:"—" }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">السورة الحالية:</span>
+                    <span class="text-gray-600">{{ enrollment.current_surah.name_ar|default:"—" }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">تاريخ التسجيل:</span>
+                    <span class="text-gray-600">{{ enrollment.enrolled_at|date:"Y-m-d" }}</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50">
+        <h3 class="font-bold text-gray-800">الحلقات المتاحة للتسجيل</h3>
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-right font-medium">المعلم</th>
+                <th class="px-6 py-4 text-right font-medium">الجنس</th>
+                <th class="px-6 py-4 text-right font-medium">الجدول</th>
+                <th class="px-6 py-4 text-right font-medium">المسجلون</th>
+                <th class="px-6 py-4 text-right font-medium">إجراء</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for circle in available_circles %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 text-sm">{{ circle.name }}</p>
+                            {% if circle.location %}<p class="text-xs text-gray-400">{{ circle.location }}</p>{% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ circle.teacher.full_name_ar|default:"—" }}</td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if circle.gender == 'male' %}bg-blue-50 text-blue-700{% else %}bg-pink-50 text-pink-700{% endif %}">
+                        {% if circle.gender == 'male' %}ذكور{% else %}إناث{% endif %}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ circle.schedule|default:"—" }}</td>
+                <td class="px-6 py-4 text-sm">
+                    <span class="font-bold text-gray-800">{{ circle.enrolled_count }}</span>
+                    <span class="text-gray-400">/ {{ circle.max_students }}</span>
+                </td>
+                <td class="px-6 py-4">
+                    <form method="POST" action="{% url 'accounts:student_enroll_circle' circle.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+                            تسجيل
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">
+                    {% include "dashboard/partials/empty_state.html" with message="لا توجد حلقات متاحة للتسجيل حالياً" %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

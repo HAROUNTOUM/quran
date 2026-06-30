@@ -1,0 +1,150 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلبات المراجعة والتسميع{% endblock %}
+{% block page_heading %}طلبات المراجعة والتسميع{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلبات المراجعة والتسميع{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">مراجعة طلبات التسميع والمراجعة المقدمة من الطلاب — قم بقبول أو رفض كل طلب</p>
+    <div class="flex items-center gap-2">
+        <a href="?status=pending" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'pending' or not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">قيد الانتظار</a>
+        <a href="?status=approved" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'approved' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مقبول</a>
+        <a href="?status=rejected" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'rejected' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مرفوض</a>
+        <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors">الكل</a>
+    </div>
+</div>
+
+<div class="space-y-4">
+    {% for req in requests %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span class="text-primary-700 font-bold">{{ req.student.full_name_ar.0 }}</span>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">{{ req.student.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ req.circle.name }}</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium {% if req.status == 'pending' %}bg-blue-50 text-blue-700{% elif req.status == 'approved' %}bg-green-50 text-green-700{% elif req.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
+                {{ req.get_status_display }}
+            </span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">النوع</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{{ req.get_type_display }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">السورة</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{{ req.surah.name_ar|default:"—" }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">الآيات</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{% if req.ayah_from and req.ayah_to %}{{ req.ayah_from }}–{{ req.ayah_to }}{% else %}—{% endif %}</p>
+            </div>
+        </div>
+
+        {% if req.notes %}
+        <div class="bg-gray-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-500 mb-1">ملاحظات الطالب:</p>
+            <p class="text-sm text-gray-800">{{ req.notes }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.rejection_reason %}
+        <div class="bg-red-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-500 mb-1">سبب الرفض:</p>
+            <p class="text-sm text-gray-800">{{ req.rejection_reason }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.reviewed_by %}
+        <p class="text-xs text-gray-400">تمت المراجعة بواسطة: {{ req.reviewed_by.full_name_ar }}</p>
+        {% endif %}
+
+        {% if req.status == 'pending' %}
+        <div class="mt-4 border-t border-gray-100 pt-4">
+            <div class="mb-3">
+                <label class="block text-xs font-medium text-gray-500 mb-1">سبب الرفض (مطلوب في حالة الرفض)</label>
+                <textarea id="rejection_{{ req.id }}" rows="2"
+                          class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="أضف سبب الرفض هنا..."></textarea>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="approveReviewRequest('{{ req.id }}')" class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                    قبول الطلب
+                </button>
+                <button onclick="rejectReviewRequest('{{ req.id }}')" class="px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">
+                    رفض الطلب
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+        لا توجد طلبات
+    </div>
+    {% endfor %}
+</div>
+
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}
+{% block extra_js %}
+<script>
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : '';
+}
+
+function approveReviewRequest(id) {
+    if (!confirm('تأكيد قبول طلب المراجعة؟')) return;
+    fetch('/api/v1/review-requests/' + id + '/approve/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success === false) return alert(data.message || 'حدث خطأ');
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'تم قبول الطلب', type: 'success' }
+        }));
+        location.reload();
+    })
+    .catch(function() { alert('حدث خطأ في الاتصال'); });
+}
+
+function rejectReviewRequest(id) {
+    var reason = document.getElementById('rejection_' + id).value.trim();
+    if (!reason) {
+        alert('يرجى إدخال سبب الرفض');
+        return;
+    }
+    if (!confirm('تأكيد رفض طلب المراجعة؟')) return;
+    fetch('/api/v1/review-requests/' + id + '/reject/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ rejection_reason: reason }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success === false) return alert(data.message || 'حدث خطأ');
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'تم رفض الطلب', type: 'success' }
+        }));
+        location.reload();
+    })
+    .catch(function() { alert('حدث خطأ في الاتصال'); });
+}
+</script>
+{% endblock %}

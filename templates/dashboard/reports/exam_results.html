@@ -1,0 +1,65 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}نتائج الامتحانات{% endblock %}
+{% block page_heading %}نتائج الامتحانات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / التقارير / نتائج الامتحانات{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-6">
+        <p class="text-sm text-indigo-700 mb-1">إجمالي الطلاب</p>
+        <p class="text-3xl font-black text-indigo-800">{{ total_students }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6">
+        <p class="text-sm text-green-700 mb-1">المعدل العام</p>
+        <p class="text-3xl font-black text-green-800">{{ overall_avg }}%</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">درجات الطلاب</h3>
+        <div class="flex items-center gap-2 text-sm text-gray-400">
+            <span>مرتبة حسب المعدل</span>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="text-right px-4 py-3 font-medium text-gray-600">الطالب</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">عدد الامتحانات</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">المعدل العام</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">آخر امتحان</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for item in exam_data %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-800">{{ item.student.full_name_ar }}</td>
+                    <td class="text-center px-4 py-3 text-gray-600">{{ item.total_exams }}</td>
+                    <td class="text-center px-4 py-3">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold
+                            {% if item.avg_score >= 90 %}bg-green-50 text-green-700
+                            {% elif item.avg_score >= 75 %}bg-blue-50 text-blue-700
+                            {% elif item.avg_score >= 50 %}bg-amber-50 text-amber-700
+                            {% else %}bg-red-50 text-red-700{% endif %}">
+                            {{ item.avg_score }}%
+                        </span>
+                    </td>
+                    <td class="text-center px-4 py-3 text-xs text-gray-400">
+                        {{ item.last_exam_date|date:"d/m/Y"|default:"—" }}
+                        {% if item.last_circle %}<br><span class="text-[10px]">{{ item.last_circle }}</span>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="px-4 py-8 text-center text-gray-400">
+                        لا توجد نتائج امتحانات بعد
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

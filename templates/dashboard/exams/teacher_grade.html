@@ -1,0 +1,145 @@
+{% extends "dashboard/base.html" %}
+{% load core_tags %}
+{% block page_title %}تسجيل درجات {{ exam.title }}{% endblock %}
+{% block page_heading %}{{ exam.title }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:teacher_exams' %}">الامتحانات</a> / تسجيل الدرجات{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-indigo-50 rounded-xl p-4 text-center">
+        <p class="text-sm text-indigo-700 mb-1">{{ exam.circle.name|default:"عام" }}</p>
+        <p class="text-xs text-indigo-500">الحلقة</p>
+    </div>
+    <div class="bg-green-50 rounded-xl p-4 text-center">
+        <p class="text-sm font-bold text-green-700">{{ exam.exam_date|date:"d/m/Y" }}</p>
+        <p class="text-xs text-green-500">التاريخ</p>
+    </div>
+    <div class="bg-amber-50 rounded-xl p-4 text-center">
+        <p class="text-sm font-bold text-amber-700">{{ students|length }}</p>
+        <p class="text-xs text-amber-500">عدد الطلاب</p>
+    </div>
+    <div class="bg-purple-50 rounded-xl p-4 text-center">
+        <p class="text-sm font-bold text-purple-700">{{ exam.max_marks }}</p>
+        <p class="text-xs text-purple-500">الدرجة القصوى</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">درجات الامتحان</h3>
+        <div class="flex items-center gap-2 text-sm text-gray-400">
+            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">الدرجة</span>
+            <span class="px-2 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-medium">النسبة</span>
+            <span class="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">التقدير</span>
+        </div>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="text-right px-4 py-3 font-medium text-gray-600">#</th>
+                        <th class="text-right px-4 py-3 font-medium text-gray-600">الطالب</th>
+                        <th class="text-center px-4 py-3 font-medium text-gray-600">
+                            <span class="text-blue-700">الدرجة</span>
+                            <span class="text-gray-400 mx-1">/{{ exam.max_marks }}</span>
+                        </th>
+                        <th class="text-center px-4 py-3 font-medium text-gray-600">
+                            <span class="text-green-700">النسبة</span>
+                        </th>
+                        <th class="text-center px-4 py-3 font-medium text-gray-600">
+                            <span class="text-purple-700">التقدير</span>
+                        </th>
+                        <th class="text-right px-4 py-3 font-medium text-gray-600">ملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for student in students %}
+                    {% with mark=existing|get_item:student.id %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 text-gray-400">{{ forloop.counter }}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center">
+                                    <span class="text-primary-700 font-bold text-xs">{{ student.full_name_ar.0 }}</span>
+                                </div>
+                                <span class="font-medium text-gray-800">{{ student.full_name_ar }}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <input type="number" name="mark_{{ student.id }}" min="0" max="{{ exam.max_marks }}" step="0.5" required
+                                   value="{{ mark.marks_obtained|default:'' }}"
+                                   oninput="calcGrade(this, {{ exam.max_marks }}, {{ exam.pass_percentage }})"
+                                   class="mark-input w-20 px-2 py-1.5 border border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 font-bold"
+                                   placeholder="0">
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="pct-display text-sm font-bold text-green-600">{% if mark %}{{ mark.percentage }}%{% else %}—{% endif %}</span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="grade-display text-lg font-black
+                                {% if mark.grade == 'A' %}text-green-600
+                                {% elif mark.grade == 'B' %}text-blue-600
+                                {% elif mark.grade == 'C' %}text-amber-600
+                                {% elif mark.grade == 'D' %}text-orange-600
+                                {% elif mark.grade == 'F' %}text-red-600
+                                {% else %}text-gray-400{% endif %}">
+                                {% if mark %}{{ mark.grade }}{% else %}—{% endif %}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <input type="text" name="notes_{{ student.id }}" value="{{ mark.teacher_notes|default:'' }}"
+                                   class="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                   placeholder="ملاحظات">
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-400">لا يوجد طلاب في هذه الحلقة</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if students %}
+        <div class="p-6 border-t border-gray-100 flex justify-between items-center">
+            <p class="text-xs text-gray-400">نسبة النجاح: {{ exam.pass_percentage }}% • الدرجة القصوى: {{ exam.max_marks }}</p>
+            <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-md shadow-primary-500/25">
+                حفظ الدرجات
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function calcGrade(input, maxMarks, passPct) {
+    var row = input.closest('tr');
+    var val = parseFloat(input.value) || 0;
+    var pct = (val / maxMarks * 100).toFixed(1);
+    row.querySelector('.pct-display').textContent = pct + '%';
+    var grade = '—';
+    if (val > 0) {
+        if (pct >= 90) grade = 'A';
+        else if (pct >= 80) grade = 'B';
+        else if (pct >= 70) grade = 'C';
+        else if (pct >= 60) grade = 'D';
+        else if (pct >= 50) grade = 'E';
+        else grade = 'F';
+    }
+    var el = row.querySelector('.grade-display');
+    el.textContent = grade;
+    el.className = 'grade-display text-lg font-black ' + (
+        grade === 'A' ? 'text-green-600' :
+        grade === 'B' ? 'text-blue-600' :
+        grade === 'C' ? 'text-amber-600' :
+        grade === 'D' ? 'text-orange-600' :
+        grade === 'F' ? 'text-red-600' : 'text-gray-400'
+    );
+}
+</script>
+{% endblock %}

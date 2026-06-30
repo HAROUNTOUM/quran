@@ -1,0 +1,64 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}{{ request.title }}{% endblock %}
+{% block page_heading %}{{ request.title }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:student_requests' %}">طلباتي</a> / {{ request.title }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <dl class="space-y-4 text-sm">
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">النوع</dt>
+                    <dd><span class="text-xs px-2 py-1 rounded-lg {% if request.type == 'technical' %}bg-blue-50 text-blue-700{% elif request.type == 'administrative' %}bg-amber-50 text-amber-700{% elif request.type == 'academic' %}bg-green-50 text-green-700{% else %}bg-gray-50 text-gray-600{% endif %}">{{ request.get_type_display }}</span></dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">الأولوية</dt>
+                    <dd><span class="text-xs font-medium px-2 py-1 rounded-lg {% if request.priority == 'urgent' %}bg-red-50 text-red-700{% elif request.priority == 'high' %}bg-orange-50 text-orange-700{% elif request.priority == 'normal' %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-500{% endif %}">{{ request.get_priority_display }}</span></dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">الحالة</dt>
+                    <dd><span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium {% if request.status == 'submitted' %}bg-blue-50 text-blue-700{% elif request.status == 'under_review' %}bg-amber-50 text-amber-700{% elif request.status == 'approved' %}bg-green-50 text-green-700{% elif request.status == 'rejected' %}bg-red-50 text-red-700{% elif request.status == 'resolved' %}bg-gray-50 text-gray-600{% endif %}">{{ request.get_status_display }}</span></dd>
+                </div>
+                <div class="flex justify-between py-2">
+                    <dt class="text-gray-400">تاريخ الإنشاء</dt>
+                    <dd class="text-gray-600">{{ request.created_at|date:"Y-m-d H:i" }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-3">وصف الطلب</h3>
+            <p class="text-sm text-gray-600 leading-relaxed">{{ request.body|linebreaksbr }}</p>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">التعليقات ({{ comments|length }})</h3>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for comment in comments %}
+                <div class="px-6 py-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                            <span class="text-xs font-bold text-gray-600">{{ comment.author.full_name_ar.0 }}</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">{{ comment.author.full_name_ar }}</span>
+                                <span class="text-xs text-gray-400">{{ comment.created_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            <p class="text-sm text-gray-600">{{ comment.body|linebreaksbr }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-8 text-center text-sm text-gray-400">لا توجد تعليقات بعد</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تسجيل حضور — {{ session.circle.name }}{% endblock %}
+{% block page_heading %}{{ session.circle.name }}{% endblock %}
+{% block page_breadcrumb %}الحلقات / {{ session.circle.name }} / {{ session.session_date|date:"Y-m-d" }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+        <a href="{% url 'accounts:teacher_circle_detail' session.circle.id %}" class="p-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg class="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </a>
+        <div>
+            <div class="flex items-center gap-2">
+                <h3 class="font-bold text-gray-800">{{ session.circle.name }}</h3>
+                <span class="text-xs px-2 py-0.5 rounded-lg font-medium {% if session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                    {{ session.get_session_type_display }}
+                </span>
+            </div>
+            <p class="text-xs text-gray-400">{{ session.session_date|date:"l Y-m-d" }}{% if session.duration_minutes %} · {{ session.duration_minutes }} دقيقة{% endif %}</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if session.is_online and session.meeting_url %}
+        <a href="{{ session.meeting_url }}" target="_blank" class="px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            انضمام للاجتماع
+        </a>
+        {% endif %}
+        <button onclick="saveAttendance()" class="px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-sm">
+            حفظ الكل
+        </button>
+    </div>
+</div>
+
+{% if session.is_online and session.meeting_url %}
+<div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-blue-800">رابط الاجتماع</p>
+            <p class="text-xs text-blue-600 mt-0.5">
+                {% if session.meeting_platform %}{{ session.get_meeting_platform_display }} · {% endif %}
+                {{ session.meeting_url }}
+                {% if session.meeting_id %} · المعرف: {{ session.meeting_id }}{% endif %}
+                {% if session.meeting_password %} · كلمة المرور: {{ session.meeting_password }}{% endif %}
+            </p>
+        </div>
+    </div>
+    <a href="{{ session.meeting_url }}" target="_blank" class="px-4 py-2 bg-white text-blue-700 text-sm font-medium rounded-xl hover:bg-blue-50 transition-colors border border-blue-200 flex-shrink-0">
+        انضمام
+    </a>
+</div>
+{% endif %}
+
+<form id="grade-form" method="POST">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="attendance">
+
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 text-sm text-gray-500">
+                <tr>
+                    <th class="px-4 py-3 text-right font-medium w-8">#</th>
+                    <th class="px-4 py-3 text-right font-medium">الطالب</th>
+                    <th class="px-2 py-3 text-center font-medium">الحضور</th>
+                    {% for criterion in criteria %}
+                    <th class="px-2 py-3 text-center font-medium">{{ criterion.name_ar }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50" id="grades-tbody">
+                {% for row in student_rows %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 text-sm text-gray-400">{{ forloop.counter }}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span class="text-blue-700 font-bold text-xs">{{ row.student_name|slice:":1" }}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">{{ row.student_name }}</span>
+                        </div>
+                    </td>
+                    <td class="px-2 py-3 text-center">
+                        <select name="attendance_{{ row.student_id }}"
+                                class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">—</option>
+                            {% for key, label in attendance_choices %}
+                            <option value="{{ key }}" {% if row.attendance == key %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    {% with grades_list=row.grades %}
+                    {% for g in grades_list %}
+                    <td class="px-2 py-3 text-center">
+                        <input type="number" name="grade_{{ row.student_id }}_{{ g.criterion_id }}"
+                               value="{% if g.score %}{{ g.score }}{% endif %}"
+                               min="0" max="100" step="0.5"
+                               placeholder="—"
+                               class="w-20 text-center text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </td>
+                    {% endfor %}
+                    {% endwith %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="100" class="text-center py-8 text-sm text-gray-400">
+                        لا يوجد طلاب في هذه الحلقة
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+function saveAttendance() {
+    const form = document.getElementById('grade-form');
+    const formData = new FormData(form);
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {'X-CSRFToken': formData.get('csrfmiddlewaretoken'), 'X-Requested-With': 'XMLHttpRequest'},
+        body: new URLSearchParams(formData)
+    }).then(r => {
+        if (r.ok) {
+            window.dispatchEvent(new CustomEvent('showToast', {detail: {message: 'تم الحفظ بنجاح', type: 'success'}}));
+        } else {
+            window.dispatchEvent(new CustomEvent('showToast', {detail: {message: 'حدث خطأ أثناء الحفظ', type: 'error'}}));
+        }
+    }).catch(() => {
+        window.dispatchEvent(new CustomEvent('showToast', {detail: {message: 'حدث خطأ في الاتصال', type: 'error'}}));
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تبريرات الغياب{% endblock %}
+{% block page_heading %}تبريرات الغياب{% endblock %}
+{% block page_breadcrumb %}الرئيسية / تبريرات الغياب{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">مراجعة تبريرات غياب الطلاب — قم بقبول الرف أو رفضه مع إضافة ملاحظة</p>
+    <div class="flex items-center gap-2">
+        <a href="?status=pending_justification" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'pending_justification' or not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">بانتظار المراجعة</a>
+        <a href="?status=excused" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'excused' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مقبول</a>
+        <a href="?status=absent" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'absent' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مرفوض</a>
+        <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors">الكل</a>
+    </div>
+</div>
+
+<div class="space-y-4">
+    {% for j in justifications %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span class="text-primary-700 font-bold">{{ j.student.full_name_ar.0 }}</span>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">{{ j.student.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ j.session.circle.name }} · {{ j.session.session_date|date:"Y-m-d" }}{% if j.session.session_time %} {{ j.session.session_time|time:"H:i" }}{% endif %}</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium {% if j.status == 'excused' %}bg-green-50 text-green-700{% elif j.status == 'absent' %}bg-red-50 text-red-700{% elif j.status == 'pending_justification' %}bg-amber-50 text-amber-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                {{ j.get_status_display }}
+            </span>
+        </div>
+
+        <div class="bg-gray-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-500 mb-1">تبرير الطالب:</p>
+            <p class="text-sm text-gray-800">{{ j.justification|default:"لم يقدم تبريراً" }}</p>
+        </div>
+
+        {% if j.teacher_remark %}
+        <div class="bg-blue-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-500 mb-1">ملاحظة المعلم:</p>
+            <p class="text-sm text-gray-800">{{ j.teacher_remark }}</p>
+        </div>
+        {% endif %}
+
+        {% if j.reviewed_by %}
+        <p class="text-xs text-gray-400">تمت المراجعة بواسطة: {{ j.reviewed_by.full_name_ar }} · {{ j.reviewed_at|date:"Y-m-d H:i" }}</p>
+        {% endif %}
+
+        {% if j.status == 'pending_justification' %}
+        <div class="mt-4 border-t border-gray-100 pt-4">
+            <div class="mb-3">
+                <label class="block text-xs font-medium text-gray-500 mb-1">ملاحظة المعلم (اختياري)</label>
+                <textarea id="remark_{{ j.id }}" rows="2"
+                          class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="أضف ملاحظتك هنا..."></textarea>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="approveJustification('{{ j.id }}')" class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                    قبول التبرير
+                </button>
+                <button onclick="rejectJustification('{{ j.id }}')" class="px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">
+                    رفض التبرير
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+        لا توجد تبريرات غياب
+    </div>
+    {% endfor %}
+</div>
+
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}
+{% block extra_js %}
+<script>
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : '';
+}
+
+function approveJustification(id) {
+    var remark = document.getElementById('remark_' + id).value.trim();
+    fetch('/api/v1/justifications/' + id + '/approve/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ teacher_remark: remark }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success === false) return alert(data.message || 'حدث خطأ');
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'تم قبول التبرير', type: 'success' }
+        }));
+        location.reload();
+    })
+    .catch(function() { alert('حدث خطأ في الاتصال'); });
+}
+
+function rejectJustification(id) {
+    var remark = document.getElementById('remark_' + id).value.trim();
+    fetch('/api/v1/justifications/' + id + '/reject/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ teacher_remark: remark }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success === false) return alert(data.message || 'حدث خطأ');
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'تم رفض التبرير', type: 'success' }
+        }));
+        location.reload();
+    })
+    .catch(function() { alert('حدث خطأ في الاتصال'); });
+}
+</script>
+{% endblock %}

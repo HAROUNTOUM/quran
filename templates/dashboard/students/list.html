@@ -1,0 +1,160 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}إدارة الطلاب{% endblock %}
+{% block page_heading %}إدارة الطلاب{% endblock %}
+{% block page_breadcrumb %}الرئيسية / إدارة الطلاب{% endblock %}
+{% block dashboard_content %}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    {% if request.GET.status %}
+      {% include "dashboard/partials/stat_card.html" with label="إجمالي الطلاب" value=total_students icon="students" color="blue" filter_url="?status=" %}
+    {% else %}
+      {% include "dashboard/partials/stat_card.html" with label="إجمالي الطلاب" value=total_students icon="students" color="blue" filter_url="?status=" is_active=True %}
+    {% endif %}
+    {% if request.GET.status == 'active' %}
+      {% include "dashboard/partials/stat_card.html" with label="مسجل في حلقات" value=active_students icon="circles" color="green" filter_url="?status=active" is_active=True %}
+    {% else %}
+      {% include "dashboard/partials/stat_card.html" with label="مسجل في حلقات" value=active_students icon="circles" color="green" filter_url="?status=active" %}
+    {% endif %}
+    {% if request.GET.status == 'inactive' %}
+      {% include "dashboard/partials/stat_card.html" with label="بدون حلقات" value=inactive_students icon="requests" color="red" filter_url="?status=inactive" is_active=True %}
+    {% else %}
+      {% include "dashboard/partials/stat_card.html" with label="بدون حلقات" value=inactive_students icon="requests" color="red" filter_url="?status=inactive" %}
+    {% endif %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-400 mb-1">الحلقات النشطة</p>
+                <p class="text-3xl font-black text-purple-600">{{ circles.count }}</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center bg-purple-50">
+                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <a href="{% url 'accounts:admin_student_create' %}"
+           class="px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors flex items-center gap-2 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+            إضافة طالب
+        </a>
+        <form method="GET" class="relative">
+            <input type="text" name="search" placeholder="بحث بالاسم أو البريد..." value="{{ request.GET.search }}"
+                   oninput="clearTimeout(this._timer); this._timer = setTimeout(() => this.closest('form').submit(), 500)"
+                   class="text-sm border border-gray-200 rounded-xl px-4 py-2.5 pr-10 w-64 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </form>
+        <select onchange="const p=new URLSearchParams(location.search); p.set('status',this.value); p.delete('page'); location.search=p.toString();"
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+            <option value="">جميع الحالات</option>
+            <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>مسجل</option>
+            <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>غير مسجل</option>
+        </select>
+        <select onchange="const p=new URLSearchParams(location.search); p.set('circle',this.value); p.delete('page'); location.search=p.toString();"
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+            <option value="">جميع الحلقات</option>
+            {% for c in circles %}
+            <option value="{{ c.id }}" {% if request.GET.circle == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="{% url 'accounts:admin_students_export_pdf' %}{% if request.GET.circle %}?circle={{ request.GET.circle }}{% endif %}{% if request.GET.status %}?status={{ request.GET.status }}{% endif %}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors" title="تصدير PDF">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            PDF
+        </a>
+        <a href="{% url 'accounts:admin_students_export_excel' %}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 text-sm font-medium rounded-xl hover:bg-green-100 transition-colors" title="تصدير Excel">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Excel
+        </a>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">الطالب</th>
+                <th class="px-6 py-4 text-right font-medium">الهاتف</th>
+                <th class="px-6 py-4 text-right font-medium">الجنس</th>
+                <th class="px-6 py-4 text-center font-medium">الحلقات</th>
+                <th class="px-6 py-4 text-center font-medium">الحضور</th>
+                <th class="px-6 py-4 text-center font-medium">الحالة</th>
+                <th class="px-6 py-4 text-center font-medium">إجراء</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for student in students %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <span class="text-blue-700 font-bold text-sm">{{ student.full_name_ar.0 }}</span>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 text-sm">{{ student.full_name_ar }}</p>
+                            <p class="text-xs text-gray-400">{{ student.email }}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ student.phone|default:"—" }}</td>
+                <td class="px-6 py-4">
+                    {% if student.gender %}
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if student.gender == 'male' %}bg-blue-50 text-blue-700{% else %}bg-pink-50 text-pink-700{% endif %}">
+                        {% if student.gender == 'male' %}ذكر{% else %}أنثى{% endif %}
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <span class="font-bold text-gray-800">{{ student.active_enrollments|default:"0" }}</span>
+                    <span class="text-xs text-gray-400">حلقة</span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    {% if student.total_sessions %}
+                    <span class="font-bold {% if student.present_sessions > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
+                        {% widthratio student.present_sessions student.total_sessions 100 %}%
+                    </span>
+                    {% else %}
+                    <span class="text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium {% if student.is_active %}bg-green-50 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {% if student.is_active %}<span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>{% endif %}
+                        {{ student.is_active|yesno:"نشط,غير نشط" }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex items-center justify-center gap-1">
+                        <button @click="$dispatch('open-student-profile', {
+                            name: '{{ student.full_name_ar|escapejs }}',
+                            email: '{{ student.email|escapejs }}',
+                            phone: '{{ student.phone|escapejs }}',
+                            gender: '{{ student.gender|escapejs }}',
+                            is_active: {{ student.is_active|lower }},
+                            attendance_rate: '{% if student.total_sessions %}{% widthratio student.present_sessions student.total_sessions 100 %}%{% else %}—{% endif %}',
+                            circles: '{{ student.active_enrollments|default:"0" }} حلقات',
+                            detail_url: '{% url 'accounts:admin_student_detail' student.id %}'
+                        })" class="p-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors inline-flex" title="عرض سريع">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
+                        <a href="{% url 'accounts:admin_student_detail' student.id %}" class="p-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors inline-flex" title="الملف الكامل">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7">{% include "dashboard/partials/empty_state.html" with message="لا يوجد طلاب بعد" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% include "dashboard/partials/student_profile_modal.html" %}
+{% endblock %}

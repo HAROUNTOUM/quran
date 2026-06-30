@@ -1,0 +1,183 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}لوحة الطالب{% endblock %}
+{% block page_heading %}لوحة الطالب{% endblock %}
+{% block page_breadcrumb %}الرئيسية / لوحة الطالب{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400">حلقاتي</p>
+        <p class="text-3xl font-bold text-gray-800 mt-2">{{ circles|length }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400">نسبة الحضور</p>
+        <p class="text-3xl font-bold text-green-600 mt-2">{{ attendance_rate }}%</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400">الحفظ الجديد</p>
+        <p class="text-3xl font-bold text-primary-600 mt-2">{{ hifz_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400">المراجعات</p>
+        <p class="text-3xl font-bold text-amber-600 mt-2">{{ murajaa_count }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <p class="text-xs text-gray-400 mb-1">طلبات المراجعة قيد الانتظار</p>
+        <p class="text-3xl font-bold text-amber-600">{{ pending_review_count }}</p>
+        <a href="{% url 'accounts:student_review_requests' %}" class="mt-3 inline-block text-xs text-primary-600 hover:text-primary-700 font-medium">عرض الطلبات</a>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <p class="text-xs text-gray-400 mb-1">الإشعارات غير المقروءة</p>
+        <p class="text-3xl font-bold text-red-600">{{ unread_notif_count }}</p>
+        <a href="{% url 'accounts:student_notifications' %}" class="mt-3 inline-block text-xs text-primary-600 hover:text-primary-700 font-medium">عرض الإشعارات</a>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <p class="text-xs text-gray-400 mb-1">الحصص القادمة</p>
+        <p class="text-3xl font-bold text-blue-600">{{ upcoming_sessions|length }}</p>
+        <a href="{% url 'accounts:student_sessions' %}" class="mt-3 inline-block text-xs text-primary-600 hover:text-primary-700 font-medium">عرض الجدول</a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+    <a href="{% url 'accounts:student_attendance' %}" class="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow flex items-center gap-4">
+        <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-gray-800">تسجيل الحضور</p>
+            <p class="text-xs text-gray-400">عرض سجل الحضور الخاص بك</p>
+        </div>
+    </a>
+    <a href="{% url 'accounts:student_requests' %}" class="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow flex items-center gap-4">
+        <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-gray-800">طلب دعم</p>
+            <p class="text-xs text-gray-400">إنشاء طلب دعم أو بلاغ</p>
+        </div>
+    </a>
+    <a href="{% url 'accounts:student_memorization' %}" class="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow flex items-center gap-4">
+        <div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-gray-800">تقدم الحفظ</p>
+            <p class="text-xs text-gray-400">متابعة حفظك ومراجعتك</p>
+        </div>
+    </a>
+</div>
+
+{% if upcoming_sessions %}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">الحصص القادمة</h3>
+        <a href="{% url 'accounts:student_sessions' %}" class="text-xs text-primary-600 hover:text-primary-700 font-medium">عرض الكل</a>
+    </div>
+    <div class="divide-y divide-gray-50">
+        {% for session in upcoming_sessions %}
+        <a href="{% url 'accounts:student_session_detail' session.id %}" class="px-6 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 {% if session.is_online %}bg-blue-50{% else %}bg-gray-50{% endif %} rounded-lg flex items-center justify-center">
+                    {% if session.is_online %}
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    {% else %}
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    {% endif %}
+                </div>
+                <div>
+                    <span class="text-sm text-gray-800 font-medium">{{ session.circle.name }}</span>
+                    <span class="text-xs text-gray-400 mr-2">{{ session.session_date|date:"Y-m-d" }}{% if session.session_time %} {{ session.session_time|time:"H:i" }}{% endif %}</span>
+                </div>
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-lg {% if session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                {{ session.get_session_type_display }}
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50">
+            <h3 class="font-bold text-gray-800">آخر جلسات الحضور</h3>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for att in recent_attendance %}
+            <div class="px-6 py-3 flex items-center justify-between">
+                <div>
+                    <span class="text-sm text-gray-600">{{ att.session.circle.name }}</span>
+                    <span class="text-xs text-gray-400 mr-3">{{ att.session.session_date|date:"Y-m-d" }}</span>
+                </div>
+                <span class="text-xs font-medium px-2 py-1 rounded-lg
+                    {% if att.status == 'present' %}bg-green-50 text-green-700
+                    {% elif att.status == 'late' %}bg-amber-50 text-amber-700
+                    {% elif att.status == 'absent' %}bg-red-50 text-red-700
+                    {% else %}bg-gray-50 text-gray-500{% endif %}">
+                    {{ att.get_status_display }}
+                </span>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-sm text-gray-400">لا توجد سجلات حضور بعد</div>
+            {% endfor %}
+        </div>
+        <div class="px-6 py-3 bg-gray-50 text-center">
+            <a href="{% url 'accounts:student_attendance' %}" class="text-xs text-primary-600 hover:text-primary-700 font-medium">عرض سجل الحضور الكامل</a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50">
+            <h3 class="font-bold text-gray-800">آخر الإعلانات</h3>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for ann in recent_announcements %}
+            <div class="px-6 py-3">
+                <p class="text-sm font-medium text-gray-800">{{ ann.title }}</p>
+                <p class="text-xs text-gray-400 mt-1">{{ ann.created_at|date:"Y-m-d" }}</p>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-sm text-gray-400">لا توجد إعلانات</div>
+            {% endfor %}
+        </div>
+        <div class="px-6 py-3 bg-gray-50 text-center">
+            <a href="{% url 'accounts:student_announcements' %}" class="text-xs text-primary-600 hover:text-primary-700 font-medium">عرض كل الإعلانات</a>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">حلقاتي المسجلة</h3>
+        <a href="{% url 'accounts:student_circles' %}" class="text-sm text-primary-600 hover:text-primary-700 font-medium">إدارة الحلقات</a>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+        {% for enrollment in enrollments %}
+        <a href="{% url 'accounts:student_circle_detail' enrollment.circle.id %}" class="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow block">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+                    <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <div>
+                    <p class="font-bold text-gray-800 text-sm">{{ enrollment.circle.name }}</p>
+                    <p class="text-xs text-gray-400">{{ enrollment.circle.teacher.full_name_ar|default:"—" }}</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+                <span class="text-gray-400">السورة الحالية:</span>
+                <span class="font-medium text-gray-600">{{ enrollment.current_surah.name_ar|default:"—" }}</span>
+            </div>
+        </a>
+        {% empty %}
+        <div class="col-span-full text-center py-8 text-sm text-gray-400">
+            أنت غير مسجل في أي حلقة. <a href="{% url 'accounts:student_circles' %}" class="text-primary-600 font-medium">تصفح الحلقات المتاحة</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

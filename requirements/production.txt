@@ -1,0 +1,4 @@
+-r base.txt
+gunicorn==22.*
+uvicorn==0.29.*
+sentry-sdk==2.*

@@ -1,0 +1,71 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلبات الغياب{% endblock %}
+{% block page_heading %}طلبات الغياب{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلبات الغياب{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-4 gap-4 mb-6">
+    {% url 'accounts:admin_teacher_absences' as all_url %}
+    {% include "dashboard/partials/stat_card.html" with label="إجمالي الطلبات" value=pending_count|add:approved_count|add:rejected_count icon="requests" color="blue" %}
+    {% include "dashboard/partials/stat_card.html" with label="قيد الانتظار" value=pending_count icon="requests" color="amber" %}
+    {% include "dashboard/partials/stat_card.html" with label="مقبولة" value=approved_count icon="students" color="green" %}
+    {% include "dashboard/partials/stat_card.html" with label="مرفوضة" value=rejected_count icon="requests" color="red" %}
+</div>
+
+<form method="GET" class="bg-white rounded-2xl border border-gray-100 p-4 mb-6 flex items-center gap-3">
+    <select name="status" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <option value="">كل الحالات</option>
+        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+        <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>مقبولة</option>
+        <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>مرفوضة</option>
+    </select>
+</form>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">#</th>
+                <th class="px-6 py-4 text-right font-medium">المعلم</th>
+                <th class="px-6 py-4 text-right font-medium">من</th>
+                <th class="px-6 py-4 text-right font-medium">إلى</th>
+                <th class="px-6 py-4 text-right font-medium">المدة</th>
+                <th class="px-6 py-4 text-right font-medium">السبب</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">البديل</th>
+                <th class="px-6 py-4 text-right font-medium">إجراء</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for a in absences %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm text-gray-400 font-mono">#{{ a.id|stringformat:"s"|slice:":8" }}</td>
+                <td class="px-6 py-4 text-sm font-medium text-gray-800">{{ a.teacher.full_name_ar }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ a.start_date|date:"d/m/Y" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ a.end_date|date:"d/m/Y" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ a.duration_days }} يوم</td>
+                <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-[150px]">{{ a.reason }}</td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
+                        {% if a.status == 'pending' %}bg-amber-50 text-amber-700
+                        {% elif a.status == 'approved' %}bg-green-50 text-green-700
+                        {% elif a.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
+                        {{ a.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ a.substitute_teacher.full_name_ar|default:"—" }}</td>
+                <td class="px-6 py-4">
+                    <a href="{% url 'accounts:admin_absence_manage' a.id %}"
+                       class="p-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors inline-block">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9">{% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات غياب" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

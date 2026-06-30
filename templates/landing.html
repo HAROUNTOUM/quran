@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}الطبيب الحافظ — ابدأ رحلتك{% endblock %}
+{% block content %}
+<nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <a href="{% url 'accounts:landing' %}" class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-800 rounded-xl flex items-center justify-center">
+                <span class="text-white font-bold text-lg">ط</span>
+            </div>
+            <span class="text-xl font-bold text-gray-800">الطبيب الحافظ</span>
+        </a>
+        <div class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
+            <a href="#services" class="hover:text-primary-600 transition-colors">خدماتنا</a>
+            <a href="#about" class="hover:text-primary-600 transition-colors">من نحن</a>
+            <a href="#team" class="hover:text-primary-600 transition-colors">فريقنا</a>
+            <a href="#contact" class="hover:text-primary-600 transition-colors">تواصل معنا</a>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'accounts:login' %}" class="px-5 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors">تسجيل الدخول</a>
+            <a href="{% url 'accounts:signup' %}" class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-l from-primary-600 to-primary-700 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-md shadow-primary-500/25">إنشاء حساب</a>
+        </div>
+    </div>
+</nav>
+
+<section class="relative pt-32 pb-20 overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-bl from-primary-900 via-primary-800 to-primary-950"></div>
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-20 right-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 left-20 w-96 h-96 bg-primary-400 rounded-full blur-3xl"></div>
+    </div>
+    <div class="relative max-w-7xl mx-auto px-6 flex items-center gap-16">
+        <div class="flex-1">
+            <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-white/80 text-sm mb-6">
+                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                منصة تعليمية متكاملة
+            </div>
+            <h1 class="text-5xl md:text-6xl font-black text-white leading-tight mb-6">
+                ابدأ رحلتك<br>
+                <span class="text-primary-300">في حفظ القرآن</span>
+            </h1>
+            <p class="text-lg text-white/70 leading-relaxed mb-10 max-w-lg">
+                منصة متخصصة في متابعة حلقات التحفيظ، تسجيل الحضور، تقييم التلاوة، وإصدار الشهادات — كل ذلك في مكان واحد.
+            </p>
+            <div class="flex items-center gap-4">
+                <a href="{% url 'accounts:signup' %}" class="px-8 py-3.5 bg-white text-primary-700 font-bold rounded-xl hover:bg-primary-50 transition-all shadow-lg shadow-black/10">انضم الآن</a>
+                <a href="#services" class="px-8 py-3.5 border-2 border-white/30 text-white font-bold rounded-xl hover:bg-white/10 transition-all">تعرّف علينا</a>
+            </div>
+            <div class="flex items-center gap-10 mt-14 pt-8 border-t border-white/10">
+                <div><div class="text-3xl font-black text-white">+500</div><div class="text-sm text-white/50">طالب وطالبة</div></div>
+                <div><div class="text-3xl font-black text-white">+50</div><div class="text-sm text-white/50">حلقة تحفيظ</div></div>
+                <div><div class="text-3xl font-black text-white">+30</div><div class="text-sm text-white/50">معلم ومعلمة</div></div>
+            </div>
+        </div>
+        <div class="hidden lg:block flex-1">
+            <div class="relative">
+                <div class="w-full aspect-square bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 p-8">
+                    <div class="w-full h-full bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center">
+                        <svg class="w-64 h-64 text-white/20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </div>
+                </div>
+                <div class="absolute -top-4 -right-4 bg-white rounded-2xl shadow-2xl p-4 animate-bounce" style="animation-duration: 3s;">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center"><svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+                        <div><div class="text-sm font-bold text-gray-800">تم الحضور</div><div class="text-xs text-gray-400">12 طالب</div></div>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-2xl p-4 animate-bounce" style="animation-duration: 4s;">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center"><svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+                        <div><div class="text-sm font-bold text-gray-800">تقييم جديد</div><div class="text-xs text-gray-400">95% — تجويد</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="services" class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+            <span class="text-primary-600 font-bold text-sm tracking-wider">خدماتنا</span>
+            <h2 class="text-4xl font-black text-gray-800 mt-3 mb-4">كل ما تحتاجه في مكان واحد</h2>
+            <p class="text-gray-500 max-w-2xl mx-auto">أدوات متكاملة لإدارة حلقات التحفيظ بسهولة وكفاءة</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="group p-8 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300">
+                <div class="w-14 h-14 bg-primary-50 group-hover:bg-primary-100 rounded-2xl flex items-center justify-center mb-5 transition-colors"><svg class="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">إدارة الحلقات</h3>
+                <p class="text-gray-500 leading-relaxed">إنشاء وتنظيم حلقات التحفيظ مع تحكم كامل بالجداول والسعات</p>
+            </div>
+            <div class="group p-8 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300">
+                <div class="w-14 h-14 bg-green-50 group-hover:bg-green-100 rounded-2xl flex items-center justify-center mb-5 transition-colors"><svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">تسجيل الحضور</h3>
+                <p class="text-gray-500 leading-relaxed">تسجيل سريع للحضور والغياب مع تتبع تفصيلي لكل طالب</p>
+            </div>
+            <div class="group p-8 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300">
+                <div class="w-14 h-14 bg-amber-50 group-hover:bg-amber-100 rounded-2xl flex items-center justify-center mb-5 transition-colors"><svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">تقييم التلاوة</h3>
+                <p class="text-gray-500 leading-relaxed">تقييم متعدد المعايير: الحفظ، التجويد، الترتيل والإتقان</p>
+            </div>
+            <div class="group p-8 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300">
+                <div class="w-14 h-14 bg-purple-50 group-hover:bg-purple-100 rounded-2xl flex items-center justify-center mb-5 transition-colors"><svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">تتبع التقدم</h3>
+                <p class="text-gray-500 leading-relaxed">متابعة تقدم الحفظ آية بآية مع تقارير مفصلة</p>
+            </div>
+            <div class="group p-8 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300">
+                <div class="w-14 h-14 bg-rose-50 group-hover:bg-rose-100 rounded-2xl flex items-center justify-center mb-5 transition-colors"><svg class="w-7 h-7 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg></div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">المراسلة</h3>
+                <p class="text-gray-500 leading-relaxed">نظام مراسلة متكامل بين المعلم والطالب والإدارة</p>
+            </div>
+            <div class="group p-8 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300">
+                <div class="w-14 h-14 bg-cyan-50 group-hover:bg-cyan-100 rounded-2xl flex items-center justify-center mb-5 transition-colors"><svg class="w-7 h-7 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg></div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">إصدار الشهادات</h3>
+                <p class="text-gray-500 leading-relaxed">شهادات تميز وإتمام قابلة للطباعة بأرقام تسلسلية</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-20 bg-gradient-to-l from-primary-700 to-primary-900">
+    <div class="max-w-4xl mx-auto px-6 text-center">
+        <h2 class="text-4xl font-black text-white mb-6">جاهز لبدء رحلتك؟</h2>
+        <p class="text-lg text-white/70 mb-10">انضم إلينا الآن واكتشف طريقة جديدة لإدارة حلقات التحفيظ</p>
+        <a href="{% url 'accounts:signup' %}" class="inline-block px-10 py-4 bg-white text-primary-700 font-bold rounded-xl hover:bg-primary-50 transition-all shadow-lg text-lg">إنشاء حساب مجاني</a>
+    </div>
+</section>
+
+<footer class="bg-gray-900 text-gray-400 py-12">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center"><span class="text-white font-bold text-sm">ط</span></div>
+            <span class="text-white font-bold">الطبيب الحافظ</span>
+        </div>
+        <p class="text-sm">© 2025 الطبيب الحافظ. جميع الحقوق محفوظة.</p>
+    </div>
+</footer>
+{% endblock %}

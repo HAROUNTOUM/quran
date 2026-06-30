@@ -1,0 +1,157 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}{{ teacher.full_name_ar }}{% endblock %}
+{% block title %}{{ teacher.full_name_ar }} — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+<div class="mb-8">
+    <a href="{% url 'accounts:admin_teachers' %}" class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-primary-600 mb-4 transition-colors">
+        <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        العودة للمعلمين
+    </a>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    {% include "dashboard/partials/stat_card.html" with label="الحلقات" value=circles.count icon="circles" color="purple" %}
+    {% include "dashboard/partials/stat_card.html" with label="الطلاب" value=total_students icon="students" color="blue" %}
+    {% include "dashboard/partials/stat_card.html" with label="الحصص" value=total_sessions icon="teachers" color="green" %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-400 mb-1">نسبة الحضور</p>
+                <p class="text-3xl font-black text-amber-600">{{ attendance_rate }}%</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50">
+                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+            <div class="w-20 h-20 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                <span class="text-purple-700 font-bold text-2xl">{{ teacher.full_name_ar.0 }}</span>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800">{{ teacher.full_name_ar }}</h2>
+            <p class="text-sm text-gray-400">{{ teacher.get_role_display }}</p>
+            <div class="mt-4 flex items-center justify-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium {% if teacher.is_active %}bg-green-50 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                    {% if teacher.is_active %}<span class="w-2 h-2 bg-green-500 rounded-full"></span>نشط{% else %}<span class="w-2 h-2 bg-gray-400 rounded-full"></span>غير نشط{% endif %}
+                </span>
+                {% if teacher.is_approved == 'approved' %}
+                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-700">معتمد</span>
+                {% endif %}
+            </div>
+            <div class="mt-6">
+                <form method="POST" action="{% url 'accounts:admin_teacher_toggle_status' teacher.id %}"
+                      onsubmit="return confirm('{% if teacher.is_active %}هل تريد تعطيل هذا المعلم؟ سيتعذر عليه الدخول للمنصة.{% else %}هل تريد تفعيل هذا المعلم؟{% endif %}')">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-colors {% if teacher.is_active %}bg-red-50 text-red-600 hover:bg-red-100{% else %}bg-green-50 text-green-600 hover:bg-green-100{% endif %}">
+                        {% if teacher.is_active %}
+                        تعطيل الحساب
+                        {% else %}
+                        تفعيل الحساب
+                        {% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mt-6">
+            <h3 class="font-bold text-gray-800 mb-4">معلومات الاتصال</h3>
+            <dl class="space-y-3">
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">البريد</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ teacher.email }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">الهاتف</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ teacher.phone|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">الجنس</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ teacher.get_gender_display|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-sm text-gray-400">التسجيل</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ teacher.created_at|date:"Y-m-d" }}</dd>
+                </div>
+                <div class="flex justify-between py-2">
+                    <dt class="text-sm text-gray-400">التحديث</dt>
+                    <dd class="text-sm font-medium text-gray-800">{{ teacher.updated_at|date:"Y-m-d" }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">الحلقات ({{ circles|length }})</h3>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for circle in circles %}
+                <a href="{% url 'accounts:admin_circle_detail' circle.id %}" class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-primary-50 rounded-xl flex items-center justify-center">
+                            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">{{ circle.name }}</p>
+                            <p class="text-xs text-gray-400">{{ circle.active_students }} طالب · {{ circle.surah_range|default:"—" }}</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium {% if circle.status == 'active' %}bg-green-50 text-green-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ circle.get_status_display }}
+                    </span>
+                </a>
+                {% empty %}
+                <div class="p-6 text-center text-sm text-gray-400">لا توجد حلقات لهذا المعلم</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="font-bold text-gray-800">آخر الحصص</h3>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for session in recent_sessions %}
+                <div class="px-6 py-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
+                            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">{{ session.circle.name }}</p>
+                            <p class="text-xs text-gray-400">{{ session.session_date|date:"Y-m-d" }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-6 text-center text-sm text-gray-400">لا توجد حصص سابقة</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="font-bold text-gray-800">آخر الإشعارات</h3>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for n in recent_notifications %}
+                <div class="px-6 py-3 flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full {% if n.is_read %}bg-gray-200{% else %}bg-primary-500{% endif %} flex-shrink-0"></div>
+                    <div class="min-w-0">
+                        <p class="text-sm text-gray-700 truncate">{{ n.title }}</p>
+                        <p class="text-xs text-gray-400">{{ n.created_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-6 text-center text-sm text-gray-400">لا توجد إشعارات</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

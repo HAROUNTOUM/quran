@@ -1,0 +1,69 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تعديل بيانات المعلم{% endblock %}
+{% block page_heading %}تعديل بيانات {{ teacher.full_name_ar }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:admin_teachers' %}">المعلمون</a> / تعديل{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">الاسم الكامل</label>
+                    <input type="text" name="full_name_ar" required value="{{ teacher.full_name_ar }}"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">البريد الإلكتروني</label>
+                    <input type="email" name="email" required value="{{ teacher.email }}"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">الهاتف</label>
+                        <input type="text" name="phone" value="{{ teacher.phone|default:'' }}"
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">الجنس</label>
+                        <select name="gender" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">اختر</option>
+                            <option value="male" {% if teacher.gender == 'male' %}selected{% endif %}>ذكر</option>
+                            <option value="female" {% if teacher.gender == 'female' %}selected{% endif %}>أنثى</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" name="is_active" value="true" id="is_active" {% if teacher.is_active %}checked{% endif %}
+                           class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                    <label for="is_active" class="text-sm text-gray-700">الحساب نشط</label>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-2">الحلقات المشرف عليها</label>
+                    <div class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-3">
+                        {% for circle in circles %}
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" name="circles" value="{{ circle.id }}"
+                                   {% if circle.teacher_id == teacher.id %}checked{% endif %}
+                                   class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                            {{ circle.name }}
+                        </label>
+                        {% empty %}
+                        <p class="text-sm text-gray-400 col-span-2">لا توجد حلقات نشطة</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    حفظ التعديلات
+                </button>
+                <a href="{% url 'accounts:admin_teachers' %}" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors text-center">
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

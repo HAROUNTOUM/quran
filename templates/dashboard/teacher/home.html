@@ -1,0 +1,282 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}لوحة المعلم{% endblock %}
+{% block page_heading %}لوحة المعلم{% endblock %}
+{% block page_breadcrumb %}الرئيسية / لوحة المعلم{% endblock %}
+{% block dashboard_content %}
+
+<div id="lockedModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeLockedModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md z-10">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">الحصة غير متاحة</h3>
+            <button onclick="closeLockedModal()" class="p-1 hover:bg-gray-100 rounded-lg">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="text-sm text-gray-600 mb-6">سيتم فتح الحصة قبل موعدها بـ 15 دقيقة. يمكنك تعديل الموعد الآن وسيتم إشعار الإدارة بالتغيير.</p>
+        <div class="flex gap-3">
+            <button onclick="openRescheduleModal()" class="flex-1 py-2.5 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 transition-colors">
+                تعديل الموعد
+            </button>
+            <button onclick="closeLockedModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors">
+                حسناً
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="rescheduleModal" class="fixed inset-0 z-[110] flex items-center justify-center hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeRescheduleModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md z-10">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">تعديل موعد الحصة</h3>
+            <button onclick="closeRescheduleModal()" class="p-1 hover:bg-gray-100 rounded-lg">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">التاريخ المقترح</label>
+            <input type="date" id="rescheduleDate"
+                   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">الوقت المقترح (اختياري)</label>
+            <input type="time" id="rescheduleTime"
+                   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">سبب التعديل</label>
+            <textarea id="rescheduleReason" rows="3"
+                      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="اذكر سبب طلب التعديل..."></textarea>
+        </div>
+        <p id="rescheduleError" class="text-red-600 text-sm mb-3 hidden"></p>
+        <div class="flex gap-3">
+            <button onclick="submitReschedule()" class="flex-1 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                حفظ التعديل
+            </button>
+            <button onclick="closeRescheduleModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors">
+                إلغاء
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+    {% for circle in circles %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </div>
+            <div>
+                <a href="{% url 'accounts:teacher_circle_detail' circle.id %}" class="font-bold text-gray-800 text-sm hover:text-primary-600 transition-colors">{{ circle.name }}</a>
+                <p class="text-xs text-gray-400">{{ circle.active_students }} طالب</p>
+            </div>
+        </div>
+        <div class="flex items-center justify-between text-xs">
+            <span class="text-gray-400">{{ circle.total_sessions }} حصة</span>
+            <a href="{% url 'accounts:teacher_session_create' circle.id %}" class="text-primary-600 hover:text-primary-700 font-medium">إضافة حصة</a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-span-4 bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+        ليس لديك حلقات نشطة حالياً
+    </div>
+    {% endfor %}
+</div>
+
+{% if today_sessions %}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">حصص اليوم</h3>
+        <span class="text-xs text-gray-400">{{ today_sessions|length }} حصة</span>
+    </div>
+    <div class="divide-y divide-gray-50">
+        {% for session in today_sessions %}
+        <div class="px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 {% if session.is_online %}bg-blue-50{% else %}bg-gray-50{% endif %} rounded-lg flex items-center justify-center">
+                    {% if session.is_online %}
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    {% else %}
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-800">{{ session.circle.name }}</span>
+                        {% if session.is_online %}<span class="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">عن بُعد</span>{% endif %}
+                    </div>
+                    <span class="text-xs text-gray-400">{{ session.session_date|date:"Y-m-d" }}{% if session.session_time %} {{ session.session_time|time:"H:i" }}{% endif %}</span>
+                    <span class="text-[10px] text-gray-400 block">
+                        {% if session.is_online and session.meeting_url %}
+                        {{ session.get_meeting_platform_display|default:"عن بُعد" }}
+                        {% elif session.location %}
+                        {{ session.location }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="joinSession({{ session.id }})"
+                        class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                    دخول الحلقة
+                </button>
+                <a href="{% url 'accounts:teacher_session_attendance' session.id %}"
+                   class="px-3 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+                    تسجيل الحضور
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50">
+        <h3 class="font-bold text-gray-800">الجلسات السابقة</h3>
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">التاريخ</th>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-right font-medium">النوع</th>
+                <th class="px-6 py-4 text-right font-medium">الحضور</th>
+                <th class="px-6 py-4 text-right font-medium">إجراء</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for session in recent_sessions %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm text-gray-800">{{ session.session_date|date:"Y-m-d" }}{% if session.session_time %} {{ session.session_time|time:"H:i" }}{% endif %}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ session.circle.name }}</td>
+                <td class="px-6 py-4">
+                    <span class="text-xs px-2 py-0.5 rounded-lg font-medium {% if session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                        {{ session.get_session_type_display }}
+                    </span>
+                    <p class="text-[10px] text-gray-400 mt-0.5">
+                        {% if session.is_online and session.meeting_url %}
+                        {{ session.get_meeting_platform_display|default:"رابط" }}
+                        {% elif session.location %}
+                        {{ session.location }}
+                        {% endif %}
+                    </p>
+                </td>
+                <td class="px-6 py-4 text-sm">
+                    {% if session.att_total %}
+                    <span class="text-green-600 font-medium">{{ session.att_present }}</span>
+                    <span class="text-gray-400">/ {{ session.att_total }}</span>
+                    {% else %}
+                    <span class="text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                        {% if session.is_online and session.meeting_url %}
+                        <a href="{{ session.meeting_url }}" target="_blank" class="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-medium rounded-lg hover:bg-green-100 transition-colors">
+                            رابط
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'accounts:teacher_session_attendance' session.id %}"
+                           class="px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-medium rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors">
+                            {% if session.att_total > 0 %}تعديل{% else %}تسجيل{% endif %}
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">{% include "dashboard/partials/empty_state.html" with message="لا توجد جلسات بعد" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% block extra_js %}
+<script>
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : '';
+}
+
+var currentSessionId = null;
+
+function joinSession(sessionId) {
+    currentSessionId = sessionId;
+    fetch('/api/v1/sessions/' + sessionId + '/join-link/', {
+        headers: { 'X-CSRFToken': getCSRFToken() },
+    })
+    .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, data: j }; }); })
+    .then(function(result) {
+        if (!result.ok) {
+            document.getElementById('lockedModal').classList.remove('hidden');
+            return;
+        }
+        var data = result.data;
+        if (data.session_type === 'online' && data.meeting_url) {
+            window.open(data.meeting_url, '_blank');
+        } else {
+            window.dispatchEvent(new CustomEvent('showToast', {
+                detail: { message: 'تم فتح الحصة بنجاح', type: 'success' }
+            }));
+        }
+    })
+    .catch(function() {
+        document.getElementById('lockedModal').classList.remove('hidden');
+    });
+}
+
+function closeLockedModal() {
+    document.getElementById('lockedModal').classList.add('hidden');
+}
+
+function openRescheduleModal() {
+    closeLockedModal();
+    document.getElementById('rescheduleError').classList.add('hidden');
+    document.getElementById('rescheduleModal').classList.remove('hidden');
+}
+
+function closeRescheduleModal() {
+    document.getElementById('rescheduleModal').classList.add('hidden');
+}
+
+function submitReschedule() {
+    var date = document.getElementById('rescheduleDate').value;
+    var time = document.getElementById('rescheduleTime').value;
+    var reason = document.getElementById('rescheduleReason').value.trim();
+    if (!date) {
+        document.getElementById('rescheduleError').textContent = 'يرجى اختيار التاريخ';
+        document.getElementById('rescheduleError').classList.remove('hidden');
+        return;
+    }
+    fetch('/api/v1/sessions/' + currentSessionId + '/reschedule/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ proposed_date: date, proposed_time: time || null, reason: reason }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success === false) {
+            document.getElementById('rescheduleError').textContent = data.message || 'حدث خطأ';
+            document.getElementById('rescheduleError').classList.remove('hidden');
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'تم تعديل موعد الحصة', type: 'success' }
+        }));
+        closeRescheduleModal();
+        location.reload();
+    })
+    .catch(function() {
+        document.getElementById('rescheduleError').textContent = 'حدث خطأ في الاتصال';
+        document.getElementById('rescheduleError').classList.remove('hidden');
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

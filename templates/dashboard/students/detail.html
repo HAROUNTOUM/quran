@@ -1,0 +1,145 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}{{ student.full_name_ar }}{% endblock %}
+{% block page_heading %}{{ student.full_name_ar }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:admin_students' %}">إدارة الطلاب</a> / {{ student.full_name_ar }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    {% include "dashboard/partials/stat_card.html" with label="الحلقات النشطة" value=active_enrollments.count icon="circles" color="blue" %}
+    {% include "dashboard/partials/stat_card.html" with label="إجمالي الحصص" value=total_sessions icon="requests" color="purple" %}
+    {% include "dashboard/partials/stat_card.html" with label="الحضور" value=present_count icon="students" color="green" %}
+    {% include "dashboard/partials/stat_card.html" with label="نسبة الحضور" value=attendance_rate|stringformat:"d%%" icon="medal" color="amber" %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">التسجيلات في الحلقات</h3>
+            </div>
+            <div class="space-y-3">
+                {% for enrollment in enrollments %}
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">{{ enrollment.circle.name }}</p>
+                        <p class="text-xs text-gray-400">
+                            {{ enrollment.circle.teacher.full_name_ar|default:"—" }} |
+                            {{ enrollment.enrolled_at|date:"d/m/Y" }}
+                        </p>
+                    </div>
+                    <span class="text-xs font-medium px-2.5 py-1 rounded-lg {% if enrollment.status == 'active' %}bg-green-50 text-green-700{% elif enrollment.status == 'dropped' %}bg-red-50 text-red-600{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {{ enrollment.get_status_display }}
+                    </span>
+                </div>
+                {% empty %}
+                {% include "dashboard/partials/empty_state.html" with message="لا توجد تسجيلات" %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">سجل الحضور والغياب</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 text-sm text-gray-500">
+                        <tr>
+                            <th class="px-4 py-3 text-right font-medium">التاريخ</th>
+                            <th class="px-4 py-3 text-right font-medium">الحلقة</th>
+                            <th class="px-4 py-3 text-center font-medium">الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for att in recent_attendance %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ att.session.session_date|date:"d/m/Y" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ att.session.circle.name }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="text-xs font-medium px-2 py-1 rounded-lg
+                                    {% if att.status == 'present' %}bg-green-50 text-green-700
+                                    {% elif att.status == 'late' %}bg-amber-50 text-amber-700
+                                    {% elif att.status == 'absent' %}bg-red-50 text-red-600
+                                    {% elif att.status == 'excused' %}bg-blue-50 text-blue-700
+                                    {% else %}bg-gray-100 text-gray-500{% endif %}">
+                                    {{ att.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3">{% include "dashboard/partials/empty_state.html" with message="لا توجد سجلات حضور" %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">معلومات الطالب</h3>
+            <div class="space-y-4">
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">الاسم الكامل</p>
+                    <p class="text-sm font-medium text-gray-800">{{ student.full_name_ar }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">البريد الإلكتروني</p>
+                    <p class="text-sm text-gray-600">{{ student.email }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">الهاتف</p>
+                    <p class="text-sm text-gray-600">{{ student.phone|default:"—" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">الجنس</p>
+                    <p class="text-sm text-gray-600">{% if student.gender == 'male' %}ذكر{% elif student.gender == 'female' %}أنثى{% else %}—{% endif %}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">تاريخ التسجيل</p>
+                    <p class="text-sm text-gray-600">{{ student.created_at|date:"d/m/Y" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-1">الحالة</p>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium {% if student.is_active %}bg-green-50 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {{ student.is_active|yesno:"نشط,غير نشط" }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">إحصاءات الحفظ</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <span class="text-sm text-gray-600">إجمالي المحفوظ</span>
+                    <span class="font-bold text-gray-800">{{ hifz_juz }}.{{ hifz_quarters }} حزب</span>
+                    <span class="text-xs text-gray-400 mr-2">({{ hifz_total }} آية)</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <span class="text-sm text-gray-600">المُتقن</span>
+                    <span class="font-bold text-green-600">{{ mas_juz }}.{{ mas_quarters }} حزب</span>
+                    <span class="text-xs text-gray-400 mr-2">({{ mastered }} آية)</span>
+                </div>
+                {% if hifz_total %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <span class="text-sm text-gray-600">نسبة الإتقان</span>
+                    <span class="font-bold text-primary-600">{% widthratio mastered hifz_total 100 %}%</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">إجراءات</h3>
+            <div class="space-y-3">
+                <form method="POST" action="{% url 'accounts:admin_student_toggle_status' student.id %}"
+                      onsubmit="return confirm('{% if student.is_active %}هل تريد تعطيل هذا الطالب؟{% else %}هل تريد تفعيل هذا الطالب؟{% endif %}')">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full py-2.5 rounded-xl text-sm font-medium transition-colors {% if student.is_active %}bg-red-50 text-red-600 hover:bg-red-100{% else %}bg-green-50 text-green-600 hover:bg-green-100{% endif %}">
+                        {% if student.is_active %}تعطيل الطالب{% else %}تفعيل الطالب{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

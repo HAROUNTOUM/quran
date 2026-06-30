@@ -1,0 +1,74 @@
+<div>
+    <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="bg-blue-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-blue-700">{{ data.avg_all|floatformat:1 }}</p>
+            <p class="text-xs text-blue-600 mt-1">المعدل العام</p>
+        </div>
+        <div class="bg-green-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-green-700">{{ data.excellent_count }}</p>
+            <p class="text-xs text-green-600 mt-1">ممتاز (90+)</p>
+        </div>
+        <div class="bg-red-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-red-700">{{ data.weak_count }}</p>
+            <p class="text-xs text-red-600 mt-1">ضعيف (أقل من 60)</p>
+        </div>
+    </div>
+
+    <h4 class="font-bold text-gray-800 mb-4">المعدل حسب معيار التقييم</h4>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {% for criterion in data.by_criterion %}
+        <div class="border border-gray-100 rounded-xl p-4 text-center">
+            <div class="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-2
+                {% if criterion.avg >= 80 %}bg-green-100
+                {% elif criterion.avg >= 60 %}bg-amber-100
+                {% else %}bg-red-100{% endif %}">
+                <span class="text-lg font-black
+                    {% if criterion.avg >= 80 %}text-green-700
+                    {% elif criterion.avg >= 60 %}text-amber-700
+                    {% else %}text-red-700{% endif %}">
+                    {{ criterion.avg|floatformat:1 }}
+                </span>
+            </div>
+            <p class="text-sm font-medium text-gray-800">{{ criterion.name }}</p>
+            <p class="text-xs text-gray-400">{{ criterion.evaluations }} تقييم</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-2 gap-6">
+        <div>
+            <h4 class="font-bold text-green-700 mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                أفضل الطلاب
+            </h4>
+            <div class="space-y-2">
+                {% for s in data.top_students %}
+                <div class="flex items-center justify-between bg-green-50/50 rounded-lg px-4 py-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 bg-green-200 text-green-800 rounded-full flex items-center justify-center text-xs font-bold">{{ forloop.counter }}</span>
+                        <span class="text-sm text-gray-800">{{ s.name }}</span>
+                    </div>
+                    <span class="text-sm font-bold text-green-700">{{ s.avg|floatformat:1 }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div>
+            <h4 class="font-bold text-red-700 mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                طلاب يحتاجون متابعة
+            </h4>
+            <div class="space-y-2">
+                {% for s in data.weak_students %}
+                <div class="flex items-center justify-between bg-red-50/50 rounded-lg px-4 py-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 bg-red-200 text-red-800 rounded-full flex items-center justify-center text-xs font-bold">{{ forloop.counter }}</span>
+                        <span class="text-sm text-gray-800">{{ s.name }}</span>
+                    </div>
+                    <span class="text-sm font-bold text-red-700">{{ s.avg|floatformat:1 }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>

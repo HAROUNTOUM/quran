@@ -1,0 +1,60 @@
+<div>
+    <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="bg-rose-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-rose-700">{{ data.total_teachers }}</p>
+            <p class="text-xs text-rose-600 mt-1">إجمالي المعلمين</p>
+        </div>
+        <div class="bg-green-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-green-700">{{ data.avg_attendance }}%</p>
+            <p class="text-xs text-green-600 mt-1">متوسط الحضور</p>
+        </div>
+        <div class="bg-blue-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-blue-700">{{ data.avg_grade }}%</p>
+            <p class="text-xs text-blue-600 mt-1">متوسط الدرجات</p>
+        </div>
+    </div>
+
+    <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 text-sm text-gray-500">
+                <tr>
+                    <th class="px-4 py-3 text-right font-medium">المعلم</th>
+                    <th class="px-4 py-3 text-center font-medium">الحلقات</th>
+                    <th class="px-4 py-3 text-center font-medium">الطلاب</th>
+                    <th class="px-4 py-3 text-center font-medium">الحصص</th>
+                    <th class="px-4 py-3 text-center font-medium">نسبة الحضور</th>
+                    <th class="px-4 py-3 text-center font-medium">المعدل</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for t in data.teachers %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 bg-rose-50 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span class="text-rose-700 font-bold text-[10px]">{{ t.name.0 }}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">{{ t.name }}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-center text-sm font-bold text-gray-800">{{ t.circles }}</td>
+                    <td class="px-4 py-3 text-center text-sm font-bold text-gray-800">{{ t.students }}</td>
+                    <td class="px-4 py-3 text-center text-sm text-gray-600">{{ t.sessions }}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="text-sm font-bold {% if t.attendance_rate >= 80 %}text-green-700{% elif t.attendance_rate >= 60 %}text-amber-700{% else %}text-red-700{% endif %}">
+                            {{ t.attendance_rate }}%
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="text-sm font-bold {% if t.avg_grade >= 80 %}text-green-700{% elif t.avg_grade >= 60 %}text-amber-700{% else %}text-red-700{% endif %}">
+                            {{ t.avg_grade }}%
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="px-4 py-12 text-center text-gray-400 text-sm">لا توجد بيانات معلمين</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

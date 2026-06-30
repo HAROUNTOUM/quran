@@ -1,0 +1,271 @@
+from django.db.models.signals import post_save, pre_save
+from django.dispatch import receiver
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+from .models import Notification
+from apps.accounts.models import User
+from apps.requests.models import SupportRequest, Comment
+from apps.announcements.models import Announcement
+from apps.memorization.models import ReviewRequest
+from apps.circles.models import SessionRescheduleRequest
+from apps.attendance.models import Attendance
+
+
+def _send_notification_ws(notification):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    unread_count = Notification.objects.filter(
+        recipient=notification.recipient, is_read=False
+    ).count()
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_{notification.recipient_id}",
+        {
+            "type": "new_notification",
+            "id": notification.id,
+            "title": notification.title,
+            "message": notification.message,
+            "notification_type": notification.type,
+            "link": notification.link,
+            "unread_count": unread_count,
+        },
+    )
+
+
+def _send_unread_count_ws(user_id):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    unread_count = Notification.objects.filter(recipient_id=user_id, is_read=False).count()
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_{user_id}",
+        {
+            "type": "unread_count_update",
+            "unread_count": unread_count,
+        },
+    )
+
+
+@receiver(post_save, sender=Notification)
+def notify_ws_on_create(sender, instance, created, **kwargs):
+    if created:
+        _send_notification_ws(instance)
+
+
+@receiver(post_save, sender=User)
+def notify_user_created_ws(sender, instance, created, **kwargs):
+    if not created:
+        return
+    if instance.role in (User.Role.ADMIN,):
+        return
+    admins = User.objects.filter(role=User.Role.ADMIN)
+    for admin in admins:
+        Notification.objects.create(
+            recipient=admin,
+            type=Notification.Type.NEW_USER,
+            title="مستخدم جديد في انتظار الاعتماد",
+            message=f"قام {instance.full_name_ar} ({instance.get_role_display()}) بالتسجيل في المنصة.",
+            link="/dashboard/inscriptions/",
+        )
+
+    if instance.is_approved == User.ApprovalStatus.APPROVED:
+        notif = Notification.objects.create(
+            recipient=instance,
+            type=Notification.Type.APPROVAL,
+            title="تم اعتماد حسابك",
+            message=f"أهلاً {instance.full_name_ar}، تم اعتماد حسابك في منصة الطبيب الحافظ.",
+            link="/dashboard/",
+        )
+        _send_notification_ws(notif)
+
+
+@receiver(pre_save, sender=User)
+def notify_user_approved_or_rejected_ws(sender, instance, **kwargs):
+    if instance.pk is None:
+        return
+    try:
+        old = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+    if old.is_approved == instance.is_approved:
+        return
+
+    if instance.is_approved == User.ApprovalStatus.APPROVED:
+        notif = Notification.objects.create(
+            recipient=instance,
+            type=Notification.Type.APPROVAL,
+            title="تم اعتماد حسابك",
+            message=f"أهلاً {instance.full_name_ar}، تم اعتماد حسابك في منصة الطبيب الحافظ.",
+            link="/dashboard/",
+        )
+        _send_notification_ws(notif)
+    elif instance.is_approved == User.ApprovalStatus.REJECTED:
+        reason = instance.rejection_reason or "لم يتم تحديد سبب"
+        notif = Notification.objects.create(
+            recipient=instance,
+            type=Notification.Type.REJECTION,
+            title="عذراً، لم يتم اعتماد حسابك",
+            message=f"عذراً {instance.full_name_ar}، لم يتم اعتماد حسابك. السبب: {reason}",
+            link="/login/",
+        )
+        _send_notification_ws(notif)
+
+
+@receiver(post_save, sender=SupportRequest)
+def notify_new_support_request_ws(sender, instance, created, **kwargs):
+    if not created:
+        return
+    admins = User.objects.filter(role=User.Role.ADMIN)
+    for admin in admins:
+        notif = Notification.objects.create(
+            recipient=admin,
+            type=Notification.Type.NEW_REQUEST,
+            title="طلب دعم جديد",
+            message=f"{instance.submitted_by.full_name_ar}: {instance.title}",
+            link="/dashboard/requests/",
+        )
+        _send_notification_ws(notif)
+
+
+@receiver(post_save, sender=Comment)
+def notify_comment_added_ws(sender, instance, created, **kwargs):
+    if not created:
+        return
+    req = instance.request
+    if instance.author != req.submitted_by:
+        notif = Notification.objects.create(
+            recipient=req.submitted_by,
+            type=Notification.Type.REQUEST_UPDATE,
+            title="تعليق جديد على طلبك",
+            message=f"قام {instance.author.full_name_ar} بإضافة تعليق على طلبك: {req.title}",
+            link=f"/dashboard/requests/{req.pk}/",
+        )
+        _send_notification_ws(notif)
+    else:
+        admins = User.objects.filter(role=User.Role.ADMIN)
+        for admin in admins:
+            notif = Notification.objects.create(
+                recipient=admin,
+                type=Notification.Type.REQUEST_UPDATE,
+                title="تعليق جديد على طلب دعم",
+                message=f"قام {instance.author.full_name_ar} بإضافة تعليق على طلب {req.title}",
+                link=f"/dashboard/requests/{req.pk}/",
+            )
+            _send_notification_ws(notif)
+
+
+@receiver(post_save, sender=Announcement)
+def notify_new_announcement_ws(sender, instance, created, **kwargs):
+    if not created:
+        return
+    users = User.objects.filter(is_approved=User.ApprovalStatus.APPROVED, is_active=True)
+    for user in users:
+        notif = Notification.objects.create(
+            recipient=user,
+            type=Notification.Type.ANNOUNCEMENT,
+            title=instance.title,
+            message=instance.body[:200],
+            link="/dashboard/announcements/",
+        )
+        _send_notification_ws(notif)
+
+
+@receiver(pre_save, sender=ReviewRequest)
+def notify_review_request_status_ws(sender, instance, **kwargs):
+    if instance.pk is None:
+        return
+    try:
+        old = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+    if old.status == instance.status:
+        return
+
+    if instance.status == ReviewRequest.Status.APPROVED:
+        notif = Notification.objects.create(
+            recipient=instance.student,
+            type=Notification.Type.REVIEW_REQUEST,
+            title="تم قبول طلبك",
+            message=f"تم قبول طلب {instance.get_type_display()} الخاص بك في حلقة {instance.circle.name}",
+            link="/dashboard/student/memorization/",
+        )
+        _send_notification_ws(notif)
+    elif instance.status == ReviewRequest.Status.REJECTED:
+        reason = instance.rejection_reason or "لم يتم تحديد سبب"
+        notif = Notification.objects.create(
+            recipient=instance.student,
+            type=Notification.Type.REVIEW_REQUEST,
+            title="تم رفض طلبك",
+            message=f"تم رفض طلب {instance.get_type_display()} الخاص بك. السبب: {reason}",
+            link="/dashboard/student/memorization/",
+        )
+        _send_notification_ws(notif)
+
+
+@receiver(pre_save, sender=SessionRescheduleRequest)
+def notify_reschedule_request_status_ws(sender, instance, **kwargs):
+    if instance.pk is None:
+        return
+    try:
+        old = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+    if old.status == instance.status:
+        return
+
+    session_label = f"{instance.session.circle.name} — {instance.session.session_date}"
+    if instance.status == SessionRescheduleRequest.Status.APPROVED:
+        notif = Notification.objects.create(
+            recipient=instance.requested_by,
+            type=Notification.Type.RESCHEDULE_REQUEST,
+            title="تم قبول طلب تعديل الموعد",
+            message=f"تم قبول طلب تعديل موعد حصة {session_label} إلى {instance.proposed_date}",
+        )
+        _send_notification_ws(notif)
+    elif instance.status == SessionRescheduleRequest.Status.REJECTED:
+        reason = instance.rejection_reason or "لم يتم تحديد سبب"
+        notif = Notification.objects.create(
+            recipient=instance.requested_by,
+            type=Notification.Type.RESCHEDULE_REQUEST,
+            title="تم رفض طلب تعديل الموعد",
+            message=f"تم رفض طلب تعديل موعد حصة {session_label}. السبب: {reason}",
+        )
+        _send_notification_ws(notif)
+
+
+@receiver(pre_save, sender=Attendance)
+def notify_absence_review_ws(sender, instance, **kwargs):
+    if instance.pk is None:
+        return
+    if not instance.justification:
+        return
+    try:
+        old = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+    if old.status == instance.status:
+        return
+    if old.status != Attendance.Status.PENDING_JUSTIFICATION:
+        return
+
+    session_label = f"{instance.session.circle.name} — {instance.session.session_date}"
+    if instance.status == Attendance.Status.EXCUSED:
+        notif = Notification.objects.create(
+            recipient=instance.student,
+            type=Notification.Type.ABSENCE_REVIEW,
+            title="تم قبول تبرير الغياب",
+            message=f"تم قبول تبرير غيابك عن حصة {session_label}",
+            link="/dashboard/student/",
+        )
+        _send_notification_ws(notif)
+    elif instance.status == Attendance.Status.ABSENT:
+        remark = f" ملاحظة المعلم: {instance.teacher_remark}" if instance.teacher_remark else ""
+        notif = Notification.objects.create(
+            recipient=instance.student,
+            type=Notification.Type.ABSENCE_REVIEW,
+            title="تم رفض تبرير الغياب",
+            message=f"تم رفض تبرير غيابك عن حصة {session_label}.{remark}",
+            link="/dashboard/student/",
+        )
+        _send_notification_ws(notif)

@@ -1,0 +1,63 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}الامتحانات{% endblock %}
+{% block page_heading %}الامتحانات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الامتحانات{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for exam in exams %}
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold
+                    {% if exam.status == 'published' %}bg-green-50 text-green-700
+                    {% elif exam.status == 'grading' %}bg-indigo-50 text-indigo-700
+                    {% elif exam.status == 'pending_approval' %}bg-amber-50 text-amber-700
+                    {% else %}bg-gray-50 text-gray-500{% endif %}">
+                    {{ exam.get_status_display }}
+                </span>
+                <span class="text-xs text-gray-400">{{ exam.get_exam_type_display }}</span>
+            </div>
+            <h3 class="font-bold text-gray-800 mb-3">{{ exam.title }}</h3>
+            <div class="space-y-2 text-sm text-gray-500">
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-700">الحلقة:</span>
+                    <span>{{ exam.circle.name|default:"عام" }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-700">التاريخ:</span>
+                    <span>{{ exam.exam_date|date:"d/m/Y" }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-700">الدرجة القصوى:</span>
+                    <span>{{ exam.max_marks }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-700">الطلاب:</span>
+                    <span>{{ exam.student_count }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+            <a href="{% url 'accounts:teacher_exam_grade' exam.pk %}"
+               class="flex-1 text-center px-3 py-2 bg-primary-600 text-white text-xs font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                تسجيل الدرجات
+            </a>
+            <a href="{% url 'accounts:teacher_exam_submit' exam.pk %}"
+               class="flex-1 text-center px-3 py-2 bg-amber-600 text-white text-xs font-medium rounded-xl hover:bg-amber-700 transition-colors">
+                تقديم للاعتماد
+            </a>
+            <a href="{% url 'accounts:teacher_exam_export_pdf' exam.pk %}"
+               class="px-3 py-2 bg-red-50 text-red-700 text-xs font-medium rounded-xl hover:bg-red-100 transition-colors">
+                PDF
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-span-full text-center py-12 text-gray-400">
+        <p class="text-lg mb-2">لا توجد امتحانات مخصصة لك</p>
+        <p class="text-sm">عندما ينشر المشرف امتحانًا لحلقتك، سيظهر هنا</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

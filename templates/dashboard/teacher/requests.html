@@ -1,0 +1,54 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلباتي{% endblock %}
+{% block page_heading %}طلباتي{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلباتي{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">عرض وإدارة طلباتك</p>
+    <a href="{% url 'accounts:teacher_request_create' %}" class="px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-sm">
+        + طلب جديد
+    </a>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">الموضوع</th>
+                <th class="px-6 py-4 text-right font-medium">النوع</th>
+                <th class="px-6 py-4 text-right font-medium">الأولوية</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">التاريخ</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for req in requests %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                    <p class="text-sm font-medium text-gray-800">{{ req.title }}</p>
+                    <p class="text-xs text-gray-400 truncate max-w-xs">{{ req.body|truncatewords:8 }}</p>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg bg-gray-50 text-gray-600">{{ req.get_type_display }}</span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if req.priority == 'urgent' %}bg-red-50 text-red-700{% elif req.priority == 'high' %}bg-orange-50 text-orange-700{% elif req.priority == 'normal' %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ req.get_priority_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium {% if req.status == 'submitted' %}bg-blue-50 text-blue-700{% elif req.status == 'under_review' %}bg-amber-50 text-amber-700{% elif req.status in 'approved,resolved' %}bg-green-50 text-green-700{% elif req.status == 'rejected' %}bg-red-50 text-red-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ req.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-400">{{ req.created_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">{% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات بعد" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}
