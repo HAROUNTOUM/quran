@@ -1,0 +1,67 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}قاعات المعلمين{% endblock %}
+{% block page_heading %}قاعات المعلمين{% endblock %}
+{% block page_breadcrumb %}الرئيسية / القاعات{% endblock %}
+{% block dashboard_content %}
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50">
+        <h3 class="font-bold text-gray-800">جميع القاعات الدائمة</h3>
+        <p class="text-xs text-gray-400 mt-1">قاعة واحدة ثابتة لكل معلم — التعطيل يمنع الجميع من الدخول</p>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-xs text-gray-400 border-b border-gray-50">
+                    <th class="text-right px-6 py-3 font-medium">المعلم</th>
+                    <th class="text-right px-6 py-3 font-medium">رابط القاعة</th>
+                    <th class="text-right px-6 py-3 font-medium">الحالة</th>
+                    <th class="text-right px-6 py-3 font-medium">أنشئت</th>
+                    <th class="text-right px-6 py-3 font-medium">إجراء</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for room in rooms %}
+                <tr>
+                    <td class="px-6 py-4 font-medium text-gray-800">
+                        {{ room.teacher.full_name_ar }}
+                        {% if not room.teacher.is_active %}
+                            <span class="text-xs text-red-500 mr-1">(حساب معطل)</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <a href="{% url 'classrooms:join' room.slug %}" class="text-primary-600 hover:text-primary-700 text-xs" dir="ltr">/classrooms/join/{{ room.slug }}/</a>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-xs font-medium px-2 py-1 rounded-lg {% if room.is_active %}bg-green-50 text-green-700{% else %}bg-red-50 text-red-700{% endif %}">
+                            {% if room.is_active %}مفعلة{% else %}معطلة{% endif %}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-xs text-gray-400">{{ room.created_at|date:"Y-m-d" }}</td>
+                    <td class="px-6 py-4">
+                        <form method="post" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="room_id" value="{{ room.pk }}">
+                            <button type="submit" class="text-xs font-medium {% if room.is_active %}text-red-600 hover:text-red-700{% else %}text-green-600 hover:text-green-700{% endif %}">
+                                {% if room.is_active %}تعطيل{% else %}تفعيل{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="px-6 py-8 text-center text-sm text-gray-400">لا توجد قاعات بعد</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="px-6 py-4 border-t border-gray-50 flex items-center justify-between text-xs text-gray-500">
+        <span>صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="text-primary-600">السابق</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="text-primary-600">التالي</a>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

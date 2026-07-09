@@ -1,0 +1,56 @@
+<div>
+    <div class="grid grid-cols-4 gap-4 mb-8">
+        <div class="bg-primary-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-primary-700">{{ data.total }}</p>
+            <p class="text-xs text-primary-600 mt-1">إجمالي الحلقات</p>
+        </div>
+        <div class="bg-green-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-green-700">{{ data.active }}</p>
+            <p class="text-xs text-green-600 mt-1">نشطة</p>
+        </div>
+        <div class="bg-amber-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-amber-700">{{ data.avg_students|floatformat:1 }}</p>
+            <p class="text-xs text-amber-600 mt-1">متوسط الطلاب/حلقة</p>
+        </div>
+        <div class="bg-purple-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-purple-700">{{ data.total_sessions }}</p>
+            <p class="text-xs text-purple-600 mt-1">إجمالي الحصص</p>
+        </div>
+    </div>
+
+    <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 text-sm text-gray-500">
+                <tr>
+                    <th class="px-4 py-3 text-right font-medium">الحلقة</th>
+                    <th class="px-4 py-3 text-right font-medium">المعلم</th>
+                    <th class="px-4 py-3 text-center font-medium">الطلاب</th>
+                    <th class="px-4 py-3 text-center font-medium">الحصص</th>
+                    <th class="px-4 py-3 text-center font-medium">نسبة الحضور</th>
+                    <th class="px-4 py-3 text-center font-medium">معدل الدرجات</th>
+                    <th class="px-4 py-3 text-center font-medium">الآيات المحفوظة</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for c in data.circles %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ c.name }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">{{ c.teacher }}</td>
+                    <td class="px-4 py-3 text-center text-sm font-bold text-gray-800">{{ c.students }}</td>
+                    <td class="px-4 py-3 text-center text-sm text-gray-600">{{ c.sessions }}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="text-sm font-bold
+                            {% if c.attendance_rate >= 80 %}text-green-700
+                            {% elif c.attendance_rate >= 60 %}text-amber-700
+                            {% else %}text-red-700{% endif %}">
+                            {{ c.attendance_rate }}%
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center text-sm font-bold text-gray-800">{{ c.avg_grade|floatformat:1 }}</td>
+                    <td class="px-4 py-3 text-center text-sm font-bold text-primary-700">{{ c.memorized_units }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

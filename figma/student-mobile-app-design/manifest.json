@@ -1,0 +1,7 @@
+{
+  "name": "Student Mobile App Design Generator",
+  "id": "student-mobile-app-design-generator",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"]
+}

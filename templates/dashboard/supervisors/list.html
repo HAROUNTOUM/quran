@@ -1,0 +1,68 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}المشرفون{% endblock %}
+{% block title %}المشرفون — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/partials/subnav_staff.html" %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-black text-gray-800">المشرفون</h1>
+        <p class="text-gray-400 mt-1">إدارة المشرفين في المنصة</p>
+        <form method="GET" class="mt-3">
+            <input type="text" name="search" placeholder="بحث بالاسم أو البريد..." value="{{ request.GET.search }}"
+                   oninput="clearTimeout(this._timer); this._timer = setTimeout(() => this.closest('form').submit(), 500)"
+                   class="text-sm border border-gray-200 rounded-lg px-4 py-2 pr-9 w-64 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </form>
+    </div>
+    <a href="{% url 'accounts:admin_supervisor_create' %}" class="px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-md shadow-primary-500/25">
+        + إضافة مشرف
+    </a>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">المشرف</th>
+                <th class="px-6 py-4 text-right font-medium">البريد</th>
+                <th class="px-6 py-4 text-right font-medium">الهاتف</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">تاريخ التسجيل</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for supervisor in supervisors %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center">
+                            <span class="text-amber-700 font-bold text-sm">{{ supervisor.full_name_ar.0 }}</span>
+                        </div>
+                        <span class="font-medium text-gray-800 text-sm">{{ supervisor.full_name_ar }}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ supervisor.email }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ supervisor.phone|default:"—" }}</td>
+                <td class="px-6 py-4">
+                    {% if supervisor.is_approved == 'approved' %}
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700">معتمد</span>
+                    {% elif supervisor.is_approved == 'pending' %}
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">قيد المراجعة</span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-700">مرفوض</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-400">{{ supervisor.created_at|date:"Y-m-d" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">
+                    {% url 'accounts:admin_supervisor_create' as create_url %}
+                    {% include "dashboard/partials/empty_state.html" with icon="users" message="لا يوجد مشرفون بعد" action_url=create_url action_text="إضافة مشرف" %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

@@ -1,0 +1,155 @@
+<div>
+    <div class="grid grid-cols-5 gap-4 mb-8">
+        <div class="bg-indigo-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-indigo-700">{{ data.total_revisions }}</p>
+            <p class="text-xs text-indigo-600 mt-1">إجمالي المراجعات</p>
+        </div>
+        <div class="bg-green-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-green-700">{{ data.mastered_count }}</p>
+            <p class="text-xs text-green-600 mt-1">مراجعات متقنة</p>
+        </div>
+        <div class="bg-amber-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-amber-700">{{ data.weak_count }}</p>
+            <p class="text-xs text-amber-600 mt-1">مراجعات ضعيفة</p>
+        </div>
+        <div class="bg-blue-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-blue-700">{{ data.avg_revisions }}</p>
+            <p class="text-xs text-blue-600 mt-1">متوسط المراجعات/طالب</p>
+        </div>
+        <div class="bg-purple-50 rounded-xl p-4 text-center">
+            <p class="text-2xl font-black text-purple-700">{{ data.mastery_rate }}%</p>
+            <p class="text-xs text-purple-600 mt-1">نسبة إتقان المراجعة</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="border border-gray-100 rounded-xl p-6">
+            <h4 class="font-bold text-gray-800 mb-4">توزيع حالات المراجعة</h4>
+            <div class="space-y-3">
+                {% for status in data.status_distribution %}
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full flex-shrink-0
+                        {% if status.key == 'mastered' %}bg-green-500
+                        {% elif status.key == 'tested' %}bg-blue-500
+                        {% elif status.key == 'reviewed' %}bg-amber-500
+                        {% elif status.key == 'weak' %}bg-red-500
+                        {% else %}bg-gray-400{% endif %}"></span>
+                    <span class="text-sm text-gray-600 flex-1">{{ status.label }}</span>
+                    <span class="text-sm font-bold text-gray-800">{{ status.count }}</span>
+                    <span class="text-xs text-gray-400 w-12 text-left">{{ status.percentage }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-xl p-6">
+            <h4 class="font-bold text-red-700 mb-4 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                طلاب يحتاجون مراجعة مكثفة
+            </h4>
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+                {% for s in data.weak_students %}
+                <div class="flex items-center justify-between bg-red-50/50 rounded-lg px-4 py-3">
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">{{ s.name }}</p>
+                        <p class="text-xs text-gray-400">{{ s.circle }} · {{ s.weak_units }} ضعيف</p>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-sm font-bold text-red-700">{{ s.revision_count }} مراجعة</p>
+                        <p class="text-[10px] text-gray-400">آخر مراجعة: {{ s.last_revised }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-sm text-gray-400 text-center py-8">لا يوجد طلاب ضعيفون — ممتاز!</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="flex items-center justify-between mb-4">
+        <h4 class="font-bold text-gray-800">تفاصيل المراجعة — الطلاب</h4>
+        <select id="murajaa-circle-filter" onchange="filterMurajaaReport(this.value)"
+                class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">كل الحلقات</option>
+            {% for c in data.circles %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 text-sm text-gray-500">
+                <tr>
+                    <th class="px-4 py-3 text-right font-medium">الطالب</th>
+                    <th class="px-4 py-3 text-right font-medium">الحلقة</th>
+                    <th class="px-4 py-3 text-center font-medium">المراجَع (حزب/ثمن)</th>
+                    <th class="px-4 py-3 text-center font-medium">مرات المراجعة</th>
+                    <th class="px-4 py-3 text-center font-medium">المتقن</th>
+                    <th class="px-4 py-3 text-center font-medium">الضعيف</th>
+                    <th class="px-4 py-3 text-right font-medium">آخر مراجعة</th>
+                    <th class="px-4 py-3 text-center font-medium">الحالة العامة</th>
+                </tr>
+            </thead>
+            <tbody id="murajaa-table-body" class="divide-y divide-gray-50">
+                {% for s in data.students %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span class="text-indigo-700 font-bold text-[10px]">{{ s.name.0 }}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">{{ s.name }}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500">{{ s.circle }}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="text-sm font-bold text-gray-800">{{ s.total_units }}</span>
+                        <span class="text-xs text-gray-400">({{ s.total_thumns }} ثمن)</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="text-sm font-bold text-indigo-700">{{ s.revision_count }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="text-sm font-bold text-green-700">{{ s.mastered_units }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="text-sm font-bold text-red-700">{{ s.weak_units }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-400">{{ s.last_revised }}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium
+                            {% if s.overall_status == 'excellent' %}bg-green-50 text-green-700
+                            {% elif s.overall_status == 'good' %}bg-blue-50 text-blue-700
+                            {% elif s.overall_status == 'fair' %}bg-amber-50 text-amber-700
+                            {% else %}bg-red-50 text-red-700{% endif %}">
+                            {% if s.overall_status == 'excellent' %}ممتاز
+                            {% elif s.overall_status == 'good' %}جيد
+                            {% elif s.overall_status == 'fair' %}متوسط
+                            {% else %}ضعيف{% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">لا توجد بيانات مراجعة بعد</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4 class="font-bold text-gray-800 mt-8 mb-4">تكرار المراجعة لكل طالب</h4>
+    <div class="flex items-end gap-2 h-48 px-2 bg-gray-50 rounded-xl p-4">
+        {% for s in data.frequency_chart %}
+        <div class="flex-1 flex flex-col items-center gap-1" title="{{ s.name }}: {{ s.count }} مراجعة">
+            <span class="text-[9px] font-bold text-gray-600">{{ s.count }}</span>
+            <div class="w-full rounded-t transition-all duration-500
+                {% if s.count >= 10 %}bg-green-400
+                {% elif s.count >= 5 %}bg-amber-400
+                {% else %}bg-red-400{% endif %}"
+                 style="height: {{ s.height }}%">
+            </div>
+            <span class="text-[8px] text-gray-400 truncate max-w-full">{{ s.short_name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>

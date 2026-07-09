@@ -1,0 +1,198 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: hafez
+      POSTGRES_USER: hafez
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hafez"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - static_volume:/var/www/hafez/static
+      - media_volume:/var/www/hafez/media
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build: .
+    restart: unless-stopped
+    command: celery -A config worker -l info
+    volumes:
+      - media_volume:/var/www/hafez/media
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build: .
+    restart: unless-stopped
+    command: celery -A config beat -l info
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_volume:/var/www/hafez/static:ro
+      - media_volume:/var/www/hafez/media:ro
+    depends_on:
+      - web
+
+  # ── Self-hosted Jitsi Meet with JWT auth ─────────────────────────────────
+  # Django mints per-user tokens (JITSI_APP_SECRET) so prosody's token auth
+  # refuses anyone who did not pass our permission checks. See docs/jitsi-selfhost.md.
+  jitsi-web:
+    image: jitsi/web:stable-9646
+    restart: unless-stopped
+    ports:
+      - "8443:443"
+    volumes:
+      - jitsi_web_config:/config:Z
+      - jitsi_web_crt:/etc/jitsi/meet/keys
+    environment:
+      PUBLIC_URL: ${JITSI_PUBLIC_URL}
+      ENABLE_AUTH: 1
+      AUTH_TYPE: jwt
+      JWT_APP_ID: ${JITSI_APP_ID}
+      JWT_APP_SECRET: ${JITSI_APP_SECRET}
+      JWT_ACCEPTED_ISSUERS: ${JITSI_APP_ID}
+      JWT_ACCEPTED_AUDIENCES: jitsi
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_BOSH_URL_BASE: http://jitsi-prosody:5280
+      TZ: Asia/Riyadh
+    depends_on:
+      - jitsi-prosody
+
+  jitsi-prosody:
+    image: jitsi/prosody:stable-9646
+    restart: unless-stopped
+    volumes:
+      - jitsi_prosody_config:/config:Z
+    environment:
+      AUTH_TYPE: jwt
+      ENABLE_AUTH: 1
+      JWT_APP_ID: ${JITSI_APP_ID}
+      JWT_APP_SECRET: ${JITSI_APP_SECRET}
+      JWT_ACCEPTED_ISSUERS: ${JITSI_APP_ID}
+      JWT_ACCEPTED_AUDIENCES: jitsi
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      JICOFO_COMPONENT_SECRET: ${JICOFO_COMPONENT_SECRET}
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JICOFO_AUTH_PASSWORD}
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JVB_AUTH_PASSWORD}
+      TZ: Asia/Riyadh
+
+  jitsi-jicofo:
+    image: jitsi/jicofo:stable-9646
+    restart: unless-stopped
+    volumes:
+      - jitsi_jicofo_config:/config:Z
+    environment:
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_SERVER: jitsi-prosody
+      JICOFO_COMPONENT_SECRET: ${JICOFO_COMPONENT_SECRET}
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JICOFO_AUTH_PASSWORD}
+      TZ: Asia/Riyadh
+    depends_on:
+      - jitsi-prosody
+
+  jitsi-jvb:
+    image: jitsi/jvb:stable-9646
+    restart: unless-stopped
+    ports:
+      - "10000:10000/udp"
+      - "8080:8080"
+    volumes:
+      - jitsi_jvb_config:/config:Z
+    environment:
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_SERVER: jitsi-prosody
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JVB_AUTH_PASSWORD}
+      JVB_PORT: 10000
+      PUBLIC_URL: ${JITSI_PUBLIC_URL}
+      TZ: Asia/Riyadh
+    depends_on:
+      - jitsi-prosody
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+  jitsi_web_config:
+  jitsi_web_crt:
+  jitsi_prosody_config:
+  jitsi_jicofo_config:
+  jitsi_jvb_config:

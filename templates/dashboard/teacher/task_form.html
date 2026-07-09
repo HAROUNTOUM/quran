@@ -1,0 +1,78 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}{{ form_title }} — {{ student.full_name_ar }}{% endblock %}
+{% block page_heading %}{{ student.full_name_ar }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الطلاب / {{ student.full_name_ar }} / المهام / {{ form_title }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50">
+            <h3 class="font-bold text-gray-800">{{ form_title }}</h3>
+        </div>
+        <form method="POST" class="p-6 space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">الطالب</label>
+                <input type="text" value="{{ student.full_name_ar }}" disabled
+                       class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">الحلقة</label>
+                <select name="circle"
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">-- كل الحلقات --</option>
+                    {% for c in student_circles %}
+                    <option value="{{ c.id }}" {% if task.circle_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">نوع المهمة</label>
+                <select name="task_type" required
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="hifz" {% if task.task_type == 'hifz' %}selected{% endif %}>حفظ جديد</option>
+                    <option value="murajaa" {% if task.task_type == 'murajaa' %}selected{% endif %}>مراجعة</option>
+                    <option value="recitation" {% if task.task_type == 'recitation' %}selected{% endif %}>تلاوة</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">تاريخ الاستحقاق (اختياري)</label>
+                    <input type="date" name="due_date" value="{{ task.due_date|date:'Y-m-d' }}"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">الحصة المرتبطة (اختياري)</label>
+                    <select name="session"
+                            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="">-- بدون حصة --</option>
+                        {% for s in sessions %}
+                        <option value="{{ s.id }}" {% if task.session_id == s.id %}selected{% endif %}>{{ s.circle.name }} — {{ s.session_date }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-2">السورة والآيات</label>
+                {% include "components/quran_selector.html" with emit="range" surah_value=task.surah_id ayah_from_value=task.ayah_from ayah_to_value=task.ayah_to %}
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">ملاحظات (اختياري)</label>
+                <textarea name="notes" rows="3"
+                          class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="ملاحظاتك حول المهمة...">{{ task.notes|default:'' }}</textarea>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="px-6 py-2.5 bg-primary-600 text-white text-sm font-bold rounded-xl hover:bg-primary-700 transition-colors shadow-md shadow-primary-500/25">
+                    {% if form_action == "assign" %}إسناد المهمة{% else %}حفظ التعديلات{% endif %}
+                </button>
+                <a href="{% url 'accounts:teacher_student_tasks' student.id %}"
+                   class="px-6 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

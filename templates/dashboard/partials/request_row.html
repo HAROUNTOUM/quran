@@ -1,0 +1,24 @@
+<tr id="request-row-{{ req.id }}" class="hover:bg-gray-50 transition-colors">
+    <td class="px-6 py-4">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center">
+                <span class="text-gray-700 font-bold text-sm">{{ req.sender.full_name_ar.0 }}</span>
+            </div>
+            <span class="text-sm font-medium text-gray-800">{{ req.sender.full_name_ar }}</span>
+        </div>
+    </td>
+    <td class="px-6 py-4 text-sm text-gray-800">{{ req.title|truncatechars:50 }}</td>
+    <td class="px-6 py-4">
+        {% if req.status == 'submitted' %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700"><span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>قيد المراجعة</span>
+        {% elif req.status == 'resolved' %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>تم الحل</span>
+        {% else %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-700">{{ req.get_status_display }}</span>
+        {% endif %}
+    </td>
+    <td class="px-6 py-4 text-sm text-gray-400">{{ req.created_at|date:"Y-m-d" }}</td>
+    <td class="px-6 py-4">
+        <a href="{% url 'accounts:admin_request_detail' req.id %}" class="text-primary-600 hover:text-primary-700 text-sm font-medium">عرض</a>
+    </td>
+</tr>

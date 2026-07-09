@@ -1,0 +1,10 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+{% block title %}شهاداتي{% endblock %}
+{% block page_title %}شهاداتي{% endblock %}
+{% block page_heading %}شهاداتي{% endblock %}
+{% block page_breadcrumb %}الرئيسية / شهاداتي{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_learning_tabs.html" %}
+{% include "certificates/_student_certificates.html" %}
+{% endblock %}

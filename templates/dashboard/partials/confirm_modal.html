@@ -1,0 +1,19 @@
+<div x-data="{ show: false, title: '', message: '', onConfirm: null }" @confirm-modal.window="show=true; title=$event.detail.title; message=$event.detail.message; onConfirm=$event.detail.onConfirm"
+     x-show="show" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center" @keydown.escape.window="show = false">
+    <div class="absolute inset-0 bg-black/40" @click="show = false"></div>
+    <div x-show="show"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm z-10">
+        <div class="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 text-center mb-2" x-text="title"></h3>
+        <p class="text-sm text-gray-500 text-center mb-6" x-text="message"></p>
+        <div class="flex gap-3">
+            <button @click="onConfirm(); show = false" class="flex-1 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors">تأكيد</button>
+            <button @click="show = false" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors">إلغاء</button>
+        </div>
+    </div>
+</div>

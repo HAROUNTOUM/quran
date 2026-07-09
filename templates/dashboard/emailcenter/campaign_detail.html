@@ -1,0 +1,52 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}مركز البريد{% endblock %}
+{% block title %}{{ campaign.subject }} — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/emailcenter/_subnav.html" %}
+
+<a href="{% url 'emailcenter:campaigns' %}" class="text-sm text-gray-400 hover:text-gray-600">→ العودة للرسائل</a>
+
+<div class="bg-white rounded-2xl border border-gray-100 p-6 mt-4 mb-6">
+    <h1 class="text-xl font-black text-gray-800">{{ campaign.subject }}</h1>
+    <div class="text-xs text-gray-400 mt-1">
+        {{ campaign.get_audience_display }} — {{ campaign.created_at|date:"Y-m-d H:i" }}
+        {% if campaign.created_by %}— {{ campaign.created_by.full_name_ar }}{% endif %}
+    </div>
+    <div class="text-sm text-gray-600 mt-4 whitespace-pre-line leading-relaxed">{{ campaign.body }}</div>
+    <div class="flex items-center gap-6 mt-5 pt-4 border-t border-gray-100 text-sm">
+        <span class="text-gray-500">المستلمون: <strong class="text-gray-800">{{ campaign.total_recipients }}</strong></span>
+        <span class="text-green-600">أُرسلت: <strong>{{ campaign.sent_count }}</strong></span>
+        <span class="text-red-500">فشلت: <strong>{{ campaign.failed_count }}</strong></span>
+    </div>
+</div>
+
+<h2 class="text-sm font-bold text-gray-700 mb-3">سجل التسليم</h2>
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full text-sm text-right">
+        <thead class="bg-gray-50 text-gray-500 text-xs">
+            <tr>
+                <th class="px-5 py-3 font-bold">المستلم</th>
+                <th class="px-5 py-3 font-bold">البريد</th>
+                <th class="px-5 py-3 font-bold">الحالة</th>
+                <th class="px-5 py-3 font-bold">الخطأ</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for log in logs %}
+            <tr>
+                <td class="px-5 py-3 text-gray-700">{% if log.recipient %}{{ log.recipient.full_name_ar }}{% else %}—{% endif %}</td>
+                <td class="px-5 py-3 text-gray-500">{{ log.to_email }}</td>
+                <td class="px-5 py-3">
+                    {% if log.status == 'sent' %}<span class="text-green-600 font-bold text-xs">أُرسلت</span>
+                    {% elif log.status == 'skipped' %}<span class="text-gray-400 font-bold text-xs">متوقفة</span>
+                    {% else %}<span class="text-red-500 font-bold text-xs">فشلت</span>{% endif %}
+                </td>
+                <td class="px-5 py-3 text-gray-400 text-xs">{{ log.error|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-5 py-10 text-center text-gray-400">لا توجد سجلات.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

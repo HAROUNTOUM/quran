@@ -1,0 +1,17 @@
+{% comment %}
+One status-pill renderer. Resolves a semantic color from either an explicit
+`tone` or a status `value`, using LITERAL Tailwind classes (the CDN cannot
+generate class names built dynamically from a variable like `bg-{{ c }}-50`).
+Params:
+  value (str)  status value (pending/approved/active/...); also the fallback label
+  label (str)  visible text (defaults to value)
+  tone  (str)  optional override: success | info | warning | danger | neutral
+Usage:
+  {% include "dashboard/components/status_chip.html" with value=req.status label=req.get_status_display %}
+{% endcomment %}
+<span class="inline-flex items-center gap-1 px-3.5 py-1 rounded-full text-xs font-bold
+{% if tone == 'success' or value == 'approved' or value == 'active' or value == 'present' or value == 'validated' or value == 'memorized' or value == 'mastered' or value == 'graduated' %}bg-[#D9F4E5] text-[#2E9E63]
+{% elif tone == 'info' or value == 'pending' or value == 'in_progress' or value == 'scheduled' or value == 'live' or value == 'confirmation_open' or value == 'turn_taking_open' %}bg-[#DFF4F1] text-[#2E8B8D]
+{% elif tone == 'warning' or value == 'done' or value == 'needs_review' or value == 'justified' or value == 'paused' %}bg-[#FCF3D7] text-[#C99516]
+{% elif tone == 'danger' or value == 'rejected' or value == 'weak' or value == 'absent' or value == 'expelled' or value == 'dropped' or value == 'inactive' %}bg-[#FBDEDE] text-[#E15B52]
+{% else %}bg-gray-100 text-gray-500{% endif %}">{{ label|default:value }}</span>

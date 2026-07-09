@@ -1,0 +1,39 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}القاعات الافتراضية{% endblock %}
+{% block page_heading %}القاعات الافتراضية{% endblock %}
+{% block page_breadcrumb %}الرئيسية / القاعات الافتراضية{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_circle_tabs.html" %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg text-gray-800">القاعات الافتراضية</h3>
+                <p class="text-sm text-gray-500">اختر قاعة أستاذك للدخول إلى الحصة</p>
+            </div>
+        </div>
+        <div class="space-y-4">
+            {% for room in rooms %}
+            <a href="{% url 'classrooms:join' room.slug %}" class="block border border-gray-100 rounded-xl p-5 hover:shadow-md hover:border-primary-200 transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-gray-800">{{ room.teacher.full_name_ar }}</p>
+                        <p class="text-sm text-gray-400">قاعة {{ room.teacher.full_name_ar }}</p>
+                    </div>
+                    <span class="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                        دخول
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

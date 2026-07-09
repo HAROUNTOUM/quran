@@ -1,0 +1,105 @@
+{% comment %}Completion-estimator body. Needs remaining_ayahs / remaining_pages /
+remaining_rubs in context. Shared by the progress workspace page (merged tab)
+and the standalone estimator URL (deep-link fallback).{% endcomment %}
+<div x-data="estimator({
+        remainingAyahs: {{ remaining_ayahs }},
+        remainingPages: {{ remaining_pages }},
+        remainingRubs: {{ remaining_rubs }},
+     })">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+
+        {# Inputs #}
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-2">الوحدة اليومية</label>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <template x-for="u in units" :key="u.key">
+                    <button type="button" @click="unit=u.key"
+                            :class="unit===u.key ? 'bg-primary-600 text-white' : 'bg-gray-50 text-gray-600 border border-gray-200'"
+                            class="px-3 py-2 text-xs font-medium rounded-xl transition-colors"
+                            x-text="u.label"></button>
+                </template>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">المقدار في اليوم</label>
+                <input type="number" x-model.number="amount" min="1"
+                       class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">أيام في الأسبوع</label>
+                <input type="number" x-model.number="daysPerWeek" min="1" max="7"
+                       class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            </div>
+        </div>
+
+        {# Outputs #}
+        <div class="border-t border-gray-100 pt-5 grid grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="text-xs text-gray-500">المتبقي</div>
+                <div class="text-lg font-bold text-gray-800 mt-1" x-text="remainingInUnit + ' ' + unitLabel"></div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="text-xs text-gray-500">عدد الأيام</div>
+                <div class="text-lg font-bold text-gray-800 mt-1" x-text="totalDays"></div>
+            </div>
+            <div class="bg-primary-50 rounded-xl p-4 col-span-2 text-center">
+                <div class="text-xs text-primary-600">التاريخ المتوقع للختمة</div>
+                <div class="text-xl font-bold text-primary-700 mt-1" x-text="finishDate"></div>
+                <div class="text-xs text-primary-500 mt-1" x-text="durationText"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+if (typeof window.estimator === 'undefined') {
+window.estimator = function(cfg) {
+    return {
+        ...cfg,
+        units: [
+            {key:'thumn', label:'ثمن'}, {key:'hizb', label:'حزب'},
+            {key:'page', label:'صفحة'}, {key:'rub', label:'ربع'},
+            {key:'ayah', label:'آية'}, {key:'juz', label:'جزء'},
+        ],
+        unit: 'thumn', amount: 1, daysPerWeek: 5,
+        get remainingInUnit() {
+            if (this.unit==='ayah') return this.remainingAyahs;
+            if (this.unit==='page') return this.remainingPages;
+            if (this.unit==='thumn') return this.remainingRubs*2;
+            if (this.unit==='rub') return this.remainingRubs;
+            if (this.unit==='hizb') return Math.ceil(this.remainingRubs/4);
+            if (this.unit==='juz') return Math.ceil(this.remainingRubs/8);
+            return 0;
+        },
+        get unitLabel() {
+            return {ayah:'آية',page:'صفحة',thumn:'ثمن',rub:'ربع',hizb:'حزب',juz:'جزء'}[this.unit];
+        },
+        get totalDays() {
+            if (!this.amount || this.amount<1) return '—';
+            return Math.ceil(this.remainingInUnit / this.amount);
+        },
+        get calendarDays() {
+            if (this.totalDays==='—') return 0;
+            const dpw = Math.min(Math.max(this.daysPerWeek,1),7);
+            return Math.ceil(this.totalDays / dpw * 7);
+        },
+        get finishDate() {
+            if (!this.calendarDays) return '—';
+            const d = new Date();
+            d.setDate(d.getDate() + this.calendarDays);
+            return d.toLocaleDateString('ar', {year:'numeric', month:'long', day:'numeric'});
+        },
+        get durationText() {
+            const days = this.calendarDays;
+            if (!days) return '';
+            const y = Math.floor(days/365), m = Math.floor((days%365)/30), dd = days%30;
+            let parts = [];
+            if (y) parts.push(y + ' سنة'); if (m) parts.push(m + ' شهر'); if (dd) parts.push(dd + ' يوم');
+            return parts.join(' و ');
+        },
+    };
+};
+}
+</script>

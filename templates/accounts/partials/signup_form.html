@@ -1,0 +1,131 @@
+{% if form.non_field_errors %}
+<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
+    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+</div>
+{% endif %}
+
+<form method="post" hx-post="{% url 'accounts:signup' %}" hx-target="#signup-form-container" hx-swap="innerHTML" hx-indicator="#signup-spinner">
+    {% csrf_token %}
+    <div class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">الاسم الكامل <span class="text-red-500">*</span></label>
+            {{ form.full_name_ar }}
+            {% if form.full_name_ar.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.full_name_ar.errors.0 }}</p>
+            {% endif %}
+            {% if form.full_name_ar.help_text %}
+                <p class="text-gray-400 text-xs mt-1">{{ form.full_name_ar.help_text }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">البريد الإلكتروني <span class="text-red-500">*</span></label>
+            {{ form.email }}
+            {% if form.email.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.email.errors.0 }}</p>
+            {% endif %}
+            {% if form.email.help_text %}
+                <p class="text-gray-400 text-xs mt-1">{{ form.email.help_text }}</p>
+            {% endif %}
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">الهاتف <span class="text-red-500">*</span></label>
+                {{ form.phone }}
+                {% if form.phone.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.phone.errors.0 }}</p>
+                {% endif %}
+                {% if form.phone.help_text %}
+                    <p class="text-gray-400 text-xs mt-1">{{ form.phone.help_text }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">الجنس <span class="text-red-500">*</span></label>
+                {{ form.gender }}
+                {% if form.gender.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.gender.errors.0 }}</p>
+                {% endif %}
+                {% if form.gender.help_text %}
+                    <p class="text-gray-400 text-xs mt-1">{{ form.gender.help_text }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">الدور <span class="text-red-500">*</span></label>
+            {{ form.role }}
+            {% if form.role.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.role.errors.0 }}</p>
+            {% endif %}
+            {% if form.role.help_text %}
+                <p class="text-gray-400 text-xs mt-1">{{ form.role.help_text }}</p>
+            {% endif %}
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">التخصص</label>
+                {{ form.specialization }}
+                {% if form.specialization.help_text %}
+                    <p class="text-gray-400 text-xs mt-1">{{ form.specialization.help_text }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">الولاية</label>
+                {{ form.state }}
+                {% if form.state.help_text %}
+                    <p class="text-gray-400 text-xs mt-1">{{ form.state.help_text }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">المستوى</label>
+                {{ form.level }}
+                {% if form.level.help_text %}
+                    <p class="text-gray-400 text-xs mt-1">{{ form.level.help_text }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-2">مقدار الحفظ</label>
+                {{ form.memorization_amount }}
+                {% if form.memorization_amount.help_text %}
+                    <p class="text-gray-400 text-xs mt-1">{{ form.memorization_amount.help_text }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">كلمة المرور <span class="text-red-500">*</span></label>
+            <div class="relative">
+                {{ form.password1 }}
+                <button type="button" onclick="togglePassword(this)" class="absolute inset-y-0 left-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+            </div>
+            {% if form.password1.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.password1.errors.0 }}</p>
+            {% endif %}
+            {% if form.password1.help_text %}
+                <p class="text-gray-400 text-xs mt-1">{{ form.password1.help_text }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">تأكيد كلمة المرور <span class="text-red-500">*</span></label>
+            <div class="relative">
+                {{ form.password2 }}
+                <button type="button" onclick="togglePassword(this)" class="absolute inset-y-0 left-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+            </div>
+            {% if form.password2.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.password2.errors.0 }}</p>
+            {% endif %}
+            {% if form.password2.help_text %}
+                <p class="text-gray-400 text-xs mt-1">{{ form.password2.help_text }}</p>
+            {% endif %}
+        </div>
+    </div>
+    <button type="submit" class="w-full mt-8 py-3.5 bg-gradient-to-l from-primary-600 to-primary-700 text-white font-bold rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-md shadow-primary-500/25 disabled:opacity-50 disabled:cursor-not-allowed" id="signup-spinner">
+        <span class="inline-flex items-center gap-2">
+            <svg class="htmx-indicator w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span>إنشاء الحساب</span>
+        </span>
+    </button>
+</form>

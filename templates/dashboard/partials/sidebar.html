@@ -1,0 +1,213 @@
+{% load static %}
+<aside id="sidebar"
+       :class="mobileSidebarOpen ? 'max-lg:translate-x-0' : 'max-lg:translate-x-full'"
+       class="fixed top-4 right-4 bottom-4 w-72 gradient-sidebar rounded-[26px] z-40 flex flex-col transition-all duration-300 overflow-hidden shadow-[0_14px_34px_rgba(23,71,107,0.10)]">
+    <div class="p-5 border-b border-cream-300/60 flex-shrink-0 flex items-center justify-between gap-2">
+        <a href="{% if request.user.role == 'teacher' %}{% url 'accounts:teacher_dashboard' %}{% elif request.user.role == 'student' %}{% url 'accounts:student_dashboard' %}{% else %}{% url 'accounts:admin_dashboard' %}{% endif %}" class="flex items-center gap-3 min-w-0">
+            <img src="{% static 'img/Logo tabib-01 1.svg' %}" alt="الطبيب الحافظ"
+                 class="w-10 h-12 object-contain flex-shrink-0">
+            <div class="min-w-0">
+                <span class="font-bold text-navy-600 block truncate text-base">الطبيب الحافظ</span>
+                <span class="text-xs text-primary-600/70">منصة تحفيظ القرآن</span>
+            </div>
+        </a>
+        <button @click="toggleSidebar()"
+                title="إخفاء القائمة الجانبية"
+                class="hidden lg:flex w-9 h-9 rounded-full bg-cream-50/70 hover:bg-cream-100 items-center justify-center text-navy-500 transition-colors flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+        </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto p-3 space-y-0.5 scrollbar-thin">
+        {% if request.user.role == 'teacher' %}
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-2">الرئيسية</p>
+        <a href="{% url 'accounts:teacher_dashboard' %}"
+           :class="isActive('teacher_dashboard') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="dashboard" %}
+            <span>لوحة المعلم</span>
+        </a>
+
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الحلقات</p>
+        <a href="{% url 'accounts:teacher_session_manage' %}"
+           :class="isActive('teacher_session_manage') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="book" %}
+            <span>إدارة الحلقات</span>
+        </a>
+        <a href="{% url 'classrooms:my_classroom' %}"
+           :class="isActive('my_classroom') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="home" %}
+            <span>غرفة الصف</span>
+        </a>
+        <a href="{% url 'accounts:teacher_students' %}"
+           :class="isActive('teacher_students') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="users" %}
+            <span>الطلاب</span>
+        </a>
+
+        {% if features.certificates or features.exams %}
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الشهادات والامتحانات</p>
+        {% if features.certificates %}
+        <a href="{% url 'certificates:teacher_list' %}"
+           :class="isActive('certificates') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            <span>الشهادات</span>
+        </a>
+        {% endif %}
+        {% if features.exams %}
+        <a href="{% url 'accounts:teacher_exams' %}"
+           :class="isActive('teacher_exams') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="exam" %}
+            <span>الامتحانات</span>
+        </a>
+        {% endif %}
+        {% endif %}
+
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الغياب والندوات</p>
+        {% if features.webinars %}
+        <a href="{% url 'accounts:teacher_webinars' %}"
+           :class="isActive('webinar') || isActive('teacher_webinars') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="video" %}
+            <span>الندوات المباشرة</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'accounts:teacher_absence_justifications' %}"
+           :class="isActive('teacher_absence_justifications') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            <span>تبريرات الغياب</span>
+        </a>
+        <a href="{% url 'accounts:teacher_absence_list' %}"
+           :class="isActive('teacher_absence') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="calendar" %}
+            <span>طلبات الغياب</span>
+        </a>
+
+        {% elif request.user.role == 'student' %}
+        <a href="{% url 'accounts:student_dashboard' %}"
+           :class="isActive('student_dashboard') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm mt-2">
+            {% include "dashboard/partials/sidebar_icon.html" with name="dashboard" %}
+            <span>الرئيسية</span>
+        </a>
+        <a href="{% url 'accounts:student_circles' %}"
+           :class="isActive('student_circles') || isActive('student_circle_detail') || isActive('student_sessions') || isActive('student_session_detail') || isActive('my_classroom') || isActive('student_private_sessions') || isActive('student_leaderboard') || isActive('student_circle_leaderboard') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="book" %}
+            <span>الحلقات والجدول</span>
+        </a>
+        <a href="{% url 'memorization:student_progress' %}"
+           :class="isActive('student_progress') || isActive('student_memorization') || isActive('student_tasks') || isActive('student_stats') || isActive('estimator') || isActive('student_attendance') || isActive('student_justifications') || isActive('student_exam_results') || isActive('own') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="book" %}
+            <span>الحفظ والحضور</span>
+        </a>
+        {% else %}
+        <a href="{% url 'accounts:admin_dashboard' %}"
+           :class="isActive('admin_dashboard') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm mt-2">
+            {% include "dashboard/partials/sidebar_icon.html" with name="dashboard" %}
+            <span>لوحة التحكم</span>
+        </a>
+        <a href="{% url 'accounts:admin_batch_list' %}"
+           :class="isActive('admin_batch') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="box" %}
+            <span>الدفعات</span>
+        </a>
+        <a href="{% url 'accounts:admin_inscriptions' %}"
+           :class="isActive('admin_inscriptions') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            <span>طلبات التسجيل</span>
+            {% if pending_count > 0 %}
+            <span class="mr-auto bg-accent-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">{{ pending_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{% url 'accounts:admin_circles' %}"
+           :class="isActive('admin_circles') || isActive('admin_circle_detail') || isActive('admin_circle_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="book" %}
+            <span>إدارة الحلقات</span>
+        </a>
+        <a href="{% url 'accounts:supervisor_groups' %}"
+           :class="isActive('supervisor_groups') || isActive('supervisor_group_board') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="document" %}
+            <span>متابعة الدفعات</span>
+        </a>
+        <a href="{% url 'accounts:admin_teachers' %}"
+           :class="isActive('admin_teachers') || isActive('admin_teacher_detail') || isActive('admin_teacher_create') || isActive('admin_teacher_edit') || isActive('admin_teacher_absences') || isActive('admin_active_substitutions') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="graduation" %}
+            <span>الأساتذة</span>
+        </a>
+        {% if request.user.role == 'admin' %}
+        <a href="{% url 'accounts:admin_supervisors' %}"
+           :class="isActive('admin_supervisors') || isActive('admin_supervisor_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            <span>المشرفون</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'accounts:admin_students' %}"
+           :class="isActive('admin_students') || isActive('admin_student_detail') || isActive('admin_student_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="users" %}
+            <span>إدارة الطلاب</span>
+        </a>
+        {% if features.exams or features.certificates %}
+        <a href="{% if features.exams %}{% url 'accounts:admin_exam_list' %}{% else %}{% url 'certificates:list' %}{% endif %}"
+           :class="isActive('admin_exam_list') || isActive('admin_exam_detail') || isActive('admin_exam_create') || isActive('admin_exam_edit') || isActive('report_exam_results') || isActive('list') || isActive('generate') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="exam" %}
+            <span>الامتحانات والشهادات</span>
+        </a>
+        {% endif %}
+        {% if features.webinars %}
+        <a href="{% url 'webinars:admin_list' %}"
+           :class="isActive('admin_list') || isActive('admin_manage') || isActive('admin_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="video" %}
+            <span>الندوات المباشرة</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'accounts:admin_reports' %}"
+           :class="isActive('admin_reports') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="chart" %}
+            <span>التقارير والإحصائيات</span>
+        </a>
+        {% endif %}
+    </nav>
+
+    <div class="p-3 border-t border-cream-300/60 flex-shrink-0">
+        <div class="flex items-center gap-3 bg-primary-400 rounded-full py-2 px-3 mb-2">
+            <a href="{% url 'accounts:profile' %}" class="w-10 h-10 bg-cream-50 rounded-full flex items-center justify-center flex-shrink-0 hover:bg-cream-100 transition-colors" title="ملفي الشخصي">
+                <span class="text-primary-600 font-bold text-sm">{{ request.user.full_name_ar.0 }}</span>
+            </a>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-white truncate">{{ request.user.full_name_ar }}</p>
+                <a href="{% url 'accounts:profile' %}" class="text-[11px] text-primary-50/90 hover:text-white transition-colors">ملفي الشخصي</a>
+            </div>
+        </div>
+        <div class="flex items-center justify-end gap-3 px-2">
+            <a href="{% url 'usersettings:home' %}" class="text-navy-300 hover:text-primary-600 transition-colors flex-shrink-0" title="الإعدادات">
+                {% include "dashboard/partials/sidebar_icon.html" with name="settings" %}
+            </a>
+            <form method="post" action="{% url 'accounts:logout' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-navy-300 hover:text-brick-400 transition-colors flex-shrink-0" title="تسجيل الخروج">
+                    {% include "dashboard/partials/sidebar_icon.html" with name="logout" %}
+                </button>
+            </form>
+        </div>
+    </div>
+</aside>

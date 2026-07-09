@@ -1,0 +1,259 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}إدارة التسجيلات{% endblock %}
+{% block page_heading %}إدارة التسجيلات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / إدارة التسجيلات{% endblock %}
+{% block dashboard_content %}
+
+<!-- ═══ Stat Cards Row ═══ -->
+<div class="grid grid-cols-4 gap-6 mb-8"
+     x-data="{ status: '{{ request.GET.status|default:"pending" }}', role: '{{ request.GET.role }}', search: '{{ request.GET.search }}', doFilter() { htmx.ajax('GET', '{% url "accounts:users_table" %}?status=' + this.status + '&role=' + encodeURIComponent(this.role) + '&search=' + encodeURIComponent(this.search), {target: '#users-tbody', swap: 'innerHTML'}); } }">
+    <div @click="status = 'pending'; doFilter()" class="cursor-pointer">
+        {% include "dashboard/partials/stat_card.html" with label="قيد المراجعة" value=pending_count icon="requests" color="amber" %}
+    </div>
+    <div @click="status = 'approved'; doFilter()" class="cursor-pointer">
+        {% include "dashboard/partials/stat_card.html" with label="معتمدة" value=approved_count icon="students" color="green" %}
+    </div>
+    <div @click="status = 'rejected'; doFilter()" class="cursor-pointer">
+        {% include "dashboard/partials/stat_card.html" with label="مرفوضة" value=rejected_count icon="requests" color="red" %}
+    </div>
+    {% url 'accounts:admin_circles' as circles_url %}
+    {% include "dashboard/partials/stat_card.html" with label="الحلقات" value=total_circles|default:"0" icon="circles" color="blue" filter_url=circles_url %}
+</div>
+
+<!-- ═══ Role-based Tab Row (design: top-rounded segmented tabs) ═══ -->
+<div class="flex gap-1 mb-0">
+    <a href="?role_tab="
+       class="flex-1 text-center px-4 py-3.5 text-[15px] font-bold rounded-t-[14px] transition-colors {% if not role_tab %}bg-primary-100 text-navy-600{% else %}bg-primary-200/70 text-navy-600/70 hover:bg-primary-100{% endif %}">
+        جميع الطلبات
+    </a>
+    <a href="?role_tab=student"
+       class="flex-1 text-center px-4 py-3.5 text-[15px] font-bold rounded-t-[14px] transition-colors {% if role_tab == 'student' %}bg-primary-100 text-navy-600{% else %}bg-primary-200/70 text-navy-600/70 hover:bg-primary-100{% endif %}">
+        طلبات الطلاب ({{ student_requests_by_group|length }})
+    </a>
+    <a href="?role_tab=teacher"
+       class="flex-1 text-center px-4 py-3.5 text-[15px] font-bold rounded-t-[14px] transition-colors {% if role_tab == 'teacher' %}bg-primary-100 text-navy-600{% else %}bg-primary-200/70 text-navy-600/70 hover:bg-primary-100{% endif %}">
+        طلبات الأساتذة ({{ teacher_requests|length }})
+    </a>
+    <a href="?role_tab=supervisor"
+       class="flex-1 text-center px-4 py-3.5 text-[15px] font-bold rounded-t-[14px] transition-colors {% if role_tab == 'supervisor' %}bg-primary-100 text-navy-600{% else %}bg-primary-200/70 text-navy-600/70 hover:bg-primary-100{% endif %}">
+        طلبات المشرف العام ({{ supervisor_requests|length }})
+    </a>
+</div>
+<div class="h-4"></div>
+
+<!-- ═══ Student Groups View (when role_tab=student) ═══ -->
+{% if role_tab == 'student' %}
+    {% for group_name, requests in student_requests_by_group.items %}
+    <div class="bg-cream-200 rounded-[22px] shadow-[0_10px_24px_rgba(23,71,107,0.06)] overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+            <div>
+                <h3 class="font-extrabold text-navy-600 text-[17px]">{{ group_name }}</h3>
+                <p class="text-xs text-gray-400">{{ requests|length }} طالب</p>
+            </div>
+        </div>
+        <table class="w-full">
+            <thead class="bg-[#F1F6F5] text-sm text-navy-600">
+                <tr>
+                    <th class="px-6 py-3 text-right font-bold">الاسم واللقب</th>
+                    <th class="px-6 py-3 text-right font-bold">البريد الإلكتروني</th>
+                    <th class="px-6 py-3 text-right font-bold">الهاتف</th>
+                    <th class="px-6 py-3 text-right font-bold">التخصص</th>
+                    <th class="px-6 py-3 text-right font-bold">الولاية</th>
+                    <th class="px-6 py-3 text-right font-bold">المستوى</th>
+                    <th class="px-6 py-3 text-right font-bold">مقدار الحفظ</th>
+                    <th class="px-6 py-3 text-right font-bold">تاريخ التسجيل</th>
+                    <th class="px-6 py-3 text-left font-bold">قبول او رفض</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for user in requests %}
+                <tr class="odd:bg-white even:bg-white/60 hover:bg-primary-50/60 transition-colors">
+                    <td class="px-6 py-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center">
+                                <span class="text-primary-700 font-bold text-xs">{{ user.full_name_ar.0 }}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">{{ user.full_name_ar }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.email }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.phone|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.specialization|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.state|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.level|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-500">{{ user.memorization_amount|default:"—" }}</td>
+                    <td class="px-6 py-3 text-sm text-gray-400">{{ user.created_at|date:"Y-m-d" }}</td>
+                    <td class="px-6 py-3 text-left">
+                        {% include "dashboard/partials/user_actions.html" with user_obj=user %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9">{% include "dashboard/partials/empty_state.html" with message="لا يوجد طلاب في هذه المجموعة" %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-12">
+        {% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات طلاب pending" %}
+    </div>
+    {% endfor %}
+
+<!-- ═══ Teacher View (when role_tab=teacher) ═══ -->
+{% elif role_tab == 'teacher' %}
+<div class="bg-cream-200 rounded-[22px] shadow-[0_10px_24px_rgba(23,71,107,0.06)] overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-gray-50">
+        <h3 class="font-extrabold text-navy-600 text-[17px]">طلبات الأساتذة ({{ teacher_requests|length }})</h3>
+    </div>
+    <table class="w-full">
+        <thead class="bg-[#F1F6F5] text-sm text-navy-600">
+            <tr>
+                <th class="px-6 py-3 text-right font-bold">الاسم واللقب</th>
+                <th class="px-6 py-3 text-right font-bold">البريد الإلكتروني</th>
+                <th class="px-6 py-3 text-right font-bold">الهاتف</th>
+                <th class="px-6 py-3 text-right font-bold">الجنس</th>
+                <th class="px-6 py-3 text-right font-bold">تاريخ التسجيل</th>
+                <th class="px-6 py-3 text-left font-bold">قبول او رفض</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for user in teacher_requests %}
+            <tr class="odd:bg-white even:bg-white/60 hover:bg-primary-50/60 transition-colors">
+                <td class="px-6 py-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-purple-50 rounded-full flex items-center justify-center">
+                            <span class="text-purple-700 font-bold text-xs">{{ user.full_name_ar.0 }}</span>
+                        </div>
+                        <span class="text-sm font-medium text-gray-800">{{ user.full_name_ar }}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-3 text-sm text-gray-500">{{ user.email }}</td>
+                <td class="px-6 py-3 text-sm text-gray-500">{{ user.phone|default:"—" }}</td>
+                <td class="px-6 py-3 text-sm text-gray-500">{% if user.gender == 'male' %}ذكر{% elif user.gender == 'female' %}أنثى{% else %}—{% endif %}</td>
+                <td class="px-6 py-3 text-sm text-gray-400">{{ user.created_at|date:"Y-m-d" }}</td>
+                <td class="px-6 py-3 text-left">
+                    {% include "dashboard/partials/user_actions.html" with user_obj=user %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">{% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات أساتذة" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ═══ Supervisor View (when role_tab=supervisor) ═══ -->
+{% elif role_tab == 'supervisor' %}
+<div class="bg-cream-200 rounded-[22px] shadow-[0_10px_24px_rgba(23,71,107,0.06)] overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-gray-50">
+        <h3 class="font-extrabold text-navy-600 text-[17px]">طلبات المشرف العام ({{ supervisor_requests|length }})</h3>
+    </div>
+    <table class="w-full">
+        <thead class="bg-[#F1F6F5] text-sm text-navy-600">
+            <tr>
+                <th class="px-6 py-3 text-right font-bold">الاسم واللقب</th>
+                <th class="px-6 py-3 text-right font-bold">التخصص</th>
+                <th class="px-6 py-3 text-right font-bold">رقم الهاتف</th>
+                <th class="px-6 py-3 text-right font-bold">البريد الإلكتروني</th>
+                <th class="px-6 py-3 text-right font-bold">تاريخ التسجيل</th>
+                <th class="px-6 py-3 text-left font-bold">قبول او رفض</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for user in supervisor_requests %}
+            <tr class="odd:bg-white even:bg-white/60 hover:bg-primary-50/60 transition-colors">
+                <td class="px-6 py-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center">
+                            <span class="text-blue-700 font-bold text-xs">{{ user.full_name_ar.0 }}</span>
+                        </div>
+                        <span class="text-sm font-medium text-gray-800">{{ user.full_name_ar }}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-3 text-sm text-gray-500">—</td>
+                <td class="px-6 py-3 text-sm text-gray-500">{{ user.phone|default:"—" }}</td>
+                <td class="px-6 py-3 text-sm text-gray-500">{{ user.email }}</td>
+                <td class="px-6 py-3 text-sm text-gray-400">{{ user.created_at|date:"Y-m-d" }}</td>
+                <td class="px-6 py-3 text-left">
+                    {% include "dashboard/partials/user_actions.html" with user_obj=user %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">{% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات مشرفين" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- ═══ Status-based Filter Bar ═══ -->
+<div class="bg-cream-50 rounded-[18px] shadow-[0_10px_22px_rgba(23,71,107,0.06)] p-4 mb-6 flex items-center gap-4 flex-wrap"
+     x-data="{ status: '{{ request.GET.status|default:"pending" }}', role: '{{ request.GET.role }}', search: '{{ request.GET.search }}', doFilter() { let url = '{% url "accounts:users_table" %}?status=' + this.status + '&role=' + encodeURIComponent(this.role) + '&search=' + encodeURIComponent(this.search); htmx.ajax('GET', url, {target: '#users-tbody', swap: 'innerHTML'}); } }">
+    <div class="flex gap-2">
+        <button @click="status = 'pending'; doFilter()"
+                :class="status === 'pending' ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'"
+                class="px-4 py-2 rounded-xl text-sm font-medium transition-all">
+            قيد المراجعة ({{ pending_count }})
+        </button>
+        <button @click="status = 'approved'; doFilter()"
+                :class="status === 'approved' ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'"
+                class="px-4 py-2 rounded-xl text-sm font-medium transition-all">
+            معتمدة ({{ approved_count }})
+        </button>
+        <button @click="status = 'rejected'; doFilter()"
+                :class="status === 'rejected' ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'"
+                class="px-4 py-2 rounded-xl text-sm font-medium transition-all">
+            مرفوضة ({{ rejected_count }})
+        </button>
+    </div>
+
+    <div class="mr-auto flex items-center gap-3">
+        <select x-model="role" @change="doFilter()"
+                class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="">كل الأدوار</option>
+            <option value="supervisor">مشرف</option>
+            <option value="teacher">معلم</option>
+            <option value="student">طالب</option>
+        </select>
+        <div class="relative">
+            <input type="text" x-model="search" @input.debounce.500ms="doFilter()" placeholder="بحث بالاسم أو البريد..."
+                   class="text-sm border border-gray-200 rounded-lg px-4 py-2 pr-9 w-56 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'accounts:admin_inscriptions_export_pdf' %}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors" title="تصدير PDF">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                PDF
+            </a>
+            <a href="{% url 'accounts:admin_inscriptions_export_excel' %}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 text-sm font-medium rounded-xl hover:bg-green-100 transition-colors" title="تصدير Excel">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Excel
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Users Table (Status-based view) ═══ -->
+<div class="bg-cream-200 rounded-[22px] shadow-[0_10px_24px_rgba(23,71,107,0.06)] overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-[#F1F6F5] text-sm text-navy-600">
+            <tr>
+                <th class="px-6 py-4 text-right font-bold">المستخدم</th>
+                <th class="px-6 py-4 text-right font-bold">البريد الإلكتروني</th>
+                <th class="px-6 py-4 text-right font-bold">الهاتف</th>
+                <th class="px-6 py-4 text-right font-bold">الدور</th>
+                <th class="px-6 py-4 text-right font-bold">الجنس</th>
+                <th class="px-6 py-4 text-right font-bold">تاريخ التسجيل</th>
+                <th class="px-6 py-4 text-right font-bold">الحالة</th>
+                <th class="px-6 py-4 text-right font-bold">إجراء</th>
+            </tr>
+        </thead>
+        <tbody id="users-tbody" class="divide-y divide-gray-50">
+            {% include "dashboard/partials/user_rows.html" with users=pending_users %}
+        </tbody>
+    </table>
+    {% include "dashboard/partials/pagination.html" %}
+</div>
+{% endblock %}

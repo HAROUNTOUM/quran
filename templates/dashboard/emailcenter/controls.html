@@ -1,0 +1,30 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}مركز البريد{% endblock %}
+{% block title %}التحكم بالبريد التلقائي — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/emailcenter/_subnav.html" %}
+
+<div class="mb-6">
+    <h1 class="text-2xl font-black text-gray-800">التحكم بالبريد التلقائي</h1>
+    <p class="text-gray-400 mt-1">تحكّم في فئات الرسائل التلقائية التي ترسلها المنصة. تُطبَّق التغييرات فوراً.</p>
+</div>
+
+<form method="POST" class="bg-white rounded-2xl border border-gray-100 p-6 max-w-2xl space-y-1">
+    {% csrf_token %}
+    {% for t in toggles %}
+    <label class="flex items-center justify-between py-3.5 {% if not forloop.last %}border-b border-gray-50{% endif %} cursor-pointer">
+        <span class="text-sm font-medium {% if t.key == 'automail_enabled' %}text-navy-700 font-bold{% else %}text-gray-700{% endif %}">{{ t.label }}</span>
+        <span class="relative inline-flex items-center">
+            <input type="checkbox" name="{{ t.key }}" class="sr-only peer" {% if t.value %}checked{% endif %}>
+            <span class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary-600 transition-colors"></span>
+            <span class="absolute right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:-translate-x-5"></span>
+        </span>
+    </label>
+    {% endfor %}
+    <div class="pt-4">
+        <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-md shadow-primary-500/25">
+            حفظ الإعدادات
+        </button>
+    </div>
+</form>
+{% endblock %}

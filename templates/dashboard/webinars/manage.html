@@ -1,0 +1,148 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}إدارة {{ webinar.title }}{% endblock %}
+{% block page_heading %}إدارة الندوة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الإدارة / الندوات / {{ webinar.title }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid gap-6 lg:grid-cols-3">
+    <div class="lg:col-span-2 space-y-6">
+        {# ── Details ── #}
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">تفاصيل الندوة</h3>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update">
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">العنوان</label>
+                    <input type="text" name="title" value="{{ webinar.title }}" required
+                           class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الوصف</label>
+                    <textarea name="description" rows="3"
+                              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">{{ webinar.description }}</textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">موعد البث</label>
+                    <input type="datetime-local" name="scheduled_at" value="{{ webinar.scheduled_at|date:'Y-m-d\TH:i' }}"
+                           class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">رابط البث</label>
+                    <input type="url" name="stream_url" value="{{ webinar.stream_url }}"
+                           class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                           placeholder="https://youtube.com/watch?v=...">
+                </div>
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    حفظ التعديلات
+                </button>
+            </form>
+        </div>
+
+        {# ── Lifecycle ── #}
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">دورة حياة الندوة</h3>
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-xs font-medium px-3 py-1.5 rounded-lg
+                    {% if webinar.status == 'live' %}bg-red-50 text-red-700{% elif webinar.status == 'scheduled' %}bg-amber-50 text-amber-700{% elif webinar.status == 'replay' %}bg-green-50 text-green-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                    {{ webinar.get_status_display }}
+                </span>
+
+                {% if webinar.status == 'scheduled' %}
+                <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="start">
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-xl hover:bg-red-700 transition-colors">
+                        بدء البث المباشر
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if webinar.status == 'live' %}
+                <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="end">
+                    <button type="submit" class="px-4 py-2 bg-gray-700 text-white text-xs font-medium rounded-xl hover:bg-gray-800 transition-colors">
+                        إنهاء البث
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if webinar.status == 'ended' and webinar.stream_url %}
+                <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="replay">
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-xl hover:bg-green-700 transition-colors">
+                        إتاحة كإعادة
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if webinar.is_watchable %}
+                <a href="{% url 'webinars:watch' webinar.pk %}" class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    معاينة البث
+                </a>
+                {% endif %}
+
+                {% if webinar.status == 'scheduled' or webinar.status == 'live' %}
+                <a href="{% url 'webinars:speaker_room' webinar.pk %}" class="px-4 py-2 border border-gray-200 text-gray-700 text-xs font-medium rounded-xl hover:bg-gray-50 transition-colors">
+                    غرفة المتحدثين
+                </a>
+                {% endif %}
+            </div>
+
+            {% if webinar.started_at %}
+            <p class="text-xs text-gray-400 mt-3">بدأت في: {{ webinar.started_at|date:"Y-m-d H:i" }}</p>
+            {% endif %}
+            {% if webinar.ended_at %}
+            <p class="text-xs text-gray-400">انتهت في: {{ webinar.ended_at|date:"Y-m-d H:i" }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Sidebar: Co-speakers ── #}
+    <div class="space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">المتحدثون</h3>
+
+            <div class="space-y-2 mb-4">
+                {% for speaker in co_speakers %}
+                <div class="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+                    <span class="text-sm text-gray-700">{{ speaker.full_name_ar }}</span>
+                    <form method="post" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="remove_speaker">
+                        <input type="hidden" name="user_id" value="{{ speaker.pk }}">
+                        <button type="submit" class="text-xs text-red-500 hover:text-red-700">إزالة</button>
+                    </form>
+                </div>
+                {% empty %}
+                <p class="text-xs text-gray-400 text-center py-3">لم يضف متحدثون بعد</p>
+                {% endfor %}
+            </div>
+
+            <form method="post" class="flex gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_speaker">
+                <select name="user_id" class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">اختر متحدثاً...</option>
+                    {% for s in candidate_speakers %}
+                    <option value="{{ s.pk }}">{{ s.full_name_ar }} ({{ s.get_role_display }})</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="px-3 py-2 bg-primary-600 text-white text-xs font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    إضافة
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-3">معلومات الغرفة</h3>
+            <p class="text-xs text-gray-500 mb-2">اسم غرفة المتحدثين (Jitsi):</p>
+            <code class="block bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-600 dir-ltr text-left">{{ webinar.speaker_room_name }}</code>
+            <p class="text-xs text-gray-400 mt-2">يُستخدم من قبل المتحدثين والمشرفين فقط</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

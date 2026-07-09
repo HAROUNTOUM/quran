@@ -1,0 +1,206 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}الطبيب الحافظ{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Alexandria', 'Tajawal', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#F0F8F6',
+                            100: '#DFF4F1',
+                            200: '#C9E8E5',
+                            300: '#A8D8D5',
+                            400: '#7FC3C3',
+                            500: '#4AA6A6',
+                            600: '#3E9B9D',
+                            700: '#2E8B8D',
+                            800: '#256F72',
+                            900: '#17565A',
+                            950: '#0E3A3D',
+                        },
+                        accent: {
+                            50: '#FCF3D7',
+                            100: '#F4E9CF',
+                            200: '#F3ECD8',
+                            300: '#EFD9A0',
+                            400: '#E9B949',
+                            500: '#E4B23C',
+                            600: '#D2A02B',
+                            700: '#C99516',
+                        },
+                        navy: {
+                            50: '#F0F5F8',
+                            100: '#D8E9F3',
+                            200: '#BFD9E9',
+                            300: '#8FB9C4',
+                            400: '#5E8794',
+                            500: '#3F7085',
+                            600: '#17476B',
+                            700: '#0F3A5A',
+                            800: '#0C2E48',
+                            900: '#082136',
+                        },
+                        cream: {
+                            50: '#FDFCF7',
+                            100: '#FBF8F0',
+                            200: '#F6F3E9',
+                            300: '#EAE2CD',
+                        },
+                        brick: {
+                            50: '#FBDEDE',
+                            400: '#E2574C',
+                            500: '#CE4B3F',
+                            600: '#B93B30',
+                        },
+                    },
+                    backgroundImage: {
+                        'pattern-dots': "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2310b981' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
+                    },
+                }
+            }
+        }
+    </script>
+    <script>try{if(localStorage.getItem('sidebarOpen')==='false'){document.documentElement.classList.add('sidebar-closed')}}catch(e){}</script>
+    <style>
+        @media (min-width: 1024px) {
+            .sidebar-closed #sidebar { width: 0 !important; min-width: 0 !important; overflow: hidden !important; }
+            .sidebar-closed #sidebar > * { opacity: 0 !important; }
+            .sidebar-closed #main-area { margin-right: 0 !important; }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Alexandria', 'Tajawal', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #E8F0EE; }
+        ::-webkit-scrollbar-thumb { background: #A5C6C4; border-radius: 3px; }
+        .htmx-swapping { opacity: 0; transition: opacity 200ms ease-out; }
+        .htmx-added { animation: fadeIn 300ms ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        input:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0 30px rgba(255,255,255,0) inset !important;
+            -webkit-text-fill-color: #17476B !important;
+        }
+        .sidebar-logo {
+            background: linear-gradient(135deg, #2E8B8D 0%, #4AA6A6 50%, #7FC3C3 100%);
+        }
+        .card-hover {
+            transition: all 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px -5px rgba(23, 71, 107, 0.10), 0 8px 10px -6px rgba(23, 71, 107, 0.05);
+        }
+        .gradient-primary {
+            background: linear-gradient(135deg, #2E8B8D 0%, #4AA6A6 50%, #7FC3C3 100%);
+        }
+        .pattern-islamic {
+            background: linear-gradient(115deg, #9EC9CB 0%, #BCD8D4 38%, #DCE4D9 68%, #EFEADC 100%);
+            background-attachment: fixed;
+        }
+        .gradient-sidebar {
+            background: #FDFCF7;
+        }
+        .nav-link {
+            border: 1px solid #C4DEDC;
+            border-radius: 999px;
+            color: #4FA5A7;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        .nav-link:hover {
+            background: #F0F8F6;
+        }
+        .nav-link-active {
+            background: #4AA6A6 !important;
+            border-color: #4AA6A6 !important;
+            color: #FFFFFF !important;
+        }
+    </style>
+    <script>
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+
+        function apiFetch(url, options = {}) {
+            const headers = new Headers(options.headers || {});
+            if (!headers.has('X-CSRFToken')) {
+                headers.set('X-CSRFToken', getCookie('csrftoken'));
+            }
+            if (!headers.has('X-Requested-With')) {
+                headers.set('X-Requested-With', 'XMLHttpRequest');
+            }
+            return fetch(url, {
+                credentials: 'same-origin',
+                ...options,
+                headers,
+            });
+        }
+    </script>
+    <script>
+        function togglePassword(btn) {
+            const input = btn.closest('.relative').querySelector('input');
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            btn.innerHTML = isPassword
+                ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L16.5 16.5"/></svg>'
+                : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>';
+        }
+    </script>
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('notifications', {
+            unreadCount: {{ unread_count|default:0 }},
+            ws: null,
+            connected: false,
+            connect() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const url = `${protocol}//${window.location.host}/ws/notifications/`;
+                try {
+                    this.ws = new WebSocket(url);
+                    this.ws.onopen = () => { this.connected = true; };
+                    this.ws.onclose = () => {
+                        this.connected = false;
+                        setTimeout(() => this.connect(), 5000);
+                    };
+                    this.ws.onmessage = (e) => {
+                        const data = JSON.parse(e.data);
+                        if (data.type === 'new_notification') {
+                            this.unreadCount = data.unread_count || this.unreadCount + 1;
+                            window.dispatchEvent(new CustomEvent('showToast', {
+                                detail: { message: '🔔 ' + data.title, type: 'success' }
+                            }));
+                        } else if (data.type === 'unread_count_update') {
+                            this.unreadCount = data.unread_count;
+                        }
+                    };
+                } catch(e) {}
+            }
+        });
+        Alpine.store('notifications').connect();
+    });
+    </script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="pattern-islamic text-gray-800 min-h-screen">
+    {% block content %}{% endblock %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

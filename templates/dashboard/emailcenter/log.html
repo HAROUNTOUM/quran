@@ -1,0 +1,58 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}مركز البريد{% endblock %}
+{% block title %}سجل البريد — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/emailcenter/_subnav.html" %}
+
+<div class="mb-6">
+    <h1 class="text-2xl font-black text-gray-800">سجل البريد</h1>
+    <p class="text-gray-400 mt-1">كل محاولة إرسال (يدوية أو تلقائية) مع حالتها — لمراقبة وصول الرسائل فعلياً.</p>
+</div>
+
+<form method="GET" class="flex items-center gap-3 mb-4">
+    <select name="status" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2">
+        <option value="">كل الحالات</option>
+        {% for value, label in statuses %}
+        <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select name="category" onchange="this.form.submit()" class="text-sm border border-gray-200 rounded-lg px-3 py-2">
+        <option value="">كل الفئات</option>
+        {% for value, label in categories %}
+        <option value="{{ value }}" {% if request.GET.category == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full text-sm text-right">
+        <thead class="bg-gray-50 text-gray-500 text-xs">
+            <tr>
+                <th class="px-5 py-3 font-bold">البريد</th>
+                <th class="px-5 py-3 font-bold">الموضوع</th>
+                <th class="px-5 py-3 font-bold">الفئة</th>
+                <th class="px-5 py-3 font-bold">الحالة</th>
+                <th class="px-5 py-3 font-bold">التاريخ</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for log in logs %}
+            <tr class="hover:bg-gray-50/60">
+                <td class="px-5 py-3 text-gray-700">{{ log.to_email }}</td>
+                <td class="px-5 py-3 text-gray-500">{{ log.subject|truncatechars:40 }}</td>
+                <td class="px-5 py-3 text-gray-500 text-xs">{{ log.get_category_display }}</td>
+                <td class="px-5 py-3">
+                    {% if log.status == 'sent' %}<span class="text-green-600 font-bold text-xs">أُرسلت</span>
+                    {% elif log.status == 'skipped' %}<span class="text-gray-400 font-bold text-xs">متوقفة</span>
+                    {% else %}<span class="text-red-500 font-bold text-xs" title="{{ log.error }}">فشلت</span>{% endif %}
+                </td>
+                <td class="px-5 py-3 text-gray-400 text-xs">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">لا توجد سجلات.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% include "dashboard/partials/pagination.html" %}
+</div>
+{% endblock %}

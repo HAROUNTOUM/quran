@@ -1,0 +1,21 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}غرفة المتحدثين — {{ webinar.title }}{% endblock %}
+{% block page_heading %}غرفة المتحدثين{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الندوات / {{ webinar.title }} / غرفة المتحدثين{% endblock %}
+{% block dashboard_content %}
+
+<div class="bg-white rounded-2xl border border-gray-100 p-4 mb-6 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+            <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-gray-800">غرفة المتحدثين — {{ webinar.title }}</p>
+            <p class="text-xs text-gray-400">هذه الغرفة مخصصة للمشرفين والمتحدثين المعينين فقط</p>
+        </div>
+    </div>
+    <a href="{% url 'webinars:admin_manage' webinar.pk %}" class="text-xs font-medium text-gray-500 hover:text-gray-700">العودة إلى الإدارة</a>
+</div>
+
+{% include "dashboard/classrooms/_jitsi_embed.html" with room_name=webinar.speaker_room_name %}
+{% endblock %}

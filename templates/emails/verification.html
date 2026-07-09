@@ -1,0 +1,30 @@
+{% extends "emails/base_email.html" %}
+{% block content %}
+<h2 style="color:#1f2937;font-size:20px;margin:0 0 16px;">السلام عليكم {{ user.full_name_ar }}،</h2>
+<p style="color:#4b5563;font-size:15px;line-height:1.8;margin:0 0 12px;">
+    شكراً لتسجيلك في منصة <strong>الطبيب الحافظ</strong>.
+    يرجى تأكيد بريدك الإلكتروني بالضغط على الرابط أدناه:
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+    <tr>
+        <td align="center">
+            <a href="{{ verification_url }}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#059669,#047857);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;border-radius:12px;">
+                تأكيد البريد الإلكتروني
+            </a>
+        </td>
+    </tr>
+</table>
+<p style="color:#4b5563;font-size:14px;line-height:1.8;margin:0 0 12px;">
+    إذا لم تتمكن من الضغط على الرابط، يمكنك نسخ الرابط التالي ولصقه في المتصفح:
+</p>
+<p style="color:#6b7280;font-size:12px;line-height:1.6;margin:0 0 16px;word-break:break-all;direction:ltr;text-align:left;">
+    {{ verification_url }}
+</p>
+<p style="color:#4b5563;font-size:14px;line-height:1.8;margin:0;">
+    بعد التأكيد، ستقوم الإدارة بمراجعة طلبك وإعلامك عند الاعتماد.
+</p>
+<p style="color:#4b5563;font-size:15px;line-height:1.8;margin:24px 0 0;">
+    والله الموفق،<br>
+    <strong>إدارة منصة الطبيب الحافظ</strong>
+</p>
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends "dashboard/base.html" %}
+{% load core_tags %}
+{% block page_title %}طلبات المراجعة والتسميع{% endblock %}
+{% block page_heading %}طلبات المراجعة والتسميع{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلبات المراجعة والتسميع{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/teacher/_requests_tabs.html" %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">مراجعة طلبات التسميع والمراجعة المقدمة من الطلاب</p>
+    <div class="flex items-center gap-2">
+        <a href="?status=pending" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'pending' or not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">قيد الانتظار</a>
+        <a href="?status=approved" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'approved' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مقبول</a>
+        <a href="?status=rejected" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'rejected' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مرفوض</a>
+        <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors">الكل</a>
+    </div>
+</div>
+
+<div class="space-y-4">
+    {% for req in requests %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span class="text-primary-700 font-bold">{{ req.student.full_name_ar.0 }}</span>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">{{ req.student.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ req.circle.name }}</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium {% if req.status == 'pending' %}bg-blue-50 text-blue-700{% elif req.status == 'approved' %}bg-green-50 text-green-700{% elif req.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
+                {{ req.get_status_display }}
+            </span>
+        </div>
+
+        {% if req.type == 'question' %}
+        <div class="bg-primary-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-primary-600 mb-1">سؤال الطالب:</p>
+            <p class="text-sm text-gray-800">{{ req.notes|default:"—" }}</p>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">النوع</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{{ req.get_type_display }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">السورة</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{{ req.surah.name_ar|default:"—" }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">الآيات</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{% if req.ayah_from and req.ayah_to %}{{ req.ayah_from }}–{{ req.ayah_to }}{% else %}—{% endif %}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="bg-amber-50 rounded-xl p-3">
+                <p class="text-xs text-amber-600 mb-1">الأيام المفضلة</p>
+                <div class="flex flex-wrap gap-1">
+                    {% for d in req.preferred_days %}
+                    <span class="text-xs px-2 py-0.5 bg-white rounded font-medium text-amber-800">{{ day_labels|get_item:d }}</span>
+                    {% empty %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="bg-blue-50 rounded-xl p-3">
+                <p class="text-xs text-blue-600 mb-1">الأوقات المفضلة</p>
+                <div class="flex flex-wrap gap-1">
+                    {% for t in req.preferred_times %}
+                    <span class="text-xs px-2 py-0.5 bg-white rounded font-medium text-blue-800">{{ time_labels|get_item:t }}</span>
+                    {% empty %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {% if req.notes %}
+        <div class="bg-gray-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-500 mb-1">ملاحظات الطالب:</p>
+            <p class="text-sm text-gray-800">{{ req.notes }}</p>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% if req.response %}
+        <div class="bg-green-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-green-600 mb-1">ردّك:</p>
+            <p class="text-sm text-gray-800">{{ req.response }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.status == 'approved' and req.scheduled_date %}
+        <div class="bg-green-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-green-600 mb-1">موعد المراجعة:</p>
+            <div class="flex items-center gap-4 flex-wrap">
+                <span class="text-sm font-bold text-green-800">{{ req.scheduled_date|date:"Y-m-d" }}{% if req.scheduled_time %} {{ req.scheduled_time|time:"H:i" }}{% endif %}</span>
+                {% if req.meeting_url %}
+                <a href="{{ req.meeting_url }}" target="_blank" class="text-sm text-blue-600 hover:text-blue-700 font-medium underline">رابط الاجتماع</a>
+                {% endif %}
+                {% if req.meeting_platform %}
+                <span class="text-xs px-2 py-0.5 bg-white rounded font-medium text-gray-600">{{ req.get_meeting_platform_display }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if req.rejection_reason %}
+        <div class="bg-red-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-500 mb-1">سبب الرفض:</p>
+            <p class="text-sm text-gray-800">{{ req.rejection_reason }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.reviewed_by and req.status != 'pending' %}
+        <p class="text-xs text-gray-400">تمت المعالجة بواسطة: {{ req.reviewed_by.full_name_ar }}</p>
+        {% endif %}
+
+        {% if req.status == 'pending' and req.type == 'question' %}
+        <div class="mt-4 border-t border-gray-100 pt-4">
+            <form method="POST" action="{% url 'accounts:teacher_review_requests' %}">
+                {% csrf_token %}
+                <input type="hidden" name="request_id" value="{{ req.id }}">
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">الرد على السؤال *</label>
+                    <textarea name="response" rows="3" required
+                              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              placeholder="اكتب إجابتك على سؤال الطالب..."></textarea>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="submit" name="action" value="answer" class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+                        إرسال الرد
+                    </button>
+                    <button type="submit" name="action" value="reject" class="px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">
+                        رفض
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% elif req.status == 'pending' %}
+        <div class="mt-4 border-t border-gray-100 pt-4">
+            <form method="POST" action="{% url 'accounts:teacher_review_requests' %}">
+                {% csrf_token %}
+                <input type="hidden" name="request_id" value="{{ req.id }}">
+
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">تاريخ المراجعة *</label>
+                        <input type="date" name="scheduled_date" required
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">وقت المراجعة</label>
+                        <input type="time" name="scheduled_time"
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">رابط الاجتماع</label>
+                        <input type="url" name="meeting_url" placeholder="https://..."
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">المنصة</label>
+                        <select name="meeting_platform" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">اختر</option>
+                            {% for val, label in platform_choices %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">سبب الرفض (املأه في حالة الرفض فقط)</label>
+                    <textarea name="rejection_reason" rows="2"
+                              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              placeholder="سبب الرفض..."></textarea>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="submit" name="action" value="approve" class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                        قبول وجدولة
+                    </button>
+                    <button type="submit" name="action" value="reject" class="px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">
+                        رفض
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+        لا توجد طلبات
+    </div>
+    {% endfor %}
+</div>
+
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

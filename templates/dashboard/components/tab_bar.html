@@ -1,0 +1,15 @@
+<div class="flex items-center gap-8 mb-6 border-b-2 border-[#E4EBE9] overflow-x-auto" dir="rtl">
+    {% for tab in tabs %}
+    <a href="{{ tab.url }}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors
+       {% if tab.active %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">
+        {{ tab.label }}
+        {% if tab.badge %}
+        <span class="mr-1.5 px-2 py-0.5 text-[10px] font-bold rounded-full
+            {% if tab.active %}bg-accent-50 text-accent-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+            {{ tab.badge }}
+        </span>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>

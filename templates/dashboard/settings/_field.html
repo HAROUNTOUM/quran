@@ -1,0 +1,35 @@
+{% comment %}Renders one setting by registry type. Expects: spec, value.{% endcomment %}
+{% if spec.type == "bool" %}
+  <label class="flex items-start gap-3 cursor-pointer">
+    <input type="checkbox" name="{{ spec.key }}" {% if value %}checked{% endif %}
+           class="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+    <span>
+      <span class="block text-sm font-medium text-gray-800">{{ spec.label }}</span>
+      {% if spec.help_text %}<span class="block text-xs text-gray-400 mt-0.5">{{ spec.help_text }}</span>{% endif %}
+    </span>
+  </label>
+{% else %}
+  <div>
+    <label for="id_{{ spec.key }}" class="block text-sm font-medium text-gray-800 mb-1">{{ spec.label }}</label>
+    {% if spec.help_text %}<p class="text-xs text-gray-400 mb-1.5">{{ spec.help_text }}</p>{% endif %}
+    {% if spec.type == "choice" %}
+      <select name="{{ spec.key }}" id="id_{{ spec.key }}"
+              class="w-full max-w-xs px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        {% for opt_value, opt_label in spec.choices %}
+          <option value="{{ opt_value }}" {% if opt_value == value %}selected{% endif %}>{{ opt_label }}</option>
+        {% endfor %}
+      </select>
+    {% elif spec.type == "int" %}
+      <input type="number" name="{{ spec.key }}" id="id_{{ spec.key }}" value="{{ value }}"
+             {% if spec.min_value is not None %}min="{{ spec.min_value }}"{% endif %}
+             {% if spec.max_value is not None %}max="{{ spec.max_value }}"{% endif %}
+             class="w-full max-w-[10rem] px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    {% elif spec.type == "date" %}
+      <input type="date" name="{{ spec.key }}" id="id_{{ spec.key }}" value="{{ value|default:'' }}"
+             class="w-full max-w-xs px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    {% else %}
+      <input type="text" name="{{ spec.key }}" id="id_{{ spec.key }}" value="{{ value|default:'' }}" maxlength="500"
+             class="w-full max-w-md px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    {% endif %}
+  </div>
+{% endif %}

@@ -1,0 +1,24 @@
+{# Shared Jitsi embed using the IFrame API SDK (external_api.js) served by our
+   self-hosted Jitsi server. Context: jitsi_domain, room_name, jitsi_jwt (optional).
+   When jitsi_jwt is present the server admits the user with their Django identity
+   (prosody token auth) — no Jitsi login or account is ever shown. #}
+<div id="jitsi-meet" class="bg-gray-900 rounded-2xl overflow-hidden" style="height: 70vh;"></div>
+<script src="https://{{ jitsi_domain }}/external_api.js"></script>
+<script>
+    new JitsiMeetExternalAPI("{{ jitsi_domain|escapejs }}", {
+        roomName: "{{ room_name|escapejs }}",
+        {% if jitsi_jwt %}jwt: "{{ jitsi_jwt|escapejs }}",{% endif %}
+        parentNode: document.getElementById("jitsi-meet"),
+        width: "100%",
+        height: "100%",
+        lang: "ar",
+        userInfo: {
+            displayName: "{{ request.user.full_name_ar|default:request.user.username|escapejs }}",
+        },
+        configOverwrite: {
+            prejoinConfig: { enabled: true },
+            defaultLanguage: "ar",
+            disableDeepLinking: true,
+        },
+    });
+</script>

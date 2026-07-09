@@ -1,0 +1,51 @@
+<table class="w-full" id="grades-tbody">
+    <thead class="bg-gray-50 text-sm text-gray-500">
+        <tr>
+            <th class="px-4 py-3 text-right font-medium w-8">#</th>
+            <th class="px-4 py-3 text-right font-medium">الطالب</th>
+            <th class="px-2 py-3 text-center font-medium">الحضور</th>
+            {% for criterion in criteria %}
+            <th class="px-2 py-3 text-center font-medium">{{ criterion.name_ar }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+        {% for row in student_rows %}
+        <tr class="hover:bg-gray-50 transition-colors">
+            <td class="px-4 py-3 text-sm text-gray-400">{{ forloop.counter }}</td>
+            <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span class="text-blue-700 font-bold text-xs">{{ row.student_name|slice:":1" }}</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-800">{{ row.student_name }}</span>
+                </div>
+            </td>
+            <td class="px-2 py-3 text-center">
+                <select name="attendance_{{ row.student_id }}"
+                        class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">—</option>
+                    {% for key, label in attendance_choices %}
+                    <option value="{{ key }}" {% if row.attendance == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            {% for g in row.grades %}
+            <td class="px-2 py-3 text-center">
+                <input type="number" name="grade_{{ row.student_id }}_{{ g.criterion_id }}"
+                       value="{% if g.score %}{{ g.score }}{% endif %}"
+                       min="0" max="100" step="0.5"
+                       placeholder="—"
+                       class="w-20 text-center text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            </td>
+            {% endfor %}
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="100" class="text-center py-8 text-sm text-gray-400">
+                لا يوجد طلاب في هذه الحلقة
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

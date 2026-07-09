@@ -1,0 +1,42 @@
+{% comment %}
+Accept / reject actions for a pending registration row (design-system buttons).
+Params: user_obj. Posts to accounts:approve_user; on success the row is removed
+from the pending list (hx-swap="delete") and the HX-Trigger toast fires.
+{% endcomment %}
+{% if user_obj.is_approved == 'pending' %}
+<div class="relative inline-flex items-center gap-2.5" x-data="{ showReject: false }" dir="rtl">
+    <form hx-post="{% url 'accounts:approve_user' user_obj.id %}" hx-target="closest tr" hx-swap="delete">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="approve">
+        <button type="submit"
+                class="h-9 px-4 rounded-lg border-[1.5px] border-primary-500 bg-primary-100 text-primary-700 text-[13px] font-bold hover:bg-primary-200 transition-colors">
+            قبول
+        </button>
+    </form>
+    <button @click="showReject = !showReject"
+            class="h-9 px-5 rounded-lg bg-brick-500 text-white text-[13px] font-bold hover:bg-brick-600 transition-colors">
+        رفض
+    </button>
+    <div x-show="showReject" x-cloak @click.outside="showReject = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+         class="absolute left-0 top-full mt-2 bg-cream-50 rounded-xl shadow-2xl border border-cream-300 p-4 z-50 w-72 text-right">
+        <p class="text-sm font-bold text-navy-600 mb-2">تأكيد الرفض</p>
+        <form hx-post="{% url 'accounts:approve_user' user_obj.id %}" hx-target="closest tr" hx-swap="delete">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <textarea name="rejection_reason" rows="2"
+                      class="w-full px-3 py-2 border border-cream-300 rounded-lg text-sm bg-white text-navy-600 focus:outline-none focus:ring-2 focus:ring-brick-400 mb-3"
+                      placeholder="سبب الرفض (اختياري)"></textarea>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 py-2 bg-brick-500 text-white text-sm font-bold rounded-lg hover:bg-brick-600">تأكيد الرفض</button>
+                <button type="button" @click="showReject = false" class="px-4 py-2 bg-gray-100 text-gray-600 text-sm rounded-lg hover:bg-gray-200">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% elif user_obj.is_approved == 'approved' %}
+<span class="inline-block bg-[#D9F4E5] text-[#2E9E63] rounded-full px-5 py-1.5 text-[13px] font-bold">مقبول ✓</span>
+{% else %}
+<span class="inline-block bg-[#FBDEDE] text-[#E15B52] rounded-full px-5 py-1.5 text-[13px] font-bold">مرفوض</span>
+{% endif %}

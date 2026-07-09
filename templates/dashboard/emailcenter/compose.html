@@ -1,0 +1,70 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}مركز البريد{% endblock %}
+{% block title %}إنشاء رسالة — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/emailcenter/_subnav.html" %}
+
+<div class="mb-6">
+    <h1 class="text-2xl font-black text-gray-800">إنشاء رسالة بريدية</h1>
+    <p class="text-gray-400 mt-1">أرسل رسالة إلى كل المستخدمين أو دور محدد أو حلقة أو مستخدم واحد.</p>
+</div>
+
+<form method="POST" x-data="{ audience: '{{ form_data.audience|default:'all' }}' }"
+      class="bg-white rounded-2xl border border-gray-100 p-6 max-w-3xl space-y-5">
+    {% csrf_token %}
+
+    <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1.5">الموضوع</label>
+        <input type="text" name="subject" value="{{ form_data.subject }}" required maxlength="255"
+               class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500">
+    </div>
+
+    <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1.5">النص</label>
+        <textarea name="body" rows="8" required
+                  class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500">{{ form_data.body }}</textarea>
+    </div>
+
+    <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1.5">الجمهور المستهدف</label>
+        <select name="audience" x-model="audience"
+                class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            {% for value, label in audiences %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div x-show="audience === 'role'" x-cloak>
+        <label class="block text-sm font-bold text-gray-700 mb-1.5">الدور</label>
+        <select name="audience_role" class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5">
+            {% for value, label in roles %}
+            <option value="{{ value }}" {% if form_data.audience_role == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div x-show="audience === 'circle'" x-cloak>
+        <label class="block text-sm font-bold text-gray-700 mb-1.5">الحلقة</label>
+        <select name="audience_circle" class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5">
+            {% for circle in circles %}
+            <option value="{{ circle.id }}" {% if form_data.audience_circle == circle.id|stringformat:'s' %}selected{% endif %}>{{ circle.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div x-show="audience === 'user'" x-cloak>
+        <label class="block text-sm font-bold text-gray-700 mb-1.5">بريد المستخدم</label>
+        <input type="email" name="audience_email" value="{{ form_data.audience_email }}"
+               class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
+               placeholder="user@example.com">
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-md shadow-primary-500/25">
+            إرسال الرسالة
+        </button>
+        <a href="{% url 'emailcenter:campaigns' %}" class="text-sm text-gray-400 hover:text-gray-600">إلغاء</a>
+    </div>
+</form>
+{% endblock %}

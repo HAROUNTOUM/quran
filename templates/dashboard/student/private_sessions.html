@@ -1,0 +1,64 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}جلساتي الخاصة{% endblock %}
+{% block page_heading %}جلساتي الخاصة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الحلقات / جلساتي الخاصة{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_circle_tabs.html" %}
+
+<p class="text-sm text-gray-400 mb-6">جلسات التسميع الخاصة بينك وبين معلمك</p>
+
+<div class="space-y-4">
+    {% for s in sessions %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div>
+                <p class="text-sm font-bold text-gray-800">جلسة تسميع خاصة</p>
+                <p class="text-xs text-gray-400">المعلم: {{ s.teacher.full_name_ar }}{% if s.circle %} — {{ s.circle.name }}{% endif %}</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
+                {% if s.status == 'scheduled' %}bg-blue-50 text-blue-700{% elif s.status == 'completed' %}bg-green-50 text-green-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                {{ s.get_status_display }}
+            </span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="bg-gray-50 rounded-xl p-3">
+                <p class="text-xs text-gray-400">الموعد</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{{ s.scheduled_date|date:"Y-m-d"|default:"—" }}{% if s.scheduled_time %} {{ s.scheduled_time|time:"H:i" }}{% endif %}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 flex flex-col justify-center">
+                {% with join_url=s.effective_meeting_url %}
+                {% if join_url and s.status == 'scheduled' %}
+                <a href="{{ join_url }}" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    الانضمام للجلسة
+                </a>
+                {% else %}
+                <p class="text-xs text-gray-400 text-center">لا يوجد رابط</p>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+
+        {% if s.student_notes %}
+        <div class="bg-gray-50 rounded-xl p-4 mb-3">
+            <p class="text-xs text-gray-400">طلبك:</p>
+            <p class="text-sm text-gray-700 mt-1">{{ s.student_notes }}</p>
+        </div>
+        {% endif %}
+
+        {% if s.status == 'completed' %}
+        <div class="bg-green-50 rounded-xl p-4">
+            <p class="text-xs text-green-600 mb-1">النتيجة{% if s.result_mark %}: <span class="font-bold text-green-800">{{ s.result_mark }}</span>{% endif %}</p>
+            {% if s.result_notes %}<p class="text-sm text-gray-800 mt-1">{{ s.result_notes }}</p>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        {% include "dashboard/partials/empty_state.html" with message="لا توجد جلسات خاصة بعد" %}
+    </div>
+    {% endfor %}
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

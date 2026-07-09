@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4 landscape; margin: 2cm; }
+  body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #333; }
+  h1 { font-size: 18px; text-align: center; margin-bottom: 5px; }
+  .subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 20px; }
+  .info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+  .info div { font-size: 11px; }
+  .info span { font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f3f4f6; font-weight: bold; padding: 8px 6px; text-align: center; border: 1px solid #ddd; }
+  td { padding: 6px; text-align: center; border: 1px solid #ddd; }
+  .pass { color: #059669; font-weight: bold; }
+  .fail { color: #dc2626; font-weight: bold; }
+  .stats { margin-top: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .stats div { background: #f9fafb; padding: 10px 15px; border-radius: 8px; }
+  .stats span { font-weight: bold; }
+  .footer { margin-top: 30px; font-size: 10px; color: #999; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>{{ data.exam.title }}</h1>
+  <div class="subtitle">{{ data.exam.type }} — {{ data.exam.date }}</div>
+  <div class="info">
+    <div>رمز الامتحان: <span>{{ data.exam.code }}</span></div>
+    <div>الحلقة: <span>{{ data.exam.circle }}</span></div>
+    <div>المعلم: <span>{{ data.exam.teacher }}</span></div>
+    <div>الدرجة القصوى: <span>{{ data.exam.max_marks }}</span></div>
+    <div>نسبة النجاح: <span>{{ data.exam.pass_percentage }}%</span></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>اسم الطالب</th>
+        <th>الدرجة</th>
+        <th>النسبة</th>
+        <th>التقدير</th>
+        <th>النتيجة</th>
+        <th>ملاحظات</th>
+        <th>حالة الاعتماد</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in data.marks %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td style="text-align:right;">{{ m.student_name }}</td>
+        <td>{{ m.marks_obtained }}</td>
+        <td>{{ m.percentage }}%</td>
+        <td>{{ m.grade }}</td>
+        <td class="{% if m.is_passed %}pass{% else %}fail{% endif %}">{% if m.is_passed %}ناجح{% else %}راسب{% endif %}</td>
+        <td>{{ m.notes|default:"" }}</td>
+        <td>{{ m.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="stats">
+    <div>إجمالي الطلاب: <span>{{ data.statistics.total_students }}</span></div>
+    <div>المعتمدون: <span>{{ data.statistics.approved_count }}</span></div>
+    <div>الناجحون: <span>{{ data.statistics.pass_count }}</span></div>
+    <div>الراسبون: <span>{{ data.statistics.fail_count }}</span></div>
+    <div>نسبة النجاح: <span>{{ data.statistics.pass_rate }}%</span></div>
+    <div>متوسط الدرجات: <span>{{ data.statistics.average_marks }}</span></div>
+    <div>متوسط النسبة: <span>{{ data.statistics.average_percentage }}%</span></div>
+    <div>أعلى درجة: <span>{{ data.statistics.highest_marks }}</span></div>
+    <div>أدنى درجة: <span>{{ data.statistics.lowest_marks }}</span></div>
+  </div>
+  <div class="footer">تم إنشاء هذا التقرير بواسطة نظام الطبيب الحافظ</div>
+</body>
+</html>

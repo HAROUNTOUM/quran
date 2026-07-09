@@ -1,0 +1,82 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}الجلسات الخاصة{% endblock %}
+{% block page_heading %}الجلسات الخاصة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الطلبات / الجلسات الخاصة{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/teacher/_requests_tabs.html" %}
+
+<div class="flex items-center gap-2 mb-6">
+    <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg {% if not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">الكل</a>
+    <a href="?status=scheduled" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'scheduled' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مجدولة</a>
+    <a href="?status=completed" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'completed' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مكتملة</a>
+</div>
+
+<div class="space-y-4">
+    {% for s in sessions %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span class="text-primary-700 font-bold">{{ s.student.full_name_ar.0 }}</span>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">{{ s.student.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ s.scheduled_date|date:"Y-m-d"|default:"—" }}{% if s.scheduled_time %} {{ s.scheduled_time|time:"H:i" }}{% endif %}{% if s.circle %} — {{ s.circle.name }}{% endif %}</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
+                {% if s.status == 'scheduled' %}bg-blue-50 text-blue-700{% elif s.status == 'completed' %}bg-green-50 text-green-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                {{ s.get_status_display }}
+            </span>
+        </div>
+
+        {% if s.student_notes %}
+        <div class="bg-gray-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-400">طلب الطالب:</p>
+            <p class="text-sm text-gray-800 mt-1">{{ s.student_notes }}</p>
+        </div>
+        {% endif %}
+
+        {% with join_url=s.effective_meeting_url %}
+        {% if join_url %}
+        <div class="mb-4">
+            <a href="{{ join_url }}" target="_blank" class="text-sm text-primary-600 hover:text-primary-700 font-medium underline">رابط الجلسة</a>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% if s.status == 'completed' %}
+        <div class="bg-green-50 rounded-xl p-4">
+            <p class="text-xs text-green-600 mb-1">النتيجة{% if s.result_mark %}: <span class="font-bold text-green-800">{{ s.result_mark }}</span>{% endif %}</p>
+            {% if s.result_notes %}<p class="text-sm text-gray-800 mt-1">{{ s.result_notes }}</p>{% endif %}
+        </div>
+        {% else %}
+        <form method="POST" action="{% url 'accounts:teacher_private_sessions' %}" class="border-t border-gray-100 pt-4">
+            {% csrf_token %}
+            <input type="hidden" name="session_id" value="{{ s.id }}">
+            <div class="grid grid-cols-3 gap-3 mb-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">التقييم</label>
+                    <input type="text" name="result_mark" placeholder="مثال: ممتاز / 18"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">ملاحظات المعلم</label>
+                    <input type="text" name="result_notes" placeholder="ملاحظات حول الأداء..."
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+                تسجيل النتيجة وإنهاء الجلسة
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        {% include "dashboard/partials/empty_state.html" with message="لا توجد جلسات خاصة بعد" %}
+    </div>
+    {% endfor %}
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

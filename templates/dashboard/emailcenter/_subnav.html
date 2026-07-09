@@ -1,0 +1,13 @@
+{% comment %}Workspace sub-nav: مركز البريد — compose, campaigns, log, controls.{% endcomment %}
+{% with vn=request.resolver_match.view_name %}
+<div class="flex items-center gap-8 mb-6 border-b-2 border-[#E4EBE9] overflow-x-auto" dir="rtl">
+    <a href="{% url 'emailcenter:compose' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'emailcenter:compose' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">إنشاء رسالة</a>
+    <a href="{% url 'emailcenter:campaigns' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'emailcenter:campaigns' or vn == 'emailcenter:campaign_detail' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">الرسائل المرسلة</a>
+    <a href="{% url 'emailcenter:log' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'emailcenter:log' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">سجل البريد</a>
+    <a href="{% url 'emailcenter:controls' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'emailcenter:controls' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">التحكم التلقائي</a>
+</div>
+{% endwith %}

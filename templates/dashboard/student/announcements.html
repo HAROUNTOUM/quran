@@ -1,0 +1,40 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}الإعلانات{% endblock %}
+{% block page_heading %}الإعلانات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الإعلانات{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_requests_tabs.html" %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <p class="text-sm text-gray-400">جميع الإعلانات والتنبيهات</p>
+        <form method="GET" class="mt-3">
+            <input type="text" name="search" placeholder="بحث في الإعلانات..." value="{{ request.GET.search }}"
+                   oninput="clearTimeout(this._timer); this._timer = setTimeout(() => this.closest('form').submit(), 500)"
+                   class="text-sm border border-gray-200 rounded-lg px-4 py-2 pr-9 w-64 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </form>
+    </div>
+</div>
+
+<div class="space-y-4">
+    {% for announcement in announcements %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-1">
+                <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-bold text-gray-800">{{ announcement.title }}</h3>
+                <p class="text-sm text-gray-500 mt-1">{{ announcement.body|truncatewords:30 }}</p>
+                <p class="text-xs text-gray-400 mt-3">{{ announcement.created_at|date:"Y-m-d H:i" }} — {{ announcement.author.full_name_ar }}</p>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        {% include "dashboard/partials/empty_state.html" with icon="announcement" message="لا توجد إعلانات بعد" %}
+    </div>
+    {% endfor %}
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

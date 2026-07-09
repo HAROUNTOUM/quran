@@ -1,0 +1,106 @@
+{% extends "dashboard/base.html" %}
+{% load core_tags %}
+{% block page_title %}الطلبات{% endblock %}
+{% block page_heading %}الطلبات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الطلبات / المراجعة والتسميع{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_requests_tabs.html" %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">طلباتك للمراجعة والتسميع المقدمة للمعلم</p>
+    <a href="{% url 'accounts:student_review_request_create' %}" class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+        طلب جديد
+    </a>
+</div>
+
+<div class="flex items-center gap-2 mb-6">
+    <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg {% if not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">الكل</a>
+    <a href="?status=pending" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'pending' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">قيد الانتظار</a>
+    <a href="?status=approved" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'approved' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مقبول</a>
+    <a href="?status=rejected" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'rejected' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مرفوض</a>
+</div>
+
+<div class="space-y-4">
+    {% for req in requests %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 {% if req.type == 'recitation' %}bg-blue-100{% else %}bg-amber-100{% endif %} rounded-full flex items-center justify-center">
+                    <span class="font-bold {% if req.type == 'recitation' %}text-blue-700{% else %}text-amber-700{% endif %}">{{ req.get_type_display.0 }}</span>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">{{ req.get_type_display }}</p>
+                    <p class="text-xs text-gray-400">{{ req.circle.name }}</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium {% if req.status == 'pending' %}bg-blue-50 text-blue-700{% elif req.status == 'approved' %}bg-green-50 text-green-700{% elif req.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
+                {{ req.get_status_display }}
+            </span>
+        </div>
+
+        {% if req.type == 'question' %}
+        <div class="mb-4">
+            <p class="text-xs text-gray-400">تاريخ السؤال: <span class="font-medium text-gray-700">{{ req.created_at|date:"Y-m-d" }}</span></p>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">السورة</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{{ req.surah.name_ar|default:"—" }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">الآيات</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{% if req.ayah_from and req.ayah_to %}{{ req.ayah_from }}–{{ req.ayah_to }}{% else %}—{% endif %}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-400">تاريخ الطلب</p>
+                <p class="text-sm font-bold text-gray-800 mt-1">{{ req.created_at|date:"Y-m-d" }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if req.response %}
+        <div class="bg-green-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-green-600 mb-1">رد المعلم:</p>
+            <p class="text-sm text-gray-800">{{ req.response }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.status == 'approved' and req.scheduled_date %}
+        <div class="bg-green-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-green-600 mb-2">📅 تم تحديد الموعد:</p>
+            <div class="flex items-center gap-4 flex-wrap">
+                <span class="text-sm font-bold text-green-800">{{ req.scheduled_date|date:"Y-m-d" }}{% if req.scheduled_time %} الساعة {{ req.scheduled_time|time:"H:i" }}{% endif %}</span>
+                {% if req.meeting_url %}
+                <a href="{{ req.meeting_url }}" target="_blank" class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors inline-flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    الانضمام إلى المراجعة
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if req.rejection_reason %}
+        <div class="bg-red-50 rounded-xl p-4 mb-4">
+            <p class="text-xs text-gray-500 mb-1">سبب الرفض:</p>
+            <p class="text-sm text-gray-800">{{ req.rejection_reason }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.notes %}
+        <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs text-gray-400">{% if req.type == 'question' %}سؤالك:{% else %}ملاحظاتك:{% endif %}</p>
+            <p class="text-sm text-gray-700 mt-1">{{ req.notes }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        {% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات بعد" %}
+    </div>
+    {% endfor %}
+</div>
+
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

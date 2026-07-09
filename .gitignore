@@ -1,0 +1,28 @@
+*.pyc
+__pycache__/
+*.pyo
+.env
+.venv/
+venv/
+db.sqlite3
+media/
+staticfiles/
+*.egg-info/
+dist/
+build/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+e2e/.auth/
+
+# Node (dev-only for E2E tests, not needed in production)
+node_modules/
+LOCAL_README.md

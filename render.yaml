@@ -1,0 +1,134 @@
+databases:
+  - name: hafez-db
+    databaseName: hafez
+    user: hafez
+    plan: free
+
+  - name: hafez-redis
+    plan: free
+
+services:
+  - type: web
+    name: hafez
+    runtime: docker
+    plan: free
+    branch: main
+    healthCheckPath: /login/
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://*.onrender.com
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: SECURE_PROXY
+        value: "True"
+      - key: PORT
+        value: "8000"
+      - key: DB_NAME
+        fromDatabase:
+          name: hafez-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: hafez-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: hafez-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: hafez-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: hafez-db
+          property: port
+      - key: REDIS_URL
+        fromDatabase:
+          name: hafez-redis
+          property: connectionString
+
+      # ── Celery ──────────────────────────────────────────────────────
+      - key: CELERY_BROKER_URL
+        fromDatabase:
+          name: hafez-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromDatabase:
+          name: hafez-redis
+          property: connectionString
+
+      # ── Email (set real values in Render Dashboard) ─────────────────
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: DEFAULT_FROM_EMAIL
+        value: noreply@hafez.com
+      - key: ADMIN_EMAIL
+        value: admin@hafez.com
+
+      # ── Jitsi (self-hosted) ────────────────────────────────────────
+      - key: JITSI_DOMAIN
+        value: meet.jit.si
+      - key: JITSI_APP_ID
+        value: hafez
+
+      # ── Sentry (optional) ──────────────────────────────────────────
+      - key: SENTRY_DSN
+        sync: false
+
+  # ── Daily reminders for upcoming private (1-on-1) تسميع sessions ────
+  # Runs `send_session_reminders` headlessly at 06:00 UTC. The command is
+  # idempotent (guarded by reminder_sent_at), so a re-run never double-sends.
+  - type: cron
+    name: hafez-reminders
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    branch: main
+    schedule: "0 6 * * *"
+    dockerCommand: python manage.py send_session_reminders
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DB_NAME
+        fromDatabase:
+          name: hafez-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: hafez-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: hafez-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: hafez-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: hafez-db
+          property: port
+      - key: REDIS_URL
+        fromDatabase:
+          name: hafez-redis
+          property: connectionString

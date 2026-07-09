@@ -1,0 +1,178 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}إحصائيات شاملة{% endblock %}
+{% block page_heading %}إحصائيات شاملة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / إحصائيات شاملة{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_learning_tabs.html" %}
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">الحفظ (حزب/ثمن)</p>
+        <p class="text-2xl font-bold text-gray-800">{{ hifz_units|default:"0" }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">المراجعة (حزب/ثمن)</p>
+        <p class="text-2xl font-bold text-gray-800">{{ murajaa_units|default:"0" }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">نسبة الحضور</p>
+        <p class="text-2xl font-bold {% if attendance_rate >= 80 %}text-green-600{% elif attendance_rate >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">{{ attendance_rate }}%</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+        <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <p class="text-xs text-gray-400 mb-1">معدل التقييم</p>
+        <p class="text-2xl font-bold text-blue-600">{{ avg_grade }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <h3 class="font-bold text-gray-800">الحضور</h3>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">الحضور</span>
+                    <span class="text-sm font-bold text-green-600">{{ present_count }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">غياب مبرر</span>
+                    <span class="text-sm font-bold text-amber-600">{{ justified_count }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">غياب غير مبرر</span>
+                    <span class="text-sm font-bold text-red-600">{{ absent_count }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">تأخير</span>
+                    <span class="text-sm font-bold text-orange-600">{{ late_count }}</span>
+                </div>
+                <div class="flex items-center justify-between pt-3 border-t border-gray-50">
+                    <span class="text-sm font-bold text-gray-700">الإجمالي</span>
+                    <span class="text-sm font-bold text-gray-800">{{ total_attendance }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            <h3 class="font-bold text-gray-800">الحفظ والمراجعة</h3>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">المتقن</span>
+                    <span class="text-sm font-bold text-green-600">{{ mastered_units }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">قيد الحفظ</span>
+                    <span class="text-sm font-bold text-amber-600">{{ memorizing_units }}</span>
+                </div>
+                <div class="pt-3 border-t border-gray-50">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-500">حفظ جديد</span>
+                        <span class="text-sm font-bold text-primary-600">{{ hifz_units }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">مراجعة</span>
+                        <span class="text-sm font-bold text-amber-600">{{ murajaa_units }}</span>
+                    </div>
+                </div>
+                {% if achievement %}
+                <div class="pt-3 border-t border-gray-50">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-500">الأجزاء المنجزة</span>
+                        <span class="text-sm font-bold text-green-600">{{ achievement.completed_juz|default:0 }} جزء</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">الجزء الحالي</span>
+                        <span class="text-sm font-bold text-blue-600">{{ achievement.current_juz|default:1 }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <h3 class="font-bold text-gray-800">الترتيب في الحلقات</h3>
+        </div>
+        <div class="p-6">
+            {% if rankings %}
+            <div class="space-y-3">
+                {% for r in rankings %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-bold text-gray-800 truncate">{{ r.circle.name }}</p>
+                    </div>
+                    <div class="text-left mr-3 flex-shrink-0">
+                        {% if r.rank %}
+                        <span class="text-sm font-bold {% if r.rank == 1 %}text-green-600{% elif r.rank <= 3 %}text-primary-600{% else %}text-gray-600{% endif %}">
+                            #{{ r.rank }}
+                        </span>
+                        <span class="text-xs text-gray-400">/ {{ r.total }}</span>
+                        {% else %}
+                        <span class="text-xs text-gray-400">—</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-4 text-center">
+                <a href="{% url 'accounts:student_circles' %}" class="text-xs text-primary-600 hover:text-primary-700 font-medium">عرض كل الحلقات</a>
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-400 text-center py-4">أنت غير مسجل في أي حلقة</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Merged: تقدّم الحفظ (memorized rubs) + حاسبة الختمة #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-gray-700">المحفوظ (حزب/ثمن)</h3>
+            <span class="text-lg font-black text-green-600">{{ memorized_units }} ({{ memorized_thumns }} ثمن)</span>
+        </div>
+        {% if memorized_rubs %}
+        <ul class="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+            {% for r in memorized_rubs %}
+            <li class="flex items-center justify-between py-2.5">
+                <span class="text-sm font-medium text-gray-800">{{ r.rub.label }}</span>
+                <span class="text-xs text-gray-400">{% if r.memorized_at %}{{ r.memorized_at|date:"Y/m/d" }}{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-sm text-gray-400 text-center py-6">لم يتم حفظ أي ربع بعد</p>
+        {% endif %}
+    </div>
+    <div>
+        <h3 class="text-sm font-bold text-gray-700 mb-3">حاسبة الختمة</h3>
+        {% include "dashboard/memorization/_estimator.html" %}
+    </div>
+</div>
+
+{# Merged: خطة الحفظ التفصيلية #}
+<h3 class="text-sm font-bold text-gray-700 mb-4">خطة الحفظ التفصيلية</h3>
+{% include "dashboard/student/_memorization_plan.html" %}
+
+{% endblock %}

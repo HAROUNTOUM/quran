@@ -1,0 +1,144 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}{% if session %}تعديل حصة{% else %}إضافة حصة{% endif %} — {{ circle.name }}{% endblock %}
+{% block page_heading %}{% if session %}تعديل حصة{% else %}إضافة حصة جديدة{% endif %}{% endblock %}
+{% block page_breadcrumb %}الحلقات / {{ circle.name }} / {% if session %}تعديل حصة{% else %}إضافة حصة{% endif %}{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 p-8">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="mb-6">
+                <label class="block text-sm text-gray-500 mb-2">الحلقة</label>
+                <p class="text-lg font-bold text-gray-800">{{ circle.name }}</p>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm text-gray-500 mb-2">تاريخ الحصة</label>
+                    <input type="date" name="session_date" value="{% if session %}{{ session.session_date|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
+                           class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-500 mb-2">وقت الحصة</label>
+                    <input type="time" name="session_time" id="sessionTimeInput" value="{% if session %}{{ session.session_time|time:'H:i' }}{% else %}{{ circle_schedule_time|time:'H:i' }}{% endif %}"
+                           class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                           required>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        <button type="button" onclick="setTime('05:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٠٥:٠٠</button>
+                        <button type="button" onclick="setTime('06:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٠٦:٠٠</button>
+                        <button type="button" onclick="setTime('07:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٠٧:٠٠</button>
+                        <button type="button" onclick="setTime('08:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٠٨:٠٠</button>
+                        <button type="button" onclick="setTime('09:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٠٩:٠٠</button>
+                        <button type="button" onclick="setTime('10:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٠:٠٠</button>
+                        <button type="button" onclick="setTime('11:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١١:٠٠</button>
+                        <button type="button" onclick="setTime('12:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٢:٠٠</button>
+                        <button type="button" onclick="setTime('13:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٣:٠٠</button>
+                        <button type="button" onclick="setTime('14:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٤:٠٠</button>
+                        <button type="button" onclick="setTime('15:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٥:٠٠</button>
+                        <button type="button" onclick="setTime('16:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٦:٠٠</button>
+                        <button type="button" onclick="setTime('17:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٧:٠٠</button>
+                        <button type="button" onclick="setTime('18:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٨:٠٠</button>
+                        <button type="button" onclick="setTime('19:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">١٩:٠٠</button>
+                        <button type="button" onclick="setTime('20:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٢٠:٠٠</button>
+                        <button type="button" onclick="setTime('21:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٢١:٠٠</button>
+                        <button type="button" onclick="setTime('22:00')" class="px-2.5 py-1 text-xs rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors">٢٢:٠٠</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-500 mb-2">نوع الحصة</label>
+                    <select name="session_type" id="sessionType"
+                            class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="in_person" {% if session and session.session_type == 'in_person' %}selected{% endif %}>حضوري</option>
+                        <option value="online" {% if session and session.session_type == 'online' %}selected{% endif %}>عن بُعد</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="inPersonFields" class="mb-6">
+                <div class="p-4 bg-green-50 rounded-xl border border-green-100">
+                    <label class="block text-sm text-gray-500 mb-2">مكان الحصة</label>
+                    <input type="text" name="location" placeholder="عنوان المكان الذي ستقام فيه الحصة" value="{{ session.location|default:'' }}"
+                           class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+
+            <div id="onlineFields" class="space-y-4 mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100" style="display:none">
+                <h4 class="text-sm font-bold text-blue-800">إعدادات الاجتماع الافتراضي</h4>
+                <div>
+                    <label class="block text-sm text-gray-500 mb-2">مصدر الرابط</label>
+                    <select name="meeting_source"
+                            class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="classroom" {% if not session or session.meeting_source == 'classroom' %}selected{% endif %}>قاعة المعلم الدائمة (موصى به)</option>
+                        <option value="external" {% if session.meeting_source == 'external' %}selected{% endif %}>رابط خارجي</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">القاعة الدائمة تستخدم رابطك الثابت المؤمَّن — لا حاجة للصق رابط جديد كل حصة</p>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-500 mb-2">رابط الاجتماع (للرابط الخارجي فقط)</label>
+                    <input type="url" name="meeting_url" placeholder="https://zoom.us/j/... أو https://meet.google.com/..." value="{{ session.meeting_url|default:'' }}"
+                           class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-2">المنصة</label>
+                        <select name="meeting_platform"
+                                class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">اختر المنصة</option>
+                            <option value="zoom" {% if session.meeting_platform == 'zoom' %}selected{% endif %}>Zoom</option>
+                            <option value="google_meet" {% if session.meeting_platform == 'google_meet' %}selected{% endif %}>Google Meet</option>
+                            <option value="teams" {% if session.meeting_platform == 'teams' %}selected{% endif %}>Microsoft Teams</option>
+                            <option value="whatsapp" {% if session.meeting_platform == 'whatsapp' %}selected{% endif %}>WhatsApp</option>
+                            <option value="telegram" {% if session.meeting_platform == 'telegram' %}selected{% endif %}>Telegram</option>
+                            <option value="other" {% if session.meeting_platform == 'other' %}selected{% endif %}>أخرى</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-2">المدة (دقائق)</label>
+                        <input type="number" name="duration_minutes" placeholder="مثال: 60" value="{{ session.duration_minutes|default:'' }}"
+                               class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-2">معرف الاجتماع</label>
+                        <input type="text" name="meeting_id" placeholder="معرف الاجتماع" value="{{ session.meeting_id|default:'' }}"
+                               class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-2">كلمة المرور</label>
+                        <input type="text" name="meeting_password" placeholder="كلمة المرور" value="{{ session.meeting_password|default:'' }}"
+                               class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm text-gray-500 mb-2">ملاحظات (اختياري)</label>
+                <textarea name="notes" rows="2"
+                          class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="أي ملاحظات إضافية عن الحصة...">{{ session.notes|default:'' }}</textarea>
+            </div>
+
+            <button type="submit"
+                    class="w-full py-3 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-sm">
+                {% if session %}تحديث الحصة{% else %}إنشاء الحصة{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+{% block extra_js %}
+<script>
+function setTime(time) {
+    document.getElementById('sessionTimeInput').value = time;
+}
+
+function toggleSessionType() {
+    var type = document.getElementById('sessionType').value;
+    document.getElementById('inPersonFields').style.display = type === 'in_person' ? 'block' : 'none';
+    document.getElementById('onlineFields').style.display = type === 'online' ? 'block' : 'none';
+}
+
+document.getElementById('sessionType').addEventListener('change', toggleSessionType);
+toggleSessionType();
+</script>
+{% endblock %}
+{% endblock %}

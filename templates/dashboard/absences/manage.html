@@ -1,0 +1,168 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}إدارة طلب الغياب{% endblock %}
+{% block page_heading %}إدارة طلب الغياب{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلبات الغياب / إدارة{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Absence info -->
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 text-lg mb-4">تفاصيل طلب الغياب</h3>
+            <dl class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <dt class="text-gray-400 mb-1">المعلم</dt>
+                    <dd class="font-medium text-gray-800">{{ absence.teacher.full_name_ar }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 mb-1">البريد</dt>
+                    <dd class="font-medium text-gray-800">{{ absence.teacher.email }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 mb-1">من تاريخ</dt>
+                    <dd class="font-medium text-gray-800">{{ absence.start_date|date:"d/m/Y" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 mb-1">إلى تاريخ</dt>
+                    <dd class="font-medium text-gray-800">{{ absence.end_date|date:"d/m/Y" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 mb-1">المدة</dt>
+                    <dd class="font-medium text-gray-800">{{ absence.duration_days }} يوم</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 mb-1">الحالة</dt>
+                    <dd>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
+                            {% if absence.status == 'pending' %}bg-amber-50 text-amber-700
+                            {% elif absence.status == 'approved' %}bg-green-50 text-green-700
+                            {% elif absence.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
+                            {{ absence.get_status_display }}
+                        </span>
+                    </dd>
+                </div>
+                <div class="col-span-2">
+                    <dt class="text-gray-400 mb-1">سبب الغياب</dt>
+                    <dd class="font-medium text-gray-800 bg-gray-50 rounded-lg p-3">{{ absence.reason }}</dd>
+                </div>
+                {% if absence.rejection_reason %}
+                <div class="col-span-2">
+                    <dt class="text-red-500 mb-1">سبب الرفض</dt>
+                    <dd class="font-medium text-gray-800 bg-red-50 rounded-lg p-3">{{ absence.rejection_reason }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+
+        <!-- Circles affected -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 text-lg mb-4">
+                الحلقات المتأثرة
+                <span class="text-sm font-normal text-gray-400 mr-2">{{ circles|length }} حلقة</span>
+            </h3>
+            {% if circles %}
+            <div class="space-y-3">
+                {% for c, sub in circles %}
+                <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                    <div>
+                        <p class="font-medium text-gray-800 text-sm">{{ c.name }}</p>
+                        <p class="text-xs text-gray-400">{{ c.schedule_days|join:" - "|default:"—" }}</p>
+                    </div>
+                    {% if absence.status == 'approved' %}
+                    <span class="text-xs px-2 py-1 rounded-lg {% if sub and sub.substitute_teacher %}bg-blue-50 text-blue-700{% else %}bg-amber-50 text-amber-700{% endif %}">
+                        {{ sub.substitute_teacher.full_name_ar|default:"لم يُعيّن بديل" }}
+                    </span>
+                    {% else %}
+                    <span class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700">نشطة</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-400 text-center py-6">لا توجد حلقات نشطة لهذا المعلم</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="space-y-6">
+        {% if absence.status == 'pending' %}
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 text-lg mb-4">إجراءات</h3>
+
+            <!-- Approve form -->
+            <form method="POST" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve">
+                <div class="space-y-3">
+                    <label class="block text-sm font-medium text-gray-700">تعيين بديل لكل حلقة</label>
+                    {% for c, _ in circles %}
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <label class="block text-xs font-medium text-gray-500 mb-1.5">{{ c.name }}</label>
+                        <select name="sub_{{ c.pk }}"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">— اختر بديلاً —</option>
+                            {% for t in teachers %}
+                            <option value="{{ t.id }}">{{ t.full_name_ar }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-gray-400 text-center py-3">لا توجد حلقات نشطة</p>
+                    {% endfor %}
+                </div>
+                <button type="submit"
+                        class="w-full px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors">
+                    قبول الطلب وتعيين البديل
+                </button>
+            </form>
+
+            <hr class="my-4 border-gray-100">
+
+            <!-- Reject form -->
+            <form method="POST" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">سبب الرفض</label>
+                    <textarea name="rejection_reason" rows="3"
+                              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+                </div>
+                <button type="submit"
+                        class="w-full px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors">
+                    رفض الطلب
+                </button>
+            </form>
+        </div>
+
+        {% elif absence.status == 'approved' %}
+        <div class="bg-white rounded-2xl border border-green-200 p-6">
+            <div class="text-center">
+                <svg class="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <h3 class="font-bold text-gray-800 text-lg">تم القبول</h3>
+                <p class="text-sm text-gray-400 mt-1">
+                    البديل: {{ absence.substitute_teacher.full_name_ar|default:"غير محدد" }}
+                </p>
+                <p class="text-sm text-gray-400">تمت المعالجة بواسطة: {{ absence.processed_by.full_name_ar }}</p>
+            </div>
+        </div>
+
+        {% elif absence.status == 'rejected' %}
+        <div class="bg-white rounded-2xl border border-red-200 p-6">
+            <div class="text-center">
+                <svg class="w-12 h-12 text-red-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <h3 class="font-bold text-gray-800 text-lg">مرفوض</h3>
+                {% if absence.rejection_reason %}
+                <p class="text-sm text-red-500 mt-2">{{ absence.rejection_reason }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="text-center">
+            <a href="{% url 'accounts:admin_teacher_absences' %}"
+               class="text-sm text-primary-600 hover:underline">← العودة إلى قائمة الطلبات</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

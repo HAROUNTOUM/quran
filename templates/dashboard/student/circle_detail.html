@@ -1,0 +1,158 @@
+{% extends "dashboard/base.html" %}
+{% load core_tags %}
+{% block page_title %}{{ circle.name }}{% endblock %}
+{% block page_heading %}{{ circle.name }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:student_circles' %}">حلقاتي</a> / {{ circle.name }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center">
+                    <span class="text-primary-700 font-bold text-xl">{{ circle.name.0 }}</span>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">{{ circle.name }}</h2>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium 
+                        {% if circle.status == 'active' %}bg-green-50 text-green-700{% elif circle.status == 'paused' %}bg-amber-50 text-amber-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ circle.get_status_display }}
+                    </span>
+                </div>
+            </div>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">المعلم</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.teacher.full_name_ar|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">الجدول</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.schedule|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">المكان</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.location|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">نوع الحلقة</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.get_circle_type_display }}</dd>
+                </div>
+                <div class="flex justify-between py-2">
+                    <dt class="text-gray-400">تاريخ التسجيل</dt>
+                    <dd class="font-medium text-gray-800">{{ enrollment.enrolled_at|date:"Y-m-d" }}</dd>
+                </div>
+            </dl>
+            {% if circle.teacher %}
+            <div class="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                {% if circle.teacher.phone %}
+                <a href="tel:{{ circle.teacher.phone }}" class="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                    <span>اتصال بالمعلم: {{ circle.teacher.phone }}</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if circle.description %}
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                <p class="text-xs text-gray-500 mb-1">الوصف</p>
+                <p class="text-sm text-gray-700">{{ circle.description }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mt-4 space-y-2">
+            {% if next_session and next_session.is_online %}{% with join_url=next_session.effective_meeting_url %}
+            {% if join_url %}
+            <a href="{{ join_url }}" target="_blank" class="flex items-center justify-center gap-2 w-full px-4 py-3 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                <span>انضمام إلى الحصة القادمة</span>
+            </a>
+            {% endif %}
+            {% endwith %}{% endif %}
+            <a href="{% url 'accounts:student_circle_leaderboard' circle.id %}" class="flex items-center justify-center gap-2 w-full px-4 py-3 bg-amber-50 text-amber-700 text-sm font-medium rounded-xl hover:bg-amber-100 transition-colors border border-amber-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span>لوحة الترتيب</span>
+            </a>
+            <form method="POST" action="{% url 'accounts:student_unenroll' circle.id %}" onsubmit="return confirm('هل أنت متأكد من الانسحاب من هذه الحلقة؟')">
+                {% csrf_token %}
+                <button type="submit" class="flex items-center justify-center gap-2 w-full px-4 py-3 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>انسحاب من الحلقة</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">الحصص القادمة</h3>
+                <span class="text-xs text-gray-400">{{ upcoming_sessions|length }} حصة</span>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for session in upcoming_sessions %}
+                <a href="{% url 'accounts:student_session_detail' session.id %}" class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 {% if session.is_online %}bg-blue-50{% else %}bg-gray-50{% endif %} rounded-lg flex items-center justify-center">
+                            {% if session.is_online %}
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                            {% else %}
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">{{ session.session_date|date:"Y-m-d" }}{% if session.session_time %} {{ session.session_time|time:"H:i" }}{% endif %}</p>
+                            {% if session.location %}
+                            <p class="text-xs text-gray-400">{{ session.location }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-lg {% if session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                        {{ session.get_session_type_display }}
+                    </span>
+                </a>
+                {% empty %}
+                <div class="p-8 text-center text-sm text-gray-400">لا توجد حصص قادمة</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50">
+                <h3 class="font-bold text-gray-800">الحصص السابقة</h3>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for session in past_sessions %}
+                {% with grades=grades_by_session|get_item:session.id %}
+                <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{% url 'accounts:student_session_detail' session.id %}'">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">{{ session.session_date|date:"Y-m-d" }}{% if session.session_time %} {{ session.session_time|time:"H:i" }}{% endif %}</p>
+                            <p class="text-xs text-gray-400">{{ session.get_session_type_display }}{% if session.location %} · {{ session.location }}{% endif %}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if grades %}
+                        {% for g in grades %}
+                        <span class="text-xs font-medium px-1.5 py-0.5 rounded
+                            {% if g.score >= 90 %}bg-green-50 text-green-700
+                            {% elif g.score >= 70 %}bg-amber-50 text-amber-700
+                            {% else %}bg-red-50 text-red-700{% endif %}">
+                            {{ g.criterion__name_ar }}: {{ g.score }}
+                        </span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endwith %}
+                {% empty %}
+                <div class="p-8 text-center text-sm text-gray-400">لا توجد حصص سابقة</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

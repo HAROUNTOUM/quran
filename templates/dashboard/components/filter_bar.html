@@ -1,0 +1,15 @@
+<div class="flex items-center gap-2 flex-wrap mb-4">
+    {% for filter in filters %}
+    <a href="{{ filter.url }}"
+       class="px-3 py-1.5 text-xs font-medium rounded-xl border transition-colors
+       {% if filter.active %}bg-primary-50 border-primary-200 text-primary-700{% else %}border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300{% endif %}">
+        {{ filter.label }}
+        {% if filter.count is not None %}
+        <span class="mr-1 px-1.5 py-0.5 text-[10px] rounded-full
+            {% if filter.active %}bg-primary-100 text-primary-600{% else %}bg-gray-100 text-gray-400{% endif %}">
+            {{ filter.count }}
+        </span>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>

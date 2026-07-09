@@ -1,0 +1,132 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}ملفي الشخصي{% endblock %}
+{% block page_heading %}ملفي الشخصي{% endblock %}
+{% block page_breadcrumb %}الرئيسية / ملفي الشخصي{% endblock %}
+
+{% block dashboard_content %}
+<div class="flex items-center justify-end mb-4">
+    <a href="{% url 'accounts:profile_edit' %}" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+        تعديل الملف الشخصي
+    </a>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+            <span class="text-primary-700 font-bold text-2xl">{{ profile_user.full_name_ar.0 }}</span>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800">{{ profile_user.full_name_ar }}</h3>
+        <p class="text-sm text-gray-500 mt-1">{{ profile_user.get_role_display }}</p>
+        <div class="mt-4 space-y-2 text-sm text-gray-600">
+            <p><span class="font-medium text-gray-800">البريد:</span> {{ profile_user.email }}</p>
+            <p><span class="font-medium text-gray-800">الهاتف:</span> {{ profile_user.phone|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">الجنس:</span> {{ profile_user.gender|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">التخصص:</span> {{ profile_user.specialization|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">الولاية:</span> {{ profile_user.state|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">المستوى:</span> {{ profile_user.level|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">مقدار الحفظ:</span> {{ profile_user.memorization_amount|default:"—" }}</p>
+            <p><span class="font-medium text-gray-800">الحالة:</span> {{ profile_user.get_is_approved_display }}</p>
+            <p><span class="font-medium text-gray-800">آخر دخول:</span> {{ recent_login|default:"—" }}</p>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">ملخص النشاط</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for stat in profile_stats %}
+                {% if stat.label %}
+                <div class="rounded-xl border border-gray-100 p-4 bg-gray-50">
+                    <p class="text-xs text-gray-500">{{ stat.label }}</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1">{{ stat.value }}</p>
+                </div>
+                {% endif %}
+                {% empty %}
+                <p class="text-sm text-gray-500">لا توجد بيانات إضافية لعرضها الآن.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if is_student %}
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">تقدم الحفظ</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="rounded-xl border border-gray-100 p-4 text-center bg-primary-50">
+                    <p class="text-xs text-gray-500">الحفظ الجديد</p>
+                    <p class="text-xl font-bold text-primary-700 mt-1">{{ hifz_units }}</p>
+                    <p class="text-xs text-gray-400">{{ hifz_thumns }} ثمن</p>
+                </div>
+                <div class="rounded-xl border border-gray-100 p-4 text-center bg-amber-50">
+                    <p class="text-xs text-gray-500">المراجعة</p>
+                    <p class="text-xl font-bold text-amber-700 mt-1">{{ murajaa_units }}</p>
+                    <p class="text-xs text-gray-400">{{ murajaa_thumns }} ثمن</p>
+                </div>
+                <div class="rounded-xl border border-gray-100 p-4 text-center bg-green-50">
+                    <p class="text-xs text-gray-500">الإجمالي</p>
+                    <p class="text-xl font-bold text-green-700 mt-1">{{ total_thumns }}</p>
+                    <p class="text-xs text-gray-400">ثمن</p>
+                </div>
+                <div class="rounded-xl border border-gray-100 p-4 text-center bg-blue-50">
+                    <p class="text-xs text-gray-500">الحلقات</p>
+                    <p class="text-xl font-bold text-blue-700 mt-1">{{ enrollments|length }}</p>
+                    <p class="text-xs text-gray-400">حلقة</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">آخر درجات التسميع</h3>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for grade in recent_grades %}
+                <div class="px-6 py-3 flex items-center justify-between">
+                    <div>
+                        <span class="text-sm text-gray-800">{{ grade.surah.name_ar }}</span>
+                        <span class="text-xs text-gray-400 mr-2">{{ grade.session.circle.name }} · {{ grade.created_at|date:"Y-m-d" }}</span>
+                    </div>
+                    <span class="text-xs font-medium px-2 py-1 rounded
+                        {% if grade.evaluation_grade == 'ممتاز' or grade.evaluation_grade == 'A+' or grade.evaluation_grade == 'A' %}bg-green-50 text-green-700
+                        {% elif grade.evaluation_grade == 'جيد جدا' or grade.evaluation_grade == 'B' %}bg-blue-50 text-blue-700
+                        {% elif grade.evaluation_grade == 'جيد' or grade.evaluation_grade == 'C' %}bg-amber-50 text-amber-700
+                        {% else %}bg-red-50 text-red-700{% endif %}">
+                        {{ grade.evaluation_grade }}
+                    </span>
+                </div>
+                {% empty %}
+                <div class="p-8 text-center">
+                    {% include "dashboard/partials/empty_state.html" with message="لا توجد درجات بعد" %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">حلقاتي</h3>
+                <a href="{% url 'accounts:student_circles' %}" class="text-xs text-primary-600 hover:text-primary-700 font-medium">إدارة الحلقات</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for enrollment in enrollments %}
+                <a href="{% url 'accounts:student_circle_detail' enrollment.circle.id %}" class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-primary-50 rounded-lg flex items-center justify-center">
+                            <span class="text-xs font-bold text-primary-700">{{ enrollment.circle.name.0 }}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">{{ enrollment.circle.name }}</p>
+                            <p class="text-xs text-gray-400">{{ enrollment.circle.teacher.full_name_ar|default:"—" }}</p>
+                        </div>
+                    </div>
+                    <span class="text-xs text-gray-400">{{ enrollment.current_surah.name_ar|default:"—" }}</span>
+                </a>
+                {% empty %}
+                <div class="p-8 text-center text-sm text-gray-400">
+                    غير مسجل في أي حلقة
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

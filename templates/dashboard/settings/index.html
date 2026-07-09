@@ -1,0 +1,108 @@
+{% extends base_template %}
+{% block page_title %}الإعدادات{% endblock %}
+{% block page_heading %}الإعدادات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الإعدادات{% endblock %}
+{% block dashboard_content %}
+
+{% comment %}
+Reusable field renderer (HAF-06): renders one setting input by its registry type.
+{% endcomment %}
+
+<div class="max-w-3xl space-y-8">
+
+  {# ── Personal / role settings ─────────────────────────────────────── #}
+  {% if user_groups %}
+  <form method="post" class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    {% csrf_token %}
+    <input type="hidden" name="scope" value="user">
+    <div class="px-6 py-4 border-b border-gray-50">
+      <h3 class="font-bold text-gray-800">إعداداتي</h3>
+      <p class="text-xs text-gray-400">تفضيلاتك الشخصية على المنصة</p>
+    </div>
+    <div class="divide-y divide-gray-50">
+      {% for group_label, fields in user_groups %}
+      <div class="px-6 py-5">
+        <p class="text-[11px] font-bold text-primary-600 uppercase tracking-wider mb-4">{{ group_label }}</p>
+        <div class="space-y-4">
+          {% for spec, value in fields %}
+            {% include "dashboard/settings/_field.html" with spec=spec value=value %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="px-6 py-4 bg-gray-50 flex justify-end">
+      <button type="submit" class="px-5 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">حفظ إعداداتي</button>
+    </div>
+  </form>
+  {% endif %}
+
+  {# ── System settings (admin only) ─────────────────────────────────── #}
+  {% if system_groups %}
+  <form method="post" class="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+    {% csrf_token %}
+    <input type="hidden" name="scope" value="system">
+    <div class="px-6 py-4 border-b border-amber-50 bg-amber-50/40">
+      <h3 class="font-bold text-gray-800">إعدادات النظام</h3>
+      <p class="text-xs text-gray-500">تؤثر على المنصة بأكملها — كل تغيير يُسجَّل في سجل التدقيق</p>
+    </div>
+    <div class="divide-y divide-gray-50">
+      {% for group_label, fields in system_groups %}
+      <div class="px-6 py-5">
+        <p class="text-[11px] font-bold text-amber-600 uppercase tracking-wider mb-4">{{ group_label }}</p>
+        <div class="space-y-4">
+          {% for spec, value in fields %}
+            {% include "dashboard/settings/_field.html" with spec=spec value=value %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="px-6 py-4 bg-amber-50/40 flex justify-end">
+      <button type="submit" class="px-5 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors">حفظ إعدادات النظام</button>
+    </div>
+  </form>
+  {% endif %}
+
+  {# ── البريد التلقائي (main admin only) ─────────────────────────────── #}
+  {% if request.user.role == 'admin' %}
+  <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+      <div>
+        <h3 class="font-bold text-gray-800">البريد التلقائي</h3>
+        <p class="text-xs text-gray-400">إدارة رسائل المنصة التلقائية والحملات البريدية — من هنا فقط</p>
+      </div>
+      <a href="{% url 'emailcenter:controls' %}"
+         class="px-4 py-2 text-sm bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors">
+        فتح مركز البريد
+      </a>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-gray-50">
+      <a href="{% url 'emailcenter:controls' %}" class="px-4 py-4 text-center hover:bg-gray-50 transition-colors">
+        <p class="text-sm font-medium text-gray-700">التحكم التلقائي</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">تفعيل/تعطيل الرسائل</p>
+      </a>
+      <a href="{% url 'emailcenter:compose' %}" class="px-4 py-4 text-center hover:bg-gray-50 transition-colors">
+        <p class="text-sm font-medium text-gray-700">إنشاء رسالة</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">رسالة أو حملة جديدة</p>
+      </a>
+      <a href="{% url 'emailcenter:campaigns' %}" class="px-4 py-4 text-center hover:bg-gray-50 transition-colors">
+        <p class="text-sm font-medium text-gray-700">الرسائل المرسلة</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">الحملات السابقة</p>
+      </a>
+      <a href="{% url 'emailcenter:log' %}" class="px-4 py-4 text-center hover:bg-gray-50 transition-colors">
+        <p class="text-sm font-medium text-gray-700">سجل البريد</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">تتبع الإرسال والأخطاء</p>
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not user_groups and not system_groups %}
+  <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+    لا توجد إعدادات متاحة لدورك
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

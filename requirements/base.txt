@@ -1,0 +1,26 @@
+Django==6.0.*
+djangorestframework==3.17.*
+djangorestframework-simplejwt==5.5.*
+PyJWT==2.*
+django-cors-headers==4.*
+drf-spectacular==0.29.*
+django-filter==25.*
+whitenoise==6.*
+django-htmx==1.19.*
+channels==4.3.*
+channels-redis==4.3.*
+django-widget-tweaks==1.5.*
+psycopg2-binary==2.9.*
+python-dotenv==1.*
+Pillow==12.*
+celery[redis]==5.4.*
+redis==5.*
+fpdf2==2.8.*
+openpyxl==3.1.*
+uharfbuzz==0.55.*
+
+# Required by channels-redis for rediss:// (TLS) connections
+cryptography==44.*
+
+# PDF generation for exam result sheets
+weasyprint==69.*

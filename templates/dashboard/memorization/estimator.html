@@ -1,0 +1,10 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}حاسبة الختمة{% endblock %}
+{% block page_heading %}حاسبة الختمة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / حاسبة الختمة{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_learning_tabs.html" %}
+<div class="max-w-2xl mx-auto">
+    {% include "dashboard/memorization/_estimator.html" %}
+</div>
+{% endblock %}

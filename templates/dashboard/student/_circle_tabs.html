@@ -1,0 +1,12 @@
+{% comment %}الحلقات workspace tabs — circles, sessions, classroom, ranking as one
+workspace (links to existing URLs; no view change).{% endcomment %}
+<nav class="flex items-center gap-1 mb-6 border-b border-gray-100 overflow-x-auto" dir="rtl" aria-label="أقسام الحلقة">
+    {% with a=request.resolver_match.url_name %}
+    {% with cls="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors" on="border-primary-600 text-primary-600" off="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" %}
+    <a href="{% url 'accounts:student_circles' %}" class="{{ cls }} {% if a == 'student_circles' or a == 'student_circle_detail' %}{{ on }}{% else %}{{ off }}{% endif %}">حلقاتي</a>
+    <a href="{% url 'accounts:student_sessions' %}" class="{{ cls }} {% if a == 'student_sessions' or a == 'student_session_detail' %}{{ on }}{% else %}{{ off }}{% endif %}">الحصص</a>
+    <a href="{% url 'classrooms:my_classroom' %}" class="{{ cls }} {% if a == 'my_classroom' or a == 'join' %}{{ on }}{% else %}{{ off }}{% endif %}">غرفة الصف</a>
+    <a href="{% url 'accounts:student_private_sessions' %}" class="{{ cls }} {% if a == 'student_private_sessions' %}{{ on }}{% else %}{{ off }}{% endif %}">جلساتي الخاصة</a>
+    {% if features.leaderboard %}<a href="{% url 'accounts:student_leaderboard' %}" class="{{ cls }} {% if a == 'student_leaderboard' %}{{ on }}{% else %}{{ off }}{% endif %}">لوحة الترتيب</a>{% endif %}
+    {% endwith %}{% endwith %}
+</nav>

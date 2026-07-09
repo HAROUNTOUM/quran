@@ -1,0 +1,39 @@
+{% comment %}Student certificates grid. Needs `certificates` in context. Shared by
+the standalone certificates page and the merged النتائج والشهادات workspace tab.{% endcomment %}
+{% if certificates %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for cert in certificates %}
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+        <div class="p-6 text-center">
+            <div class="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <h3 class="font-bold text-gray-800 mb-1">{{ cert.template.name }}</h3>
+            <p class="text-xs text-gray-400 mb-1">{{ cert.certificate_number }}</p>
+            <p class="text-xs text-gray-400">{{ cert.issue_date|date:"d/m/Y" }}</p>
+            {% if cert.details %}
+            <p class="text-xs text-gray-500 mt-2">{{ cert.details }}</p>
+            {% endif %}
+        </div>
+        <div class="border-t border-gray-50 px-6 py-3 flex items-center justify-center gap-3">
+            <a href="{% url 'certificates:download' cert.pk %}" class="text-xs font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                تحميل PDF
+            </a>
+            <a href="{% url 'certificates:preview' cert.pk %}" target="_blank" class="text-xs font-medium text-gray-600 hover:text-gray-700 flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                معاينة
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+    <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+    </div>
+    <p class="text-gray-400">لا توجد شهادات بعد</p>
+    <p class="text-sm text-gray-300 mt-1">سيتم إصدار الشهادات من قبل الإدارة</p>
+</div>
+{% endif %}

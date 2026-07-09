@@ -1,0 +1,5 @@
+-r base.txt
+gunicorn==22.*
+uvicorn[standard]==0.29.*
+sentry-sdk==2.*
+django-anymail==15.*

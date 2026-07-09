@@ -1,0 +1,109 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلبات تعديل المواعيد{% endblock %}
+{% block page_heading %}طلبات تعديل المواعيد{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلبات تعديل المواعيد{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/teacher/_requests_tabs.html" %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">طلبات تعديل مواعيد الحصص المقدمة من الطلاب</p>
+    <div class="flex items-center gap-2">
+        <a href="?status=pending" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'pending' or not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">قيد الانتظار</a>
+        <a href="?status=approved" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'approved' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مقبول</a>
+        <a href="?status=rejected" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'rejected' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مرفوض</a>
+        <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors">الكل</a>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">مقدم الطلب</th>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-right font-medium">التاريخ الحالي</th>
+                <th class="px-6 py-4 text-right font-medium">التاريخ المقترح</th>
+                <th class="px-6 py-4 text-right font-medium">السبب</th>
+                <th class="px-6 py-4 text-center font-medium">الحالة</th>
+                <th class="px-6 py-4 text-center font-medium">التاريخ</th>
+                <th class="px-6 py-4 text-center font-medium">الإجراء</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for req in requests %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm text-gray-800">{{ req.requested_by.full_name_ar }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ req.session.circle.name }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ req.session.session_date|date:"Y-m-d" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-800 font-medium">{{ req.proposed_date|date:"Y-m-d" }}{% if req.proposed_time %} {{ req.proposed_time|time:"H:i" }}{% endif %}</td>
+                <td class="px-6 py-4 text-sm text-gray-500 truncate max-w-[150px]">{{ req.reason|default:"—" }}</td>
+                <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium {% if req.status == 'pending' %}bg-blue-50 text-blue-700{% elif req.status == 'approved' %}bg-green-50 text-green-700{% elif req.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
+                        {{ req.get_status_display }}
+                    </span>
+                    {% if req.rejection_reason and req.status == 'rejected' %}
+                    <p class="text-xs text-gray-400 mt-1">{{ req.rejection_reason }}</p>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-center text-sm text-gray-400">{{ req.created_at|date:"d/m/Y" }}</td>
+                <td class="px-6 py-4 text-center">
+                    {% if req.status == 'pending' %}
+                    <div class="flex items-center justify-center gap-2">
+                        <form method="POST" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-medium rounded-lg hover:bg-green-100 transition-colors">
+                                قبول
+                            </button>
+                        </form>
+                        <button onclick="openRejectModal({{ req.id }})" class="px-3 py-1.5 bg-red-50 text-red-700 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors">
+                            رفض
+                        </button>
+                    </div>
+                    {% else %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">{% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات تعديل" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="rejectModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40" onclick="if(event.target===this)closeRejectModal()">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onclick="event.stopPropagation()">
+        <h3 class="font-bold text-gray-800 text-lg mb-2">رفض طلب تعديل الموعد</h3>
+        <p class="text-sm text-gray-500 mb-4">يرجى كتابة سبب الرفض</p>
+        <form method="POST" id="rejectForm">
+            {% csrf_token %}
+            <input type="hidden" name="request_id" id="rejectRequestId">
+            <input type="hidden" name="action" value="reject">
+            <textarea name="rejection_reason" rows="3" class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4" placeholder="سبب الرفض..."></textarea>
+            <div class="flex items-center gap-3">
+                <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors">
+                    تأكيد الرفض
+                </button>
+                <button type="button" onclick="closeRejectModal()" class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors">
+                    إلغاء
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}
+{% block extra_js %}
+<script>
+function openRejectModal(reqId) {
+    document.getElementById('rejectRequestId').value = reqId;
+    document.getElementById('rejectModal').classList.remove('hidden');
+}
+function closeRejectModal() {
+    document.getElementById('rejectModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}تسجيل الدخول — الطبيب الحافظ{% endblock %}
+{% block content %}
+<div class="min-h-screen flex">
+    <div class="flex-1 flex items-center justify-center px-8 py-16 bg-white">
+        <div class="w-full max-w-md">
+            <a href="{% url 'accounts:landing' %}" class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-primary-600 mb-10 transition-colors">
+                <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                الرجوع للرئيسية
+            </a>
+            <h1 class="text-3xl font-black text-gray-800 mb-2">تسجيل الدخول</h1>
+            <p class="text-gray-400 mb-8">أدخل بياناتك للوصول إلى حسابك</p>
+            {% if messages %}
+                {% for message in messages %}
+                <div class="{% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-700{% else %}bg-red-50 border-red-200 text-red-700{% endif %} border px-4 py-3 rounded-xl mb-6 text-sm">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+            {% if error_message %}
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
+                {{ error_message }}
+            </div>
+            {% endif %}
+            <div id="login-form-container">
+                {% include "accounts/partials/login_form.html" %}
+            </div>
+            <p class="text-center text-sm text-gray-400 mt-8">
+                ليس لديك حساب؟
+                <a href="{% url 'accounts:signup' %}" class="text-primary-600 font-bold hover:underline">إنشاء حساب</a>
+            </p>
+        </div>
+    </div>
+    <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-bl from-primary-700 via-primary-800 to-primary-950 items-center justify-center p-16 relative overflow-hidden">
+        <div class="absolute top-10 left-10 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
+        <div class="absolute bottom-20 right-20 w-80 h-80 bg-primary-500/10 rounded-full blur-3xl"></div>
+        <div class="relative text-center">
+            <div class="w-48 h-48 mx-auto mb-8 bg-white/10 rounded-3xl flex items-center justify-center">
+                <svg class="w-24 h-24 text-white/30" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10h-1V7a6 6 0 0 0-12 0v3H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-7 9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-3">مرحباً بعودتك!</h3>
+            <p class="text-white/60 max-w-sm">سجّل دخولك لمتابعة تقدمك في حلقة التحفيظ والاطلاع على آخر التحديثات</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

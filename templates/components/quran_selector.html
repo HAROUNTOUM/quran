@@ -1,0 +1,174 @@
+{% comment %}
+Reusable Quran selector (Alpine.js). Single source for all surah/ayah entry.
+
+Params (via {% include ... with %}):
+  emit          "range" (default) → emits <surah>, <ayah_from>, <ayah_to>
+                "rub"             → emits <rub> (a single rub number 1–240)
+  surah_value / ayah_from_value / ayah_to_value / rub_value : prefill values
+  required      "true"/"false" (default true)
+
+Fetches static data from /api/v1/quran/ (session-authenticated, cached server-side).
+Degrades gracefully: if the API is unreachable the by-surah number inputs still work.
+{% endcomment %}
+<div x-data="quranSelector({
+        emit: '{{ emit|default:"range" }}',
+        surah: '{{ surah_value|default:"" }}',
+        ayahFrom: '{{ ayah_from_value|default:"" }}',
+        ayahTo: '{{ ayah_to_value|default:"" }}',
+        rub: '{{ rub_value|default:"" }}',
+        required: {{ required|default:"true" }},
+     })"
+     x-init="init()"
+     class="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+
+    {# Mode tabs #}
+    <div class="flex gap-2 mb-4">
+        <button type="button" @click="mode='surah'"
+                :class="mode==='surah' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors">بحسب السورة</button>
+        <button type="button" @click="mode='rub'"
+                :class="mode==='rub' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors">بحسب الربع</button>
+    </div>
+
+    {# ── By surah ── #}
+    <div x-show="mode==='surah'" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="sm:col-span-3">
+            <label class="block text-xs font-medium text-gray-500 mb-1">السورة</label>
+            <select x-model="surah" @change="onSurahChange()"
+                    class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="">اختر السورة</option>
+                <template x-for="s in surahs" :key="s.id">
+                    <option :value="s.id" x-text="s.name_ar + ' (' + s.ayah_count + ' آية)'"></option>
+                </template>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">من آية</label>
+            <input type="number" x-model="ayahFrom" min="1" :max="ayahMax"
+                   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">إلى آية</label>
+            <input type="number" x-model="ayahTo" min="1" :max="ayahMax"
+                   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div class="flex items-end">
+            <span class="text-xs text-gray-400" x-show="ayahMax" x-text="'الحد الأقصى: ' + ayahMax + ' آية'"></span>
+        </div>
+    </div>
+
+    {# ── By rub (juz → hizb → rub) ── #}
+    <div x-show="mode==='rub'" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">الجزء</label>
+            <select x-model.number="selJuz" @change="loadRubs()"
+                    class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="">اختر الجزء</option>
+                <template x-for="j in juzList" :key="j.number">
+                    <option :value="j.number" x-text="'الجزء ' + j.number"></option>
+                </template>
+            </select>
+        </div>
+        <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-gray-500 mb-1">الربع</label>
+            <select x-model.number="rub" @change="onRubChange()" :disabled="!rubList.length"
+                    class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100">
+                <option value="">اختر الربع</option>
+                <template x-for="r in rubList" :key="r.number">
+                    <option :value="r.number"
+                            :style="'border-right:4px solid ' + statusColor(r.number)"
+                            x-text="r.label"></option>
+                </template>
+            </select>
+        </div>
+        <div class="sm:col-span-3 text-xs text-gray-500" x-show="rubHint" x-text="rubHint"></div>
+    </div>
+
+    {# Validation message #}
+    <p x-show="error" x-text="error" class="mt-2 text-xs text-red-600"></p>
+
+    {# Emitted form fields #}
+    <template x-if="emit==='range'">
+        <div>
+            <input type="hidden" name="surah" :value="surah">
+            <input type="hidden" name="ayah_from" :value="ayahFrom">
+            <input type="hidden" name="ayah_to" :value="ayahTo">
+        </div>
+    </template>
+    <template x-if="emit==='rub'">
+        <input type="hidden" name="rub" :value="rub">
+    </template>
+</div>
+
+<script>
+{% comment %}Guard so multiple includes on one page define the factory only once.{% endcomment %}
+if (typeof window.quranSelector === 'undefined') {
+window.quranSelector = function(cfg) {
+    return {
+        emit: cfg.emit, required: cfg.required,
+        mode: 'surah',
+        surahs: [], juzList: [], rubList: [], statusMap: {},
+        surah: cfg.surah, ayahFrom: cfg.ayahFrom, ayahTo: cfg.ayahTo, rub: cfg.rub,
+        ayahMax: 0, selJuz: '', rubHint: '', error: '',
+
+        async init() {
+            try {
+                const [s, j, st] = await Promise.all([
+                    fetch('/api/v1/quran/surahs/').then(r => r.json()),
+                    fetch('/api/v1/quran/juz/').then(r => r.json()),
+                    fetch('/api/v1/quran/student-status/').then(r => r.ok ? r.json() : {data:{}}),
+                ]);
+                this.surahs = (s.data || s) ;
+                this.juzList = (j.data || j);
+                this.statusMap = (st.data || {});
+                if (this.surah) this.onSurahChange(true);
+            } catch (e) { /* number inputs still usable */ }
+        },
+        onSurahChange(keep) {
+            const s = this.surahs.find(x => String(x.id) === String(this.surah));
+            this.ayahMax = s ? s.ayah_count : 0;
+            if (!keep) { this.ayahFrom = ''; this.ayahTo = ''; }
+            this.validate();
+        },
+        async loadRubs() {
+            this.rubList = [];
+            if (!this.selJuz) return;
+            const r = await fetch('/api/v1/quran/rub/?juz=' + this.selJuz).then(x => x.json());
+            this.rubList = (r.data || r);
+        },
+        onRubChange() {
+            const r = this.rubList.find(x => String(x.number) === String(this.rub));
+            if (!r) return;
+            this.rubHint = r.label;
+            if (this.emit === 'range' && r.first) {
+                // Fill the range from the rub's first ayah; clamp to that surah.
+                const [fs, fa] = r.first.split(':');
+                const [ls, la] = (r.last || r.first).split(':');
+                this.surah = fs;
+                this.onSurahChange(true);
+                this.ayahFrom = fa;
+                this.ayahTo = (ls === fs) ? la : this.ayahMax;
+                if (ls !== fs) this.rubHint = r.label + ' (يمتد لأكثر من سورة — تم اقتصاره على السورة الأولى)';
+            }
+            this.validate();
+        },
+        statusColor(rubNumber) {
+            const map = {MEMORIZED:'#16a34a', MASTERED:'#0891b2', NEEDS_REVIEW:'#f59e0b',
+                         WEAK:'#dc2626', IN_PROGRESS:'#a855f7'};
+            return map[this.statusMap[rubNumber]] || '#d1d5db';
+        },
+        validate() {
+            this.error = '';
+            if (this.emit !== 'range') return;
+            const f = parseInt(this.ayahFrom), t = parseInt(this.ayahTo);
+            if (this.ayahFrom && this.ayahTo) {
+                if (f < 1 || t < 1) this.error = 'رقم الآية يجب أن يكون 1 أو أكثر';
+                else if (f > t) this.error = 'آية البداية يجب أن تكون قبل آية النهاية';
+                else if (this.ayahMax && t > this.ayahMax) this.error = 'رقم الآية يتجاوز عدد آيات السورة';
+            }
+        },
+    };
+};
+}
+</script>

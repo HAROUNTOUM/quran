@@ -1,0 +1,115 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block page_title %}إصدار شهادة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الشهادات / إصدار{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">إصدار شهادة</h1>
+    <p class="text-sm text-gray-500 mt-1">ارفع ملف PDF الشهادة واختر الطلاب المستلمين</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">قالب الشهادة</label>
+          <select name="template" required class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm">
+            <option value="">-- اختر القالب --</option>
+            {% for t in templates %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">ملف PDF</label>
+          <input type="file" name="pdf_file" accept=".pdf" required class="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">اسم الحلقة (اختياري)</label>
+          <input type="text" name="circle_name" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" placeholder="يظهر على الشهادة">
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <input type="text" id="student-search" placeholder="بحث بالاسم..." class="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 w-64">
+        <select id="circle-filter" class="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500">
+          <option value="">كل الحلقات</option>
+          {% for c in circles %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        <label class="flex items-center gap-2 text-sm text-gray-600 mr-auto cursor-pointer">
+          <input type="checkbox" id="select-all" class="rounded border-gray-300 text-green-600 focus:ring-green-500">
+          تحديد الكل
+        </label>
+        <span class="text-xs text-gray-400" id="selected-count">0 طالب</span>
+      </div>
+      <div class="max-h-96 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-50" id="student-list">
+        {% for s in students %}
+        <div class="student-row flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors" data-name="{{ s.full_name_ar }}" data-circle-ids="{{ s.circle_ids }}">
+          <input type="checkbox" name="students" value="{{ s.id }}" id="s{{ s.id }}" class="student-checkbox rounded border-gray-300 text-green-600 focus:ring-green-500">
+          <label for="s{{ s.id }}" class="flex-1 text-sm text-gray-700 cursor-pointer py-1">{{ s.full_name_ar }}</label>
+        </div>
+        {% empty %}
+        <p class="p-6 text-center text-gray-400 text-sm">لا يوجد طلاب معتمدون</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <label class="block text-sm font-medium text-gray-700 mb-2">تفاصيل إضافية (اختياري)</label>
+      <textarea name="details" rows="2" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"></textarea>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button type="submit" class="px-6 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm font-medium">
+        إصدار الشهادات
+      </button>
+      <a href="{% url 'certificates:list' %}" class="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors text-sm font-medium">
+        إلغاء
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock dashboard_content %}
+{% block extra_js %}
+<script>
+document.getElementById('student-search')?.addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  document.querySelectorAll('.student-row').forEach(row => {
+    row.style.display = q === '' || row.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+document.getElementById('circle-filter')?.addEventListener('change', function() {
+  const v = this.value;
+  document.querySelectorAll('.student-row').forEach(row => {
+    if (!v) { row.style.display = ''; return; }
+    const ids = (row.dataset.circleIds || '').split(',').filter(Boolean);
+    row.style.display = ids.includes(v) ? '' : 'none';
+  });
+});
+
+document.getElementById('select-all')?.addEventListener('change', function() {
+  const checked = this.checked;
+  document.querySelectorAll('.student-checkbox').forEach(cb => {
+    const row = cb.closest('.student-row');
+    if (row && row.style.display !== 'none') cb.checked = checked;
+  });
+  updateCount();
+});
+
+document.querySelectorAll('.student-checkbox').forEach(cb => cb.addEventListener('change', updateCount));
+function updateCount() {
+  const n = document.querySelectorAll('.student-checkbox:checked').length;
+  const el = document.getElementById('selected-count');
+  if (el) el.textContent = n + ' طالب';
+}
+updateCount();
+</script>
+{% endblock %}

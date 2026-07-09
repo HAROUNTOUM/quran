@@ -1,0 +1,5 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-{{ cols|default:'4' }} gap-4 mb-6">
+    {% for metric in metrics %}
+    {% include "dashboard/partials/stat_card.html" with label=metric.label value=metric.value color=metric.color icon=metric.icon filter_url=metric.filter_url|default:'' is_active=metric.is_active|default:False %}
+    {% endfor %}
+</div>

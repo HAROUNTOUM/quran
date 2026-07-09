@@ -1,0 +1,251 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}نظرة عامة{% endblock %}
+{% block page_heading %}نظرة عامة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / نظرة عامة{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    {% url 'accounts:admin_students' as students_url %}
+    {% url 'accounts:admin_circles' as circles_url %}
+    {% url 'accounts:admin_teachers' as teachers_url %}
+    <a href="{{ students_url }}" class="bg-navy-600 rounded-2xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <p class="text-xs font-semibold text-accent-100 mb-1">إجمالي الطلاب</p>
+        <p class="text-2xl font-extrabold text-accent-400">{{ stats.total_students }}</p>
+    </a>
+    <a href="{{ circles_url }}" class="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <p class="text-xs text-gray-400 mb-1">الحلقات النشطة</p>
+        <p class="text-2xl font-bold text-green-600">{{ stats.active_circles }}</p>
+    </a>
+    <a href="{{ teachers_url }}" class="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
+        <p class="text-xs text-gray-400 mb-1">المعلمون</p>
+        <p class="text-2xl font-bold text-purple-600">{{ stats.total_teachers }}</p>
+    </a>
+    <div class="bg-white rounded-2xl border border-gray-100 p-5">
+        <p class="text-xs text-gray-400 mb-1">نسبة الحضور</p>
+        <p class="text-2xl font-bold text-amber-600">{{ stats.attendance_rate }}%</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-5">
+        <p class="text-xs text-gray-400 mb-1">الشهادات</p>
+        <p class="text-2xl font-bold text-cyan-600">{{ stats.total_certificates }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+    <a href="{% url 'accounts:admin_student_create' %}" class="bg-cream-100 rounded-2xl p-5 hover:shadow-md transition-shadow">
+        <p class="text-sm font-bold text-navy-600">إضافة طالب</p>
+        <p class="text-xs text-navy-400 mt-1">تسجيل جديد في المنصة</p>
+    </a>
+    <a href="{% url 'accounts:admin_circle_create' %}" class="bg-cream-100 rounded-2xl p-5 hover:shadow-md transition-shadow">
+        <p class="text-sm font-bold text-navy-600">إنشاء حلقة</p>
+        <p class="text-xs text-navy-400 mt-1">حلقة تحفيظ جديدة</p>
+    </a>
+    <a href="{% url 'accounts:admin_announcement_create' %}" class="bg-cream-100 rounded-2xl p-5 hover:shadow-md transition-shadow">
+        <p class="text-sm font-bold text-navy-600">إعلان جديد</p>
+        <p class="text-xs text-navy-400 mt-1">إرسال إعلان للمنصة</p>
+    </a>
+    <a href="{% url 'accounts:admin_inscriptions' %}" class="bg-cream-100 rounded-2xl p-5 hover:shadow-md transition-shadow">
+        <p class="text-sm font-bold text-navy-600">مراجعة التسجيلات</p>
+        <p class="text-xs text-navy-400 mt-1">{% if pending_count %}{{ pending_count }} بانتظار المراجعة{% else %}لا توجد طلبات معلقة{% endif %}</p>
+    </a>
+</div>
+
+{% if pending_enrollment_count > 0 or repeated_absentees > 0 or inactive_circles > 0 or urgent_requests > 0 %}
+<div class="space-y-3 mb-8">
+    {% if pending_count > 0 %}
+    <div class="bg-white rounded-2xl border border-amber-200 p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+            </div>
+            <p class="text-sm font-medium text-gray-800">{{ pending_count }} طلب تسجيل بانتظار المراجعة</p>
+        </div>
+        <a href="{% url 'accounts:admin_inscriptions' %}" class="px-4 py-2 bg-navy-600 text-white text-xs font-semibold rounded-lg hover:bg-navy-700 transition-colors">عرض</a>
+    </div>
+    {% endif %}
+    {% if repeated_absentees > 0 %}
+    <div class="bg-white rounded-2xl border border-red-200 p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <p class="text-sm font-medium text-gray-800">{{ repeated_absentees }} طالب متغيب بشكل متكرر</p>
+        </div>
+        <a href="{% url 'accounts:admin_reports' %}" class="px-4 py-2 bg-navy-600 text-white text-xs font-semibold rounded-lg hover:bg-navy-700 transition-colors">عرض</a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <h3 class="font-bold text-gray-800 mb-4">توزيع الطلاب حسب المستوى</h3>
+        <canvas id="donutChart" height="200"></canvas>
+        <div class="flex justify-center gap-6 mt-3">
+            <span class="flex items-center gap-1.5 text-xs font-semibold text-navy-600"><span class="w-2.5 h-2.5 rounded-full" style="background:#F2789F"></span>ممتاز</span>
+            <span class="flex items-center gap-1.5 text-xs font-semibold text-navy-600"><span class="w-2.5 h-2.5 rounded-full" style="background:#4BC3B5"></span>جيد</span>
+            <span class="flex items-center gap-1.5 text-xs font-semibold text-navy-600"><span class="w-2.5 h-2.5 rounded-full" style="background:#E4B23C"></span>ضعيف</span>
+        </div>
+    </div>
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">معدل الحضور (آخر 7 أشهر)</h3>
+            <span class="text-xs text-gray-400">اليوم: {{ today_attendance }} تسجيل | {{ today_sessions }} حصة</span>
+        </div>
+        <canvas id="lineChart" height="180"></canvas>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="font-bold text-gray-800">إحصائيات الحضور — آخر 7 أيام</h3>
+        </div>
+        <div class="h-64 flex items-end gap-3 px-4">
+            {% for day in stats.weekly_attendance %}
+            <div class="flex-1 flex flex-col items-center gap-2">
+                <div class="w-full bg-primary-100 rounded-t-lg relative overflow-hidden" style="height: {{ day.percentage }}%">
+                    <div class="absolute inset-0 bg-gradient-to-t from-primary-600 to-primary-400 rounded-t-lg"></div>
+                </div>
+                <span class="text-[10px] text-gray-400">{{ day.label }}</span>
+                <span class="text-xs font-bold text-gray-600">{{ day.percentage }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <h3 class="font-bold text-gray-800 mb-6">الطلاب حسب الحلقات</h3>
+        <div class="space-y-4">
+            {% for circle in stats.circle_distribution %}
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-600 truncate max-w-[70%]">{{ circle.name }}</span>
+                    <span class="font-bold text-gray-800">{{ circle.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class="bg-primary-500 h-2 rounded-full transition-all duration-500" style="width: {{ circle.percentage }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-bold text-gray-800">آخر التسجيلات</h3>
+            <a href="{% url 'accounts:admin_inscriptions' %}" class="text-xs text-primary-600 hover:underline">عرض الكل</a>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for user in stats.recent_users %}
+            <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-primary-50 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-primary-700 font-bold text-xs">{{ user.full_name_ar.0 }}</span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">{{ user.full_name_ar }}</p>
+                        <p class="text-xs text-gray-400">{{ user.get_role_display }} · {{ user.created_at|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium {% if user.is_approved == 'pending' %}bg-amber-50 text-amber-700{% elif user.is_approved == 'approved' %}bg-green-50 text-green-700{% else %}bg-red-50 text-red-700{% endif %}">
+                    {% if user.is_approved == 'pending' %}قيد المراجعة{% elif user.is_approved == 'approved' %}معتمد{% else %}مرفوض{% endif %}
+                </span>
+            </div>
+            {% empty %}
+            {% include "dashboard/partials/empty_state.html" with message="لا توجد تسجيلات بعد" %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-bold text-gray-800">بانتظار الاعتماد</h3>
+            <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full">{{ stats.pending_count }}</span>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for user in stats.pending_users %}
+            <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-amber-50 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-amber-700 font-bold text-xs">{{ user.full_name_ar.0 }}</span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">{{ user.full_name_ar }}</p>
+                        <p class="text-xs text-gray-400">{{ user.email }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <form hx-post="{% url 'accounts:approve_user' user.id %}" hx-target="closest div" hx-swap="outerHTML">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </button>
+                    </form>
+                    <a href="{% url 'accounts:admin_inscriptions' %}" class="p-1.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-gray-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            {% include "dashboard/partials/empty_state.html" with message="لا يوجد حسابات معلّقة" %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+<script>
+(function() {
+    {% if chart_donut %}
+    var donutData = {{ chart_donut|safe }};
+    new Chart(document.getElementById('donutChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['ممتاز', 'جيد', 'ضعيف'],
+            datasets: [{
+                data: [donutData.excellent, donutData.good, donutData.weak],
+                backgroundColor: ['#F2789F', '#4BC3B5', '#E4B23C'],
+                borderWidth: 0,
+            }]
+        },
+        options: { cutout: '65%', plugins: { legend: { display: false } } }
+    });
+    {% endif %}
+    {% if chart_line %}
+    var lineData = {{ chart_line|safe }};
+    new Chart(document.getElementById('lineChart'), {
+        type: 'line',
+        data: {
+            labels: lineData.map(function(d) { return d.month; }),
+            datasets: [
+                {
+                    label: 'الحضور',
+                    data: lineData.map(function(d) { return d.present; }),
+                    borderColor: '#4AA6A6',
+                    backgroundColor: 'rgba(74,166,166,0.10)',
+                    fill: true,
+                    tension: 0.4,
+                },
+                {
+                    label: 'الغياب',
+                    data: lineData.map(function(d) { return d.absent; }),
+                    borderColor: '#E4B23C',
+                    backgroundColor: 'rgba(228,178,60,0.10)',
+                    fill: true,
+                    tension: 0.4,
+                }
+            ]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+    {% endif %}
+})();
+</script>
+{% endblock %}

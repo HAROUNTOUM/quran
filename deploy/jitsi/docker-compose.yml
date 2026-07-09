@@ -1,0 +1,113 @@
+# Self-hosted Jitsi Meet with JWT (token) authentication, trimmed from the
+# official docker-jitsi-meet stack. Django mints the tokens (see
+# apps/classrooms/services.py) with the same JITSI_APP_ID / JITSI_APP_SECRET,
+# so platform users join directly — no Jitsi account or login screen.
+# Guests are disabled: a valid token is the only way in.
+
+services:
+  web:
+    image: jitsi/web:stable
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ${CONFIG:-./jitsi-config}/web:/config:Z
+    environment:
+      - PUBLIC_URL
+      - TZ=${TZ:-UTC}
+      - ENABLE_AUTH=1
+      - ENABLE_GUESTS=0
+      - AUTH_TYPE=jwt
+      - ENABLE_LETSENCRYPT
+      - LETSENCRYPT_DOMAIN
+      - LETSENCRYPT_EMAIL
+      - DISABLE_HTTPS
+      - XMPP_DOMAIN=meet.jitsi
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_GUEST_DOMAIN=guest.meet.jitsi
+      - XMPP_MUC_DOMAIN=muc.meet.jitsi
+      - XMPP_BOSH_URL_BASE=http://xmpp.meet.jitsi:5280
+    networks:
+      meet.jitsi:
+
+  prosody:
+    image: jitsi/prosody:stable
+    restart: unless-stopped
+    expose:
+      - "5222"
+      - "5347"
+      - "5280"
+    volumes:
+      - ${CONFIG:-./jitsi-config}/prosody/config:/config:Z
+      - ${CONFIG:-./jitsi-config}/prosody/prosody-plugins-custom:/prosody-plugins-custom:Z
+    environment:
+      - PUBLIC_URL
+      - TZ=${TZ:-UTC}
+      - ENABLE_AUTH=1
+      - ENABLE_GUESTS=0
+      - AUTH_TYPE=jwt
+      - JWT_APP_ID=${JITSI_APP_ID:-hafez}
+      - JWT_APP_SECRET=${JITSI_APP_SECRET:?set JITSI_APP_SECRET in .env}
+      - JWT_ACCEPTED_ISSUERS=${JITSI_APP_ID:-hafez}
+      - JWT_ACCEPTED_AUDIENCES=jitsi
+      - JWT_ALLOW_EMPTY=0
+      - XMPP_DOMAIN=meet.jitsi
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_GUEST_DOMAIN=guest.meet.jitsi
+      - XMPP_MUC_DOMAIN=muc.meet.jitsi
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD:?set JICOFO_AUTH_PASSWORD in .env}
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD:?set JVB_AUTH_PASSWORD in .env}
+    networks:
+      meet.jitsi:
+        aliases:
+          - xmpp.meet.jitsi
+
+  jicofo:
+    image: jitsi/jicofo:stable
+    restart: unless-stopped
+    volumes:
+      - ${CONFIG:-./jitsi-config}/jicofo:/config:Z
+    environment:
+      - TZ=${TZ:-UTC}
+      - ENABLE_AUTH=1
+      - AUTH_TYPE=jwt
+      - XMPP_SERVER=xmpp.meet.jitsi
+      - XMPP_DOMAIN=meet.jitsi
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_MUC_DOMAIN=muc.meet.jitsi
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
+    depends_on:
+      - prosody
+    networks:
+      meet.jitsi:
+
+  jvb:
+    image: jitsi/jvb:stable
+    restart: unless-stopped
+    ports:
+      - "${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp"
+    volumes:
+      - ${CONFIG:-./jitsi-config}/jvb:/config:Z
+    environment:
+      - PUBLIC_URL
+      - TZ=${TZ:-UTC}
+      - XMPP_SERVER=xmpp.meet.jitsi
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
+      - JVB_PORT=${JVB_PORT:-10000}
+      - JVB_ADVERTISE_IPS
+    depends_on:
+      - prosody
+    networks:
+      meet.jitsi:
+
+networks:
+  meet.jitsi:

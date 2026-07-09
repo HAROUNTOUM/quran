@@ -1,0 +1,35 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}متابعة الدفعات{% endblock %}
+{% block page_heading %}متابعة الدفعات والأفواج{% endblock %}
+{% block page_breadcrumb %}الرئيسية / متابعة الدفعات{% endblock %}
+{% block dashboard_content %}
+
+<div class="bg-white rounded-[18px] p-5 mb-5 shadow-[0_10px_22px_rgba(23,71,107,0.06)]">
+    <span class="text-primary-600 text-[17px] font-extrabold">اختر الدفعة</span>
+    <nav aria-label="اختيار الدفعة" class="flex flex-wrap gap-2 mt-3">
+        {% for b in batches %}
+        <a href="?batch={% if b is not None %}{{ b }}{% endif %}"
+           {% if b == selected_batch %}aria-current="page"{% endif %}
+           class="px-4 py-2 rounded-full text-sm font-bold transition-colors {% if b == selected_batch %}bg-navy-600 text-white{% else %}bg-cream-100 text-navy-600 hover:bg-cream-200{% endif %}">
+            {% if b is not None %}الدفعة {{ b }}{% else %}غير محددة{% endif %}
+        </a>
+        {% empty %}
+        <span class="text-sm text-navy-300">لا توجد دفعات بعد.</span>
+        {% endfor %}
+    </nav>
+</div>
+
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {% for g in groups %}
+    <a href="{% url 'accounts:supervisor_group_board' g.circle.id %}"
+       class="bg-white rounded-[18px] p-5 shadow-[0_10px_22px_rgba(23,71,107,0.06)] hover:shadow-[0_14px_30px_rgba(23,71,107,0.12)] transition-shadow block">
+        <div class="font-extrabold text-navy-600 text-lg truncate">{{ g.circle.name }}</div>
+        <div class="text-sm text-navy-300 mt-2">المعلم: {{ g.teacher.full_name_ar|default:"—" }}</div>
+        <div class="text-sm text-navy-300 mt-0.5">آخر حصة: {% if g.last_session %}{{ g.last_session|date:"Y/m/d" }}{% else %}—{% endif %}</div>
+        <div class="text-sm text-navy-300 mt-0.5">عدد الطلاب: {{ g.student_count }}</div>
+    </a>
+    {% empty %}
+    <p class="text-navy-300 text-sm col-span-full py-8 text-center">لا توجد أفواج في هذه الدفعة.</p>
+    {% endfor %}
+</div>
+{% endblock %}

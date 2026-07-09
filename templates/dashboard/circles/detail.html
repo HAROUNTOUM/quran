@@ -1,0 +1,375 @@
+{% extends "dashboard/base.html" %}
+{% block header_title %}{{ circle.name }}{% endblock %}
+{% block title %}{{ circle.name }} — الطبيب الحافظ{% endblock %}
+{% block dashboard_content %}
+<div class="mb-8">
+    <a href="{% url 'accounts:admin_circles' %}" class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-primary-600 mb-4 transition-colors">
+        <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        العودة للحلقات
+    </a>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400 mb-1">المعلم</p>
+        <p class="text-xl font-bold text-gray-800 mt-1">{{ circle.teacher.full_name_ar|default:"—" }}</p>
+    </div>
+    {% include "dashboard/partials/stat_card.html" with label="الطلاب المسجلون" value=active_count icon="students" color="blue" %}
+    {% include "dashboard/partials/stat_card.html" with label="إجمالي الحصص" value=sessions_count icon="teachers" color="green" %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-400 mb-1">نسبة الحضور</p>
+                <p class="text-3xl font-black text-amber-600">{{ attendance_rate }}%</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50">
+                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    {% include "dashboard/partials/stat_card.html" with label="حاضر" value=present_count icon="students" color="green" %}
+    {% include "dashboard/partials/stat_card.html" with label="متأخر" value=late_count icon="requests" color="amber" %}
+    {% include "dashboard/partials/stat_card.html" with label="غائب" value=absent_count icon="requests" color="red" %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400 mb-1">الحالة</p>
+        <p class="text-xl font-bold flex items-center gap-2 mt-1">
+            <span class="w-3 h-3 rounded-full {% if circle.status == 'active' %}bg-green-500{% elif circle.status == 'paused' %}bg-amber-500{% else %}bg-gray-400{% endif %}"></span>
+            <span class="{% if circle.status == 'active' %}text-green-600{% elif circle.status == 'paused' %}text-amber-600{% else %}text-gray-500{% endif %}">
+                {{ circle.get_status_display }}
+            </span>
+        </p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="lg:col-span-2">
+        {% if pending_enrollments %}
+        <div class="bg-white rounded-2xl border border-amber-200 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-amber-100 bg-amber-50">
+                <h3 class="font-bold text-amber-800">طلبات التسجيل قيد الانتظار ({{ pending_count }})</h3>
+            </div>
+            <table class="w-full">
+                <thead class="bg-amber-50/50 text-sm text-amber-700">
+                    <tr>
+                        <th class="px-6 py-3 text-right font-medium">الطالب</th>
+                        <th class="px-6 py-3 text-right font-medium">الهاتف</th>
+                        <th class="px-6 py-3 text-right font-medium">تاريخ الطلب</th>
+                        <th class="px-6 py-3 text-left font-medium">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for enrollment in pending_enrollments %}
+                    <tr class="hover:bg-amber-50/30 transition-colors" id="pending-{{ enrollment.id }}">
+                        <td class="px-6 py-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                                    <span class="text-amber-700 font-bold text-xs">{{ enrollment.student.full_name_ar.0 }}</span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800">{{ enrollment.student.full_name_ar }}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-3 text-sm text-gray-500">{{ enrollment.student.phone|default:"—" }}</td>
+                        <td class="px-6 py-3 text-sm text-gray-400">{{ enrollment.enrolled_at|date:"Y-m-d H:i" }}</td>
+                        <td class="px-6 py-3 text-left">
+                            <div class="flex items-center gap-2">
+                                <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}"
+                                      onsubmit="return confirm('قبول {{ enrollment.student.full_name_ar }} في الحلقة؟')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="approve_enrollment">
+                                    <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                                    <button type="submit" class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                                        قبول
+                                    </button>
+                                </form>
+                                <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}"
+                                      onsubmit="return confirm('رفض {{ enrollment.student.full_name_ar }}؟')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="reject_enrollment">
+                                    <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                                    <button type="submit" class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors">
+                                        رفض
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">الطلاب النشطون ({{ active_count }}/{{ circle.max_students }})</h3>
+            </div>
+            <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                    <tr>
+                        <th class="px-6 py-3 text-right font-medium">الطالب</th>
+                        <th class="px-6 py-3 text-right font-medium">الهاتف</th>
+                        <th class="px-6 py-3 text-right font-medium">تاريخ الانضمام</th>
+                        <th class="px-6 py-3 text-left font-medium">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for enrollment in active_enrollments %}
+                    <tr class="hover:bg-gray-50 transition-colors" id="enrollment-{{ enrollment.id }}">
+                        <td class="px-6 py-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span class="text-blue-700 font-bold text-xs">{{ enrollment.student.full_name_ar.0 }}</span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800">{{ enrollment.student.full_name_ar }}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-3 text-sm text-gray-500">{{ enrollment.student.phone|default:"—" }}</td>
+                        <td class="px-6 py-3 text-sm text-gray-400">{{ enrollment.enrolled_at|date:"Y-m-d" }}</td>
+                        <td class="px-6 py-3 text-left">
+                            <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}"
+                                  onsubmit="return confirm('هل تريد إزالة {{ enrollment.student.full_name_ar }} من الحلقة؟')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="remove_student">
+                                <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                                <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition-colors">إزالة</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            {% include "dashboard/partials/empty_state.html" with message="لا يوجد طلاب في هذه الحلقة" %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if active_count < circle.max_students %}
+            <div class="px-6 py-4 border-t border-gray-50 bg-gray-50/50">
+                <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}" class="flex items-center gap-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_student">
+                    <select name="student_id" required class="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white flex-1">
+                        <option value="">إضافة طالب...</option>
+                        {% for s in students_list %}
+                        <option value="{{ s.id }}">{{ s.full_name_ar }} — {{ s.email }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors flex-shrink-0">
+                        إضافة
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+            <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">آخر الحصص ({{ sessions_count }})</h3>
+                <a href="{% url 'accounts:admin_circle_detail' circle.id %}" class="text-xs text-primary-600 hover:underline">عرض الكل</a>
+            </div>
+            <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-3 text-right font-medium">التاريخ</th>
+                <th class="px-6 py-3 text-right font-medium">النوع</th>
+                <th class="px-6 py-3 text-right font-medium">التسجيلات</th>
+                <th class="px-6 py-3 text-center font-medium">الإجراءات</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for session in sessions %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-3 text-sm text-gray-800">{{ session.session_date|date:"Y-m-d l" }}</td>
+                <td class="px-6 py-3">
+                    <span class="text-xs px-2 py-0.5 rounded-lg font-medium {% if session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                        {{ session.get_session_type_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-3 text-sm text-gray-500">{{ session.attendance_records.count|default:"0" }}</td>
+                <td class="px-6 py-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        {% if session.is_online and session.meeting_url %}
+                        <a href="{{ session.meeting_url }}" target="_blank" class="text-xs text-green-600 hover:underline">الرابط</a>
+                        {% endif %}
+                        <a href="{% url 'accounts:teacher_session_attendance' session.id %}" class="text-xs text-primary-600 hover:underline">تسجيل الحضور</a>
+                    </div>
+                </td>
+            </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">{% include "dashboard/partials/empty_state.html" with message="لا توجد حصص بعد" %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+            <div class="px-6 py-4 border-b border-gray-50">
+                <h3 class="font-bold text-gray-800">سجل الحضور والغياب (آخر 20 حصة)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 text-sm text-gray-500">
+                        <tr>
+                            <th class="px-4 py-3 text-right font-medium whitespace-nowrap">التاريخ</th>
+                            <th class="px-4 py-3 text-right font-medium">الطالب</th>
+                            <th class="px-4 py-3 text-center font-medium">الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for session in attendance_history %}
+                        {% for att in session.attendance_records.all %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{{ session.session_date|date:"d/m/Y" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800">{{ att.student.full_name_ar }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="text-xs font-medium px-2 py-1 rounded-lg
+                                    {% if att.status == 'present' %}bg-green-50 text-green-700
+                                    {% elif att.status == 'late' %}bg-amber-50 text-amber-700
+                                    {% elif att.status == 'absent' %}bg-red-50 text-red-600
+                                    {% elif att.status == 'excused' %}bg-blue-50 text-blue-700
+                                    {% else %}bg-gray-100 text-gray-500{% endif %}">
+                                    {{ att.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3">{% include "dashboard/partials/empty_state.html" with message="لا توجد سجلات حضور لهذه الحصة" %}</td></tr>
+                        {% endfor %}
+                        {% empty %}
+                        <tr><td colspan="3">{% include "dashboard/partials/empty_state.html" with message="لا توجد حصص بعد" %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if past_enrollments %}
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+            <div class="px-6 py-4 border-b border-gray-50">
+                <h3 class="font-bold text-gray-800">الطلاب السابقون</h3>
+            </div>
+            <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                    <tr>
+                        <th class="px-6 py-3 text-right font-medium">الطالب</th>
+                        <th class="px-6 py-3 text-right font-medium">الحالة</th>
+                        <th class="px-6 py-3 text-right font-medium">تاريخ المغادرة</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for enrollment in past_enrollments %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-3 text-sm text-gray-800">{{ enrollment.student.full_name_ar }}</td>
+                        <td class="px-6 py-3">
+                            <span class="text-xs font-medium px-2 py-1 rounded-lg {% if enrollment.status == 'inactive' %}bg-gray-100 text-gray-600{% else %}bg-red-50 text-red-600{% endif %}">
+                                {{ enrollment.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-sm text-gray-400">{{ enrollment.left_at|date:"Y-m-d"|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="lg:col-span-1 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">معلومات الحلقة</h3>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">الموقع</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.location|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">الجنس</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.get_gender_display }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">السعة</dt>
+                    <dd class="font-medium text-gray-800">{{ active_count }} / {{ circle.max_students }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-50">
+                    <dt class="text-gray-400">الجدول</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.schedule|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2">
+                    <dt class="text-gray-400">تاريخ الإنشاء</dt>
+                    <dd class="font-medium text-gray-800">{{ circle.created_at|date:"Y-m-d" }}</dd>
+                </div>
+            </dl>
+            {% if circle.description %}
+            <div class="mt-4 pt-4 border-t border-gray-50">
+                <p class="text-xs text-gray-400 mb-1">الوصف</p>
+                <p class="text-sm text-gray-700">{{ circle.description }}</p>
+            </div>
+            {% endif %}
+            <div class="mt-4 pt-4 border-t border-gray-50 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-400">الحفظ</span>
+                    <span class="text-sm font-bold text-primary-600">{{ hifz_total }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-400">المراجعة</span>
+                    <span class="text-sm font-bold text-purple-600">{{ murajaa_total }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">إدارة الحلقة</h3>
+            <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_status">
+                <button type="submit"
+                        class="w-full py-2.5 {% if circle.status == 'active' %}bg-red-50 text-red-600 hover:bg-red-100{% else %}bg-green-50 text-green-600 hover:bg-green-100{% endif %} text-sm font-medium rounded-xl transition-colors mb-3">
+                    {% if circle.status == 'active' %}
+                    أرشفة الحلقة
+                    {% else %}
+                    استعادة الحلقة
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="font-bold text-gray-800 mb-4">نقل طالب</h3>
+            <form method="POST" action="{% url 'accounts:admin_circle_detail' circle.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="transfer_student">
+                <input type="hidden" name="source_circle_id" value="{{ circle.id }}">
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs text-gray-500 mb-1">معرف الطالب (UUID)</label>
+                        <input type="text" name="student_id" required placeholder="00000000-0000-0000-0000-000000000000"
+                               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 mb-1">الحلقة الهدف</label>
+                        <select name="target_circle_id" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            {% for c in other_circles %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 transition-colors">
+                        نقل الطالب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+
+</script>
+{% endblock %}

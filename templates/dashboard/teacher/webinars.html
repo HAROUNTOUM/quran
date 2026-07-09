@@ -1,0 +1,50 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}ندواتي كمتحدّث{% endblock %}
+{% block page_heading %}ندواتي كمتحدّث{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الندوات المباشرة{% endblock %}
+{% block dashboard_content %}
+
+<p class="text-sm text-gray-400 mb-6">الندوات التي تشارك فيها كمتحدّث — ادخل غرفة المتحدثين عند اقتراب موعد البث.</p>
+
+<div class="space-y-4">
+    {% for w in webinars %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">{{ w.title }}</p>
+                    <p class="text-xs text-gray-400">{{ w.scheduled_at|date:"Y-m-d H:i"|default:"—" }}</p>
+                </div>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
+                {% if w.status == 'live' %}bg-red-50 text-red-700{% elif w.status == 'scheduled' %}bg-blue-50 text-blue-700{% elif w.status == 'replay' %}bg-amber-50 text-amber-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                {{ w.get_status_display }}
+            </span>
+        </div>
+
+        {% if w.description %}
+        <div class="bg-gray-50 rounded-xl p-4 mb-4">
+            <p class="text-sm text-gray-700">{{ w.description }}</p>
+        </div>
+        {% endif %}
+
+        {% if w.status == 'scheduled' or w.status == 'live' %}
+        <a href="{% url 'webinars:speaker_room' w.pk %}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            دخول غرفة المتحدثين
+        </a>
+        {% else %}
+        <p class="text-xs text-gray-400">غرفة المتحدثين مغلقة لهذه الندوة.</p>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        {% include "dashboard/partials/empty_state.html" with message="لا توجد ندوات تشارك فيها كمتحدّث بعد" %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

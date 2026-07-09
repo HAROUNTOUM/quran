@@ -1,0 +1,16 @@
+{% comment %}Workspace sub-nav: الامتحانات والشهادات — sibling pages of the consolidated
+sidebar entry. Tabs honor the exams/certificates feature flags.{% endcomment %}
+{% with vn=request.resolver_match.view_name %}
+<div class="flex items-center gap-8 mb-6 border-b-2 border-[#E4EBE9] overflow-x-auto" dir="rtl">
+    {% if features.exams %}
+    <a href="{% url 'accounts:admin_exam_list' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'accounts:admin_exam_list' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">الامتحانات</a>
+    <a href="{% url 'accounts:report_exam_results' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'accounts:report_exam_results' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">نتائج الامتحانات</a>
+    {% endif %}
+    {% if features.certificates %}
+    <a href="{% url 'certificates:list' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'certificates:list' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">الشهادات</a>
+    {% endif %}
+</div>
+{% endwith %}

@@ -1,0 +1,17 @@
+{% comment %}
+التواصل والطلبات workspace tabs — merged inbox: review/recitation requests,
+ask-the-teacher questions, support/reports, announcements and webinars as one
+workspace (links to existing URLs; no view change). Review vs Questions share
+the review_requests view, distinguished by ?type=. Notifications live in the
+header bell only.
+{% endcomment %}
+<nav class="flex items-center gap-1 mb-6 border-b border-gray-100 overflow-x-auto" dir="rtl" aria-label="أقسام التواصل والطلبات">
+    {% with a=request.resolver_match.url_name t=request.GET.type %}
+    {% with cls="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors" on="border-primary-600 text-primary-600" off="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" %}
+    <a href="{% url 'accounts:student_review_requests' %}?type=recitation" class="{{ cls }} {% if a == 'student_review_requests' and t != 'question' %}{{ on }}{% else %}{{ off }}{% endif %}">التسميع</a>
+    <a href="{% url 'accounts:student_review_requests' %}?type=question" class="{{ cls }} {% if a == 'student_review_requests' and t == 'question' %}{{ on }}{% else %}{{ off }}{% endif %}">أسئلة المعلم</a>
+    <a href="{% url 'accounts:student_requests' %}" class="{{ cls }} {% if a == 'student_requests' %}{{ on }}{% else %}{{ off }}{% endif %}">الدعم والبلاغات</a>
+    <a href="{% url 'accounts:student_announcements' %}" class="{{ cls }} {% if a == 'student_announcements' %}{{ on }}{% else %}{{ off }}{% endif %}">الإعلانات</a>
+    {% if features.webinars %}<a href="{% url 'webinars:list' %}" class="{{ cls }} {% if a == 'list' or a == 'watch' %}{{ on }}{% else %}{{ off }}{% endif %}">الندوات المباشرة</a>{% endif %}
+    {% endwith %}{% endwith %}
+</nav>

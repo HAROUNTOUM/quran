@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block subject %}{{ subject }}{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:'Tajawal','Segoe UI',Tahoma,sans-serif;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f3f4f6;padding:20px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+                    <tr>
+                        <td style="background:linear-gradient(135deg,#059669,#047857);padding:32px 24px;text-align:center;">
+                            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;">الطبيب الحافظ</h1>
+                            <p style="color:#d1fae5;margin:6px 0 0;font-size:14px;opacity:0.9;">منصة تحفيظ القرآن الكريم</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px 24px;">
+                            {% block content %}{% endblock %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color:#f9fafb;padding:20px 24px;text-align:center;border-top:1px solid #e5e7eb;">
+                            <p style="margin:0 0 8px;color:#6b7280;font-size:12px;line-height:1.6;">
+                                هذا البريد إلكتروني تلقائي، يرجى عدم الرد عليه.
+                            </p>
+                            <p style="margin:0;color:#9ca3af;font-size:11px;">
+                                © {% now "Y" %} الطبيب الحافظ — جميع الحقوق محفوظة
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

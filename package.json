@@ -1,0 +1,30 @@
+{
+  "name": "quran",
+  "version": "1.0.0",
+  "description": "A full-featured web application for managing **Quran memorization (hifdh) circles**. Designed for Islamic educational institutions to streamline administrative, pedagogical, and reporting workflows.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HAROUNTOUM/quran.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HAROUNTOUM/quran/issues"
+  },
+  "homepage": "https://github.com/HAROUNTOUM/quran#readme",
+  "dependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

@@ -1,0 +1,260 @@
+{% extends "dashboard/base.html" %}
+{% load core_tags %}
+{% block page_title %}{{ exam.title }}{% endblock %}
+{% block page_heading %}{{ exam.title }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:admin_exam_list' %}">الامتحانات</a> / {{ exam.title }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400 mb-1">التاريخ</p>
+        <p class="text-2xl font-black text-gray-800">{{ exam.exam_date|date:"d/m/Y" }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400 mb-1">الحلقة</p>
+        <p class="text-2xl font-black text-gray-800">{{ exam.circle.name|default:"عام" }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400 mb-1">المعلم</p>
+        <p class="text-2xl font-black text-gray-800">{{ exam.assigned_teacher.full_name_ar|default:"—" }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400 mb-1">الطلاب</p>
+        <p class="text-2xl font-black text-gray-800">{{ marks.count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-400 mb-1">المعدل</p>
+        <p class="text-2xl font-black {% if exam.average_marks >= 75 %}text-green-600{% elif exam.average_marks >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">
+            {{ exam.average_marks }}%
+        </p>
+    </div>
+</div>
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold
+            {% if exam.status == 'published' %}bg-green-50 text-green-700
+            {% elif exam.status == 'draft' %}bg-gray-50 text-gray-500
+            {% elif exam.status == 'completed' %}bg-blue-50 text-blue-700
+            {% elif exam.status == 'pending_approval' %}bg-amber-50 text-amber-700
+            {% elif exam.status == 'grading' %}bg-indigo-50 text-indigo-700
+            {% else %}bg-amber-50 text-amber-700{% endif %}">
+            {{ exam.get_status_display }}
+        </span>
+        <span class="text-sm text-gray-400">{{ exam.get_exam_type_display }}</span>
+        {% if exam.description %}
+        <span class="text-sm text-gray-400">— {{ exam.description }}</span>
+        {% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+        {% if exam.status == 'draft' %}
+        <a href="{% url 'accounts:admin_exam_publish' exam.pk %}" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors">
+            نشر الامتحان
+        </a>
+        {% elif exam.status == 'pending_approval' %}
+        <a href="{% url 'accounts:admin_exam_approve_all' exam.pk %}" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors" onclick="return confirm('اعتماد جميع النتائج؟')">
+            اعتماد الكل
+        </a>
+        {% endif %}
+        <a href="{% url 'accounts:admin_exam_edit' exam.pk %}" class="px-4 py-2 bg-amber-50 text-amber-700 text-sm font-medium rounded-xl hover:bg-amber-100 transition-colors">
+            تعديل
+        </a>
+        <a href="{% url 'accounts:admin_exam_export_pdf' exam.pk %}" class="px-4 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors">
+            PDF
+        </a>
+        <a href="{% url 'accounts:admin_exam_export_csv' exam.pk %}" class="px-4 py-2 bg-gray-50 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors">
+            CSV
+        </a>
+    </div>
+</div>
+
+{% if approval_progress.total > 0 %}
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-green-50 rounded-xl p-3 text-center">
+        <p class="text-lg font-bold text-green-700">{{ approval_progress.approved }}</p>
+        <p class="text-xs text-green-600">معتمد</p>
+    </div>
+    <div class="bg-amber-50 rounded-xl p-3 text-center">
+        <p class="text-lg font-bold text-amber-700">{{ approval_progress.pending }}</p>
+        <p class="text-xs text-amber-600">قيد الانتظار</p>
+    </div>
+    <div class="bg-red-50 rounded-xl p-3 text-center">
+        <p class="text-lg font-bold text-red-700">{{ approval_progress.rejected }}</p>
+        <p class="text-xs text-red-600">مرفوض</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-6">
+    <div class="p-6 border-b border-gray-100">
+        <h3 class="font-bold text-gray-800">نتائج الامتحان</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="text-right px-4 py-3 font-medium text-gray-600">الطالب</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">الدرجة</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">النسبة</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">التقدير</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">النتيجة</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">ملاحظات المعلم</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">حالة الاعتماد</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for student in enrolled_students %}
+                {% with mark=existing_marks|get_item:student.id %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-800">{{ student.full_name_ar }}</td>
+                    <td class="px-4 py-3 text-center font-bold text-gray-800">
+                        {% if mark %}{{ mark.marks_obtained }}/{{ exam.max_marks }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center font-bold text-gray-800">
+                        {% if mark %}{{ mark.percentage }}%{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center font-bold
+                        {% if mark.grade == 'A' %}text-green-600
+                        {% elif mark.grade == 'B' %}text-blue-600
+                        {% elif mark.grade == 'C' %}text-amber-600
+                        {% elif mark.grade == 'D' %}text-orange-600
+                        {% elif mark.grade == 'F' %}text-red-600
+                        {% else %}text-gray-400{% endif %}">
+                        {% if mark %}{{ mark.grade }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if mark %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
+                            {% if mark.is_passed %}bg-green-50 text-green-700{% else %}bg-red-50 text-red-700{% endif %}">
+                            {{ mark.is_passed|yesno:"ناجح,راسب" }}
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-500 max-w-[200px] truncate">
+                        {% if mark %}{{ mark.teacher_notes|default:"—" }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if mark %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
+                            {% if mark.status == 'approved' %}bg-green-50 text-green-700
+                            {% elif mark.status == 'rejected' %}bg-red-50 text-red-700
+                            {% else %}bg-amber-50 text-amber-700{% endif %}">
+                            {{ mark.get_status_display }}
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold bg-gray-50 text-gray-400">
+                            لم يسجل بعد
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-gray-400">لا يوجد طلاب</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if exam.status == 'pending_approval' %}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-6">
+    <div class="p-6 border-b border-gray-100">
+        <h3 class="font-bold text-gray-800">اعتماد الدرجات</h3>
+    </div>
+    <form method="POST" action="{% url 'accounts:admin_exam_reject_marks' exam.pk %}">
+        {% csrf_token %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="text-right px-4 py-3 font-medium text-gray-600">الطالب</th>
+                        <th class="text-center px-4 py-3 font-medium text-gray-600">الدرجة</th>
+                        <th class="text-center px-4 py-3 font-medium text-gray-600">النسبة</th>
+                        <th class="text-center px-4 py-3 font-medium text-gray-600">التقدير</th>
+                        <th class="text-center px-4 py-3 font-medium text-gray-600">اعتماد</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for mark in marks %}
+                    {% if mark.status == 'pending' %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 font-medium text-gray-800">{{ mark.student.full_name_ar }}</td>
+                        <td class="text-center px-4 py-3">{{ mark.marks_obtained }}/{{ mark.exam.max_marks }}</td>
+                        <td class="text-center px-4 py-3 font-bold">{{ mark.percentage }}%</td>
+                        <td class="text-center px-4 py-3 font-bold
+                            {% if mark.grade == 'A' %}text-green-600{% elif mark.grade == 'B' %}text-blue-600{% elif mark.grade == 'C' %}text-amber-600{% elif mark.grade == 'F' %}text-red-600{% endif %}">
+                            {{ mark.grade }}
+                        </td>
+                        <td class="text-center px-4 py-3">
+                            <input type="checkbox" name="mark_ids" value="{{ mark.id }}" class="w-4 h-4 rounded border-gray-300 text-primary-600">
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-400">جميع الدرجات معتمدة</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if marks|length > 0 %}
+        <div class="p-4 border-t border-gray-100 flex items-center gap-3">
+            <input type="text" name="reason" placeholder="سبب الرفض (اختياري)" class="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500">
+            <div class="flex gap-2">
+                <a href="{% url 'accounts:admin_exam_approve_all' exam.pk %}" class="px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors" onclick="return confirm('اعتماد جميع الدرجات المعلقة؟')">
+                    اعتماد الكل
+                </a>
+                <button type="submit" class="px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors" onclick="return confirm('رفض الدرجات المحددة؟')">
+                    رفض المحدد
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+
+{% if history %}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100">
+        <h3 class="font-bold text-gray-800">سجل الإجراءات</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="text-right px-4 py-3 font-medium text-gray-600">الإجراء</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">المنفذ</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">السبب</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-600">التاريخ</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for h in history %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
+                            {% if h.action == 'created' %}bg-gray-50 text-gray-600
+                            {% elif h.action == 'published' %}bg-green-50 text-green-700
+                            {% elif h.action == 'approved' %}bg-blue-50 text-blue-700
+                            {% elif h.action == 'rejected' %}bg-red-50 text-red-700
+                            {% elif h.action == 'submitted' %}bg-amber-50 text-amber-700
+                            {% else %}bg-indigo-50 text-indigo-700{% endif %}">
+                            {{ h.get_action_display }}
+                        </span>
+                    </td>
+                    <td class="text-center px-4 py-3 text-gray-600">{{ h.performed_by.full_name_ar|default:"—" }}</td>
+                    <td class="text-center px-4 py-3 text-gray-500 max-w-[200px] truncate">{{ h.reason|default:"—" }}</td>
+                    <td class="text-center px-4 py-3 text-xs text-gray-400">{{ h.created_at|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

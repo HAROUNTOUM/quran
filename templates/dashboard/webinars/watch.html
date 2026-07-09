@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}{{ webinar.title }}{% endblock %}
+{% block page_heading %}{{ webinar.title }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الندوات / {{ webinar.title }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex flex-col lg:flex-row gap-6">
+    <div class="flex-1">
+        <div class="bg-black rounded-2xl overflow-hidden" style="height: 65vh;">
+            {% if embed_url %}
+            <iframe src="{{ embed_url }}" class="w-full h-full border-0" allow="autoplay; fullscreen" title="{{ webinar.title }}"></iframe>
+            {% else %}
+            <div class="w-full h-full flex items-center justify-center text-white text-sm">البث غير متاح</div>
+            {% endif %}
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 mt-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-gray-800">{{ webinar.title }}</h3>
+                <span class="text-xs font-medium px-2.5 py-1 rounded-lg
+                    {% if webinar.status == 'live' %}bg-red-50 text-red-700 animate-pulse{% else %}bg-green-50 text-green-700{% endif %}">
+                    {{ webinar.get_status_display }}
+                </span>
+            </div>
+            {% if webinar.description %}
+            <p class="text-sm text-gray-500">{{ webinar.description }}</p>
+            {% endif %}
+            <p class="text-xs text-gray-400 mt-3">{{ webinar.scheduled_at|date:"Y-m-d H:i" }}</p>
+        </div>
+    </div>
+
+    {% if chat_url %}
+    <div class="lg:w-80">
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden" style="height: 65vh;">
+            <div class="px-4 py-3 border-b border-gray-50">
+                <h4 class="text-sm font-bold text-gray-800">المحادثة المباشرة</h4>
+            </div>
+            <iframe src="{{ chat_url }}" class="w-full h-full border-0" style="height: calc(65vh - 48px);" title="الدردشة"></iframe>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'webinars:list' %}" class="text-xs font-medium text-gray-500 hover:text-gray-700">&larr; العودة إلى الندوات</a>
+</div>
+{% endblock %}

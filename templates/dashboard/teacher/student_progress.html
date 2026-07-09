@@ -1,0 +1,94 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تقدم {{ student.full_name_ar }}{% endblock %}
+{% block page_heading %}{{ student.full_name_ar }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الطلاب / {{ student.full_name_ar }}{% endblock %}
+{% block dashboard_content %}
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-xs text-gray-400 mb-1">إجمالي التسجيلات</p>
+        <p class="text-2xl font-black text-gray-800">{{ stats.total }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-xs text-gray-400 mb-1">حفظ جديد</p>
+        <p class="text-2xl font-black text-blue-600">{{ stats.hifz }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-xs text-gray-400 mb-1">مراجعة</p>
+        <p class="text-2xl font-black text-amber-600">{{ stats.murajaa }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <p class="text-xs text-gray-400 mb-1">متقن</p>
+        <p class="text-2xl font-black text-green-600">{{ stats.mastered }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200">
+        <p class="text-xs text-primary-600 mb-1">الحفظ (بالأثمان)</p>
+        <p class="text-xl font-black text-primary-800">{{ achievement.total_hifdh_thumns|default:0 }} ثمن</p>
+    </div>
+    <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-4 border border-amber-200">
+        <p class="text-xs text-amber-600 mb-1">المراجعة (بالأثمان)</p>
+        <p class="text-xl font-black text-amber-800">{{ achievement.total_murajaah_thumns|default:0 }} ثمن</p>
+    </div>
+    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4 border border-green-200">
+        <p class="text-xs text-green-600 mb-1">صفحات الحفظ</p>
+        <p class="text-xl font-black text-green-800">{{ achievement.total_hifdh_pages|default:"0" }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 border border-purple-200">
+        <p class="text-xs text-purple-600 mb-1">الأجزاء المنجزة</p>
+        <p class="text-xl font-black text-purple-800">{{ achievement.completed_juz|default:0 }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-4 border border-indigo-200">
+        <p class="text-xs text-indigo-600 mb-1">الجزء الحالي</p>
+        <p class="text-xl font-black text-indigo-800">{{ achievement.current_juz|default:1 }}</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">سجل الحفظ والمراجعة</h3>
+        <span class="text-xs text-gray-400">{{ progress|length }} تسجيلاً</span>
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">النوع</th>
+                <th class="px-6 py-4 text-right font-medium">السورة</th>
+                <th class="px-6 py-4 text-right font-medium">الآيات</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-center font-medium">التاريخ</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for p in progress %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if p.type == 'hifz' %}bg-blue-50 text-blue-700{% else %}bg-amber-50 text-amber-700{% endif %}">
+                        {{ p.get_type_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-800">{{ p.surah.name_ar }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ p.ayah_from }}–{{ p.ayah_to }}</td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg
+                        {% if p.status == 'mastered' %}bg-green-50 text-green-700
+                        {% elif p.status == 'tested' %}bg-indigo-50 text-indigo-700
+                        {% elif p.status == 'reviewed' %}bg-blue-50 text-blue-700
+                        {% elif p.status == 'memorizing' %}bg-amber-50 text-amber-700
+                        {% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ p.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ p.enrollment.circle.name }}</td>
+                <td class="px-6 py-4 text-center text-sm text-gray-400">{{ p.created_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">{% include "dashboard/partials/empty_state.html" with message="لا توجد تسجيلات حفظ بعد" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلب جديد{% endblock %}
+{% block page_heading %}طلب جديد{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:student_review_requests' %}">الطلبات</a> / طلب جديد{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" x-data="{ reqType: '{{ form_data.type|default:"recitation" }}' }">
+            {% csrf_token %}
+
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">نوع الطلب *</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-300 transition-colors">
+                        <input type="radio" name="type" value="recitation" x-model="reqType" class="w-4 h-4 text-blue-600">
+                        <span class="text-sm font-medium text-gray-700">تسميع</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:bg-primary-50 has-[:checked]:border-primary-300 transition-colors">
+                        <input type="radio" name="type" value="question" x-model="reqType" class="w-4 h-4 text-primary-600">
+                        <span class="text-sm font-medium text-gray-700">سؤال للمعلم</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:bg-amber-50 has-[:checked]:border-amber-300 transition-colors">
+                        <input type="radio" name="type" value="support" x-model="reqType" class="w-4 h-4 text-amber-600">
+                        <span class="text-sm font-medium text-gray-700">دعم / بلاغ</span>
+                    </label>
+                </div>
+            </div>
+
+            {# Circle — needed for تسميع and سؤال, not for support tickets #}
+            <div class="mb-4" x-show="reqType !== 'support'">
+                <label class="block text-xs font-medium text-gray-500 mb-1">الحلقة *</label>
+                <select name="circle" :required="reqType !== 'support'" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">اختر الحلقة</option>
+                    {% for en in enrollments %}
+                    <option value="{{ en.circle.id }}" {% if form_data.circle|add:"0" == en.circle.id %}selected{% endif %}>{{ en.circle.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# دعم / بلاغ fields #}
+            <div x-show="reqType === 'support'" x-cloak>
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">عنوان البلاغ *</label>
+                    <input type="text" name="title" value="{{ form_data.title|default:'' }}" :required="reqType === 'support'"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                           placeholder="عنوان مختصر للبلاغ">
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">التصنيف</label>
+                        <select name="support_type" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            {% for val, label in support_type_choices %}
+                            <option value="{{ val }}" {% if form_data.support_type == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">الأولوية</label>
+                        <select name="priority" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            {% for val, label in priority_choices %}
+                            <option value="{{ val }}" {% if form_data.priority == val or not form_data.priority and val == 'normal' %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {# تسميع-only: preferred schedule + passage #}
+            <div x-show="reqType === 'recitation'" x-cloak>
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-gray-500 mb-2">أيامك المفضلة</label>
+                    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {% for val, label in day_choices %}
+                        <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:bg-primary-50 has-[:checked]:border-primary-300 transition-colors">
+                            <input type="checkbox" name="preferred_days" value="{{ val }}" class="w-4 h-4 text-primary-600 rounded">
+                            <span class="text-sm text-gray-700">{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-gray-500 mb-2">الأوقات المفضلة</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {% for val, label in time_choices %}
+                        <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:bg-amber-50 has-[:checked]:border-amber-300 transition-colors">
+                            <input type="checkbox" name="preferred_times" value="{{ val }}" class="w-4 h-4 text-amber-600 rounded">
+                            <span class="text-sm text-gray-700">{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-gray-500 mb-2">الموضع في المصحف</label>
+                    {% include "components/quran_selector.html" with emit="range" surah_value=form_data.surah ayah_from_value=form_data.ayah_from ayah_to_value=form_data.ayah_to required="false" %}
+                </div>
+            </div>
+
+            {# Notes / body — label + guidance depend on type #}
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">
+                    <span x-show="reqType === 'recitation'">نوع العمل والملاحظات <span class="text-red-500">*</span></span>
+                    <span x-show="reqType === 'question'" x-cloak>سؤالك للمعلم <span class="text-red-500">*</span></span>
+                    <span x-show="reqType === 'support'" x-cloak>تفاصيل البلاغ <span class="text-red-500">*</span></span>
+                </label>
+                <p class="text-xs text-gray-400 mb-2" x-show="reqType === 'recitation'">اكتب نوع العمل: حفظ جديد / مراجعة / أحكام … مع أي ملاحظات</p>
+                <textarea name="notes" rows="4"
+                          :required="reqType === 'question' || reqType === 'support' || reqType === 'recitation'"
+                          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          :placeholder="reqType === 'question' ? 'اكتب سؤالك أو استفسارك للمعلم هنا...' : (reqType === 'support' ? 'اشرح المشكلة أو البلاغ بالتفصيل...' : 'مثال: حفظ جديد — سورة الملك من الآية 1 إلى 10')">{{ form_data.notes|default:'' }}</textarea>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    إرسال الطلب
+                </button>
+                <a href="{% url 'accounts:student_review_requests' %}" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors text-center">
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

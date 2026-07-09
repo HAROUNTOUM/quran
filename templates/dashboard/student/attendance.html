@@ -1,0 +1,170 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}سجل الحضور{% endblock %}
+{% block page_heading %}سجل الحضور{% endblock %}
+{% block page_breadcrumb %}الرئيسية / سجل الحضور{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_learning_tabs.html" %}
+
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+        <p class="text-xs text-gray-400">إجمالي الحصص</p>
+        <p class="text-2xl font-black text-gray-800 mt-1">{{ total_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+        <p class="text-xs text-gray-400">حاضر</p>
+        <p class="text-2xl font-black text-green-600 mt-1">{{ present_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+        <p class="text-xs text-gray-400">غائب</p>
+        <p class="text-2xl font-black text-red-600 mt-1">{{ absent_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+        <p class="text-xs text-gray-400">معذور</p>
+        <p class="text-2xl font-black text-amber-600 mt-1">{{ excused_count }}</p>
+    </div>
+</div>
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">جميع سجلات الحضور والغياب</p>
+    <div class="flex items-center gap-2">
+        <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg {% if not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">الكل</a>
+        <a href="?status=present" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'present' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">حاضر</a>
+        <a href="?status=absent" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'absent' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">غائب</a>
+        <a href="?status=late" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'late' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">متأخر</a>
+        <a href="?status=excused" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if request.GET.status == 'excused' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">معذور</a>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">التاريخ</th>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-right font-medium">الوقت</th>
+                <th class="px-6 py-4 text-right font-medium">النوع</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">تبرير</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for att in attendance %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm text-gray-800">{{ att.session.session_date|date:"Y-m-d" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ att.session.circle.name }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{% if att.session.session_time %}{{ att.session.session_time|time:"H:i" }}{% else %}—{% endif %}</td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if att.session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                        {{ att.session.get_session_type_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
+                        {% if att.status == 'present' %}bg-green-50 text-green-700
+                        {% elif att.status == 'late' %}bg-amber-50 text-amber-700
+                        {% elif att.status == 'absent' %}bg-red-50 text-red-700
+                        {% elif att.status == 'excused' %}bg-blue-50 text-blue-700
+                        {% elif att.status == 'left_early' %}bg-purple-50 text-purple-700
+                        {% endif %}">
+                        {{ att.get_status_display }}
+                    </span>
+                    {% if att.status == 'absent' %}
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium mr-1
+                        {% if att.justification_status == 'accepted' %}bg-green-50 text-green-700
+                        {% elif att.justification_status == 'refused' %}bg-red-100 text-red-700
+                        {% elif att.justification_status == 'pending' %}bg-amber-50 text-amber-700
+                        {% endif %}">
+                        {{ att.get_justification_status_display }}
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500 truncate max-w-[150px]">
+                    {{ att.justification|default:"—" }}
+                    {% if att.status == 'absent' and att.justification_status != 'accepted' %}
+                    <button onclick="openJustifyModal({{ att.session.id }}, '{{ att.justification|escapejs }}')"
+                            class="mr-2 px-2 py-0.5 bg-primary-50 text-primary-700 text-xs rounded-lg hover:bg-primary-100 transition-colors">
+                        {% if att.justification %}تعديل{% else %}تبرير{% endif %}
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">{% include "dashboard/partials/empty_state.html" with message="لا توجد سجلات حضور" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+
+<div id="justifyModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeJustifyModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md z-10">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">تبرير الغياب</h3>
+            <button onclick="closeJustifyModal()" class="p-1 hover:bg-gray-100 rounded-lg">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">سبب التغيب</label>
+            <textarea id="justifyReason" rows="4"
+                      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="اكتب سبب غيابك..."></textarea>
+        </div>
+        <div id="justifyError" class="text-red-600 text-sm mb-3 hidden"></div>
+        <button onclick="submitJustification()" class="w-full py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+            إرسال التبرير
+        </button>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let justifySessionId = null;
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : '';
+}
+function openJustifyModal(sessionId, reason) {
+    justifySessionId = sessionId;
+    document.getElementById('justifyReason').value = reason || '';
+    document.getElementById('justifyModal').classList.remove('hidden');
+    document.getElementById('justifyError').classList.add('hidden');
+}
+function closeJustifyModal() {
+    document.getElementById('justifyModal').classList.add('hidden');
+    justifySessionId = null;
+}
+function submitJustification() {
+    const reason = document.getElementById('justifyReason').value.trim();
+    if (!reason) {
+        document.getElementById('justifyError').textContent = 'يرجى كتابة سبب التغيب';
+        document.getElementById('justifyError').classList.remove('hidden');
+        return;
+    }
+    fetch('/api/v1/justifications/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+        body: JSON.stringify({ session_id: justifySessionId, reason: reason }),
+    })
+    .then(r => r.json().then(j => ({ ok: r.ok, data: j })))
+    .then(({ ok, data }) => {
+        if (!ok) {
+            document.getElementById('justifyError').textContent = data.message || 'حدث خطأ';
+            document.getElementById('justifyError').classList.remove('hidden');
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'تم تقديم التبرير بنجاح', type: 'success' }
+        }));
+        closeJustifyModal();
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(() => {
+        document.getElementById('justifyError').textContent = 'حدث خطأ في الاتصال';
+        document.getElementById('justifyError').classList.remove('hidden');
+    });
+}
+</script>
+{% endblock %}

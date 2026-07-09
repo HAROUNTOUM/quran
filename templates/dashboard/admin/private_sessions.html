@@ -1,0 +1,53 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}الجلسات الخاصة{% endblock %}
+{% block page_heading %}الجلسات الخاصة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / التواصل / الجلسات الخاصة{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/partials/subnav_comms.html" %}
+
+<p class="text-sm text-gray-400 mb-6">متابعة جلسات التسميع الخاصة بين المعلمين والطلاب عبر المنصة.</p>
+
+<div class="flex items-center gap-2 mb-6">
+    <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg {% if not status_filter %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">الكل</a>
+    <a href="?status=scheduled" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if status_filter == 'scheduled' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مجدولة</a>
+    <a href="?status=completed" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if status_filter == 'completed' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">مكتملة</a>
+    <a href="?status=cancelled" class="px-3 py-1.5 text-xs font-medium rounded-lg {% if status_filter == 'cancelled' %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">ملغاة</a>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">المعلم</th>
+                <th class="px-6 py-4 text-right font-medium">الطالب</th>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-right font-medium">الموعد</th>
+                <th class="px-6 py-4 text-center font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">النتيجة</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for s in sessions %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm text-gray-800">{{ s.teacher.full_name_ar }}</td>
+                <td class="px-6 py-4 text-sm text-gray-800">{{ s.student.full_name_ar }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ s.circle.name|default:"—" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ s.scheduled_date|date:"Y-m-d"|default:"—" }}{% if s.scheduled_time %} {{ s.scheduled_time|time:"H:i" }}{% endif %}</td>
+                <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
+                        {% if s.status == 'scheduled' %}bg-blue-50 text-blue-700{% elif s.status == 'completed' %}bg-green-50 text-green-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                        {{ s.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ s.result_mark|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">{% include "dashboard/partials/empty_state.html" with message="لا توجد جلسات خاصة بعد" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}

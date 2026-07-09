@@ -1,0 +1,145 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}إدارة الحلقات{% endblock %}
+{% block page_heading %}إدارة الحلقات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / إدارة الحلقات{% endblock %}
+{% block dashboard_content %}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    {% if request.GET.status %}
+      {% include "dashboard/partials/stat_card.html" with label="إجمالي الحلقات" value=total_count icon="circles" color="blue" filter_url="?status=" %}
+    {% else %}
+      {% include "dashboard/partials/stat_card.html" with label="إجمالي الحلقات" value=total_count icon="circles" color="blue" filter_url="?status=" is_active=True %}
+    {% endif %}
+    {% if request.GET.status == 'active' %}
+      {% include "dashboard/partials/stat_card.html" with label="نشطة" value=active_count icon="students" color="green" filter_url="?status=active" is_active=True %}
+    {% else %}
+      {% include "dashboard/partials/stat_card.html" with label="نشطة" value=active_count icon="students" color="green" filter_url="?status=active" %}
+    {% endif %}
+    {% if request.GET.status == 'paused' %}
+      {% include "dashboard/partials/stat_card.html" with label="متوقفة" value=paused_count icon="requests" color="amber" filter_url="?status=paused" is_active=True %}
+    {% else %}
+      {% include "dashboard/partials/stat_card.html" with label="متوقفة" value=paused_count icon="requests" color="amber" filter_url="?status=paused" %}
+    {% endif %}
+    {% if request.GET.status == 'inactive' %}
+      {% include "dashboard/partials/stat_card.html" with label="منتهية" value=inactive_count icon="requests" color="red" filter_url="?status=inactive" is_active=True %}
+    {% else %}
+      {% include "dashboard/partials/stat_card.html" with label="منتهية" value=inactive_count icon="requests" color="red" filter_url="?status=inactive" %}
+    {% endif %}
+</div>
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <a href="{% url 'accounts:admin_circle_create' %}"
+           class="px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors flex items-center gap-2 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            إنشاء حلقة
+        </a>
+        <form method="GET" class="relative">
+            <input type="text" name="search" placeholder="بحث باسم الحلقة..." value="{{ request.GET.search }}"
+                   oninput="clearTimeout(this._timer); this._timer = setTimeout(() => this.closest('form').submit(), 500)"
+                   class="text-sm border border-gray-200 rounded-xl px-4 py-2.5 pr-10 w-64 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </form>
+        <select onchange="const p=new URLSearchParams(location.search); p.set('status',this.value); p.delete('page'); location.search=p.toString();"
+                class="text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+            <option value="">جميع الحالات</option>
+            <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>نشطة</option>
+            <option value="paused" {% if request.GET.status == 'paused' %}selected{% endif %}>متوقفة</option>
+            <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>منتهية</option>
+        </select>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="{% url 'accounts:admin_circles_export_pdf' %}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors" title="تصدير PDF">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            PDF
+        </a>
+        <a href="{% url 'accounts:admin_circles_export_excel' %}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 text-sm font-medium rounded-xl hover:bg-green-100 transition-colors" title="تصدير Excel">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Excel
+        </a>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">الحلقة</th>
+                <th class="px-6 py-4 text-right font-medium">المعلم</th>
+                <th class="px-6 py-4 text-right font-medium">الجنس</th>
+                <th class="px-6 py-4 text-right font-medium">الطلاب</th>
+                <th class="px-6 py-4 text-right font-medium">الحصص</th>
+                <th class="px-6 py-4 text-right font-medium">الجدول</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-center font-medium">إجراء</th>
+            </tr>
+        </thead>
+        <tbody id="circles-tbody" class="divide-y divide-gray-50">
+            {% for circle in circles %}
+            <tr class="hover:bg-gray-50 transition-colors" id="circle-row-{{ circle.id }}">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 text-sm">{{ circle.name }}</p>
+                            {% if circle.location %}<p class="text-xs text-gray-400">{{ circle.location }}</p>{% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ circle.teacher.full_name_ar|default:"—" }}</td>
+                <td class="px-6 py-4">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if circle.gender == 'male' %}bg-blue-50 text-blue-700{% else %}bg-pink-50 text-pink-700{% endif %}">
+                        {% if circle.gender == 'male' %}ذكور{% else %}إناث{% endif %}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm">
+                    <span class="font-bold text-gray-800">{{ circle.active_students_count }}</span>
+                    <span class="text-gray-400">/ {{ circle.max_students }}</span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ circle.sessions_count|default:0 }}</td>
+                <td class="px-6 py-4 text-sm text-gray-400">{{ circle.schedule|default:"—" }}</td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium {% if circle.status == 'active' %}bg-green-50 text-green-700{% elif circle.status == 'paused' %}bg-amber-50 text-amber-700{% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {% if circle.status == 'active' %}<span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>{% endif %}
+                        {{ circle.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center justify-center gap-1">
+                        <a href="{% url 'accounts:admin_circle_detail' circle.id %}" class="p-2 bg-gray-50 text-gray-500 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors" title="عرض">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </a>
+                        <button onclick="toggleCircleStatus({{ circle.id }}, {{ circle.is_active|lower }})"
+                                class="p-2 {% if circle.status == 'active' %}bg-red-50 text-red-600 hover:bg-red-100{% else %}bg-green-50 text-green-600 hover:bg-green-100{% endif %} rounded-lg transition-colors"
+                                title="{% if circle.status == 'active' %}أرشفة{% else %}استعادة{% endif %}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">{% include "dashboard/partials/empty_state.html" with message="لا توجد حلقات بعد" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include "dashboard/partials/pagination.html" %}
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleCircleStatus(circleId, isActive) {
+    if (!confirm(isActive ? 'هل تريد أرشفة هذه الحلقة؟ سيتم إنهاء تسجيلات الطلاب.' : 'هل تريد استعادة هذه الحلقة؟')) return;
+    apiFetch('/api/v1/admin/circles/' + circleId + '/status/', {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({is_active: !isActive})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('خطأ: ' + JSON.stringify(d.errors || d.message));
+    });
+}
+</script>
+{% endblock %}

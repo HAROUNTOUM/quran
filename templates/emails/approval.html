@@ -1,0 +1,21 @@
+{% extends "emails/base_email.html" %}
+{% block content %}
+<h2 style="color:#1f2937;font-size:20px;margin:0 0 16px;">السلام عليكم {{ user.full_name_ar }}،</h2>
+<p style="color:#4b5563;font-size:15px;line-height:1.8;margin:0 0 12px;">
+    تم اعتماد حسابك في منصة <strong>الطبيب الحافظ</strong> بنجاح.
+    يمكنك الآن تسجيل الدخول والاستفادة من خدمات المنصة.
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+    <tr>
+        <td align="center">
+            <a href="{{ login_url }}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#059669,#047857);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;border-radius:12px;">
+                تسجيل الدخول
+            </a>
+        </td>
+    </tr>
+</table>
+<p style="color:#4b5563;font-size:15px;line-height:1.8;margin:0;">
+    والله الموفق،<br>
+    <strong>إدارة منصة الطبيب الحافظ</strong>
+</p>
+{% endblock %}

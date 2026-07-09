@@ -1,0 +1,13 @@
+{% comment %}الحفظ والحضور workspace tabs — الإحصائيات now bundles progress, the
+completion estimator (حاسبة الختم) and the detailed hifz plan; plus tasks,
+attendance, justifications, and results/certificates.{% endcomment %}
+<nav class="flex items-center gap-1 mb-6 border-b border-gray-100 overflow-x-auto" dir="rtl" aria-label="أقسام الحفظ والحضور">
+    {% with a=request.resolver_match.url_name %}
+    {% with cls="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors" on="border-primary-600 text-primary-600" off="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" %}
+    <a href="{% url 'accounts:student_stats' %}" class="{{ cls }} {% if a == 'student_stats' or a == 'student_progress' or a == 'student_memorization' or a == 'estimator' %}{{ on }}{% else %}{{ off }}{% endif %}">الإحصائيات</a>
+    <a href="{% url 'accounts:student_tasks' %}" class="{{ cls }} {% if a == 'student_tasks' %}{{ on }}{% else %}{{ off }}{% endif %}">المهام</a>
+    <a href="{% url 'accounts:student_attendance' %}" class="{{ cls }} {% if a == 'student_attendance' %}{{ on }}{% else %}{{ off }}{% endif %}">الحضور</a>
+    <a href="{% url 'accounts:student_justifications' %}" class="{{ cls }} {% if a == 'student_justifications' %}{{ on }}{% else %}{{ off }}{% endif %}">تبريرات الغياب</a>
+    {% if features.exams %}<a href="{% url 'accounts:student_exam_results' %}" class="{{ cls }} {% if a == 'student_exam_results' or a == 'own' %}{{ on }}{% else %}{{ off }}{% endif %}">{% if features.certificates %}النتائج والشهادات{% else %}نتائج الامتحانات{% endif %}</a>{% elif features.certificates %}<a href="{% url 'certificates:own' %}" class="{{ cls }} {% if a == 'own' %}{{ on }}{% else %}{{ off }}{% endif %}">الشهادات</a>{% endif %}
+    {% endwith %}{% endwith %}
+</nav>

@@ -1,0 +1,55 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلبات الغياب{% endblock %}
+{% block page_heading %}طلبات الغياب{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلبات الغياب{% endblock %}
+{% block dashboard_content %}
+
+<div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-400">إجمالي الطلبات: {{ absences|length }}</p>
+    <a href="{% url 'accounts:teacher_absence_create' %}"
+       class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        طلب غياب جديد
+    </a>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">#</th>
+                <th class="px-6 py-4 text-right font-medium">تاريخ البداية</th>
+                <th class="px-6 py-4 text-right font-medium">تاريخ النهاية</th>
+                <th class="px-6 py-4 text-right font-medium">المدة</th>
+                <th class="px-6 py-4 text-right font-medium">السبب</th>
+                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-right font-medium">البديل</th>
+                <th class="px-6 py-4 text-right font-medium">تاريخ الطلب</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for a in absences %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm text-gray-400 font-mono">#{{ a.id|stringformat:"s"|slice:":8" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-800">{{ a.start_date|date:"d/m/Y" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-800">{{ a.end_date|date:"d/m/Y" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ a.duration_days }} يوم</td>
+                <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-[200px]">{{ a.reason }}</td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
+                        {% if a.status == 'pending' %}bg-amber-50 text-amber-700
+                        {% elif a.status == 'approved' %}bg-green-50 text-green-700
+                        {% elif a.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
+                        {{ a.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ a.substitute_teacher.full_name_ar|default:"—" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-400">{{ a.created_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">{% include "dashboard/partials/empty_state.html" with message="لا توجد طلبات غياب" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

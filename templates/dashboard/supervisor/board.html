@@ -1,0 +1,85 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}لوحة الفوج{% endblock %}
+{% block page_heading %}لوحة متابعة الفوج{% endblock %}
+{% block page_breadcrumb %}الرئيسية / متابعة الدفعات / {{ circle.name }}{% endblock %}
+{% block dashboard_content %}
+
+<a href="{% url 'accounts:supervisor_groups' %}{% if circle.batch_id %}?batch={{ circle.batch_id }}{% endif %}"
+   class="inline-flex items-center gap-1 text-sm text-navy-300 hover:text-navy-600 mb-4">
+    <span>→ العودة للأفواج</span>
+</a>
+
+{# Group header #}
+<div class="bg-white rounded-[18px] p-5 mb-4 shadow-[0_10px_22px_rgba(23,71,107,0.06)] grid gap-4 sm:grid-cols-4">
+    <div>
+        <div class="text-xs text-navy-300 mb-1">الفوج</div>
+        <div class="font-extrabold text-navy-600">{{ circle.name }}{% if circle.batch %} · {{ circle.batch.name }}{% endif %}</div>
+    </div>
+    <div>
+        <div class="text-xs text-navy-300 mb-1">المعلم</div>
+        <div class="font-extrabold text-navy-600">{{ circle.teacher.full_name_ar|default:"—" }}</div>
+    </div>
+    <div>
+        <div class="text-xs text-navy-300 mb-1">تاريخ آخر حصة</div>
+        <div class="font-extrabold text-navy-600">{% if last_session %}{{ last_session.session_date|date:"Y/m/d" }}{% else %}—{% endif %}</div>
+    </div>
+    <div>
+        <div class="text-xs text-navy-300 mb-1">عدد الطلاب</div>
+        <div class="font-extrabold text-navy-600">{{ rows|length }}</div>
+    </div>
+</div>
+
+{# Legend #}
+<div class="bg-white rounded-[18px] p-4 mb-4 shadow-[0_10px_22px_rgba(23,71,107,0.06)] flex flex-wrap gap-x-6 gap-y-2 text-sm text-navy-600">
+    <span><span aria-hidden="true">✅</span> حضر الحصة في الموعد</span>
+    <span><span aria-hidden="true">⭕</span> غائب مع مبرر</span>
+    <span><span aria-hidden="true">❌</span> غائب دون مبرر</span>
+</div>
+
+{# Board #}
+<div class="bg-white rounded-[18px] p-2 shadow-[0_10px_22px_rgba(23,71,107,0.06)] overflow-x-auto">
+    <table class="w-full text-sm border-collapse">
+        <caption class="sr-only">لوحة متابعة الفوج: الحضور والحفظ والمراجعة لكل طالب عبر الحصص</caption>
+        <thead class="text-navy-300 text-xs">
+            <tr class="border-b border-cream-300">
+                <th scope="col" class="sticky right-0 bg-white px-3 py-2.5 text-right font-bold z-10">الطالب</th>
+                {% for s in sessions %}
+                <th scope="col" class="px-2 py-2.5 font-bold whitespace-nowrap text-center">{{ s.session_date|date:"m/d" }}</th>
+                {% endfor %}
+                <th scope="col" class="px-3 py-2.5 font-bold text-center whitespace-nowrap">حفظ (آخر حصة)</th>
+                <th scope="col" class="px-3 py-2.5 font-bold text-center whitespace-nowrap">مراجعة (آخر حصة)</th>
+                <th scope="col" class="px-3 py-2.5 font-bold text-center whitespace-nowrap">إجمالي الحفظ</th>
+                <th scope="col" class="px-3 py-2.5 font-bold text-center whitespace-nowrap">إجمالي المراجعة</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr class="border-b border-cream-200 hover:bg-cream-50">
+                <th scope="row" class="sticky right-0 bg-white px-3 py-2.5 text-right font-semibold text-navy-600 whitespace-nowrap z-10">{{ r.student.full_name_ar }}</th>
+                {% for sym in r.symbols %}
+                <td class="px-2 py-2.5 text-center">{{ sym }}</td>
+                {% endfor %}
+                <td class="px-3 py-2.5 text-center">{{ r.last_hifz }}</td>
+                <td class="px-3 py-2.5 text-center">{{ r.last_muraja }}</td>
+                <td class="px-3 py-2.5 text-center font-bold text-navy-600">{{ r.total_hifz }}</td>
+                <td class="px-3 py-2.5 text-center font-bold text-navy-600">{{ r.total_muraja }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="99" class="text-center text-navy-300 py-10">لا يوجد طلاب مسجلون في هذا الفوج.</td></tr>
+            {% endfor %}
+        </tbody>
+        {% if rows %}
+        <tfoot>
+            <tr class="border-t-2 border-cream-300 font-extrabold text-navy-600 bg-cream-50">
+                <th scope="row" class="sticky right-0 bg-cream-50 px-3 py-3 text-right z-10 whitespace-nowrap">إجمالي الفوج</th>
+                <td colspan="{{ sessions|length }}" class="px-3 py-3 text-navy-300 font-semibold whitespace-nowrap">
+                    المجموع في آخر حصة: {{ group_last_total }} · منذ أول حصة: {{ group_all_total }}
+                </td>
+                <td colspan="4"></td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+<p class="text-[11px] text-navy-300 mt-2">الأرقام محسوبة تلقائياً من تقارير المعلمين بعد كل حصة (وحدة القياس الحالية: الصفحات).</p>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "dashboard/base.html" %}
+{% load l10n %}
+{% block page_title %}المهام{% endblock %}
+{% block page_heading %}المهام{% endblock %}
+{% block page_breadcrumb %}الرئيسية / المهام{% endblock %}
+{% block dashboard_content %}
+{% include "dashboard/student/_learning_tabs.html" %}
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <a href="{% url 'accounts:student_tasks' %}"
+           class="px-4 py-2 rounded-lg text-sm font-medium {% if not current_filter %}bg-primary-50 text-primary-700{% else %}text-gray-500 hover:bg-gray-50{% endif %}">
+            الكل ({{ counts.all }})
+        </a>
+        <a href="{% url 'accounts:student_tasks' %}?status=pending"
+           class="px-4 py-2 rounded-lg text-sm font-medium {% if current_filter == 'pending' %}bg-amber-50 text-amber-700{% else %}text-gray-500 hover:bg-gray-50{% endif %}">
+            قيد الانتظار ({{ counts.pending }})
+        </a>
+        <a href="{% url 'accounts:student_tasks' %}?status=done"
+           class="px-4 py-2 rounded-lg text-sm font-medium {% if current_filter == 'done' %}bg-blue-50 text-blue-700{% else %}text-gray-500 hover:bg-gray-50{% endif %}">
+            تم الإنجاز ({{ counts.done }})
+        </a>
+        <a href="{% url 'accounts:student_tasks' %}?status=validated"
+           class="px-4 py-2 rounded-lg text-sm font-medium {% if current_filter == 'validated' %}bg-green-50 text-green-700{% else %}text-gray-500 hover:bg-gray-50{% endif %}">
+            تم التحقق ({{ counts.validated }})
+        </a>
+        <a href="{% url 'accounts:student_tasks' %}?status=rejected"
+           class="px-4 py-2 rounded-lg text-sm font-medium {% if current_filter == 'rejected' %}bg-red-50 text-red-700{% else %}text-gray-500 hover:bg-gray-50{% endif %}">
+            مرفوض ({{ counts.rejected }})
+        </a>
+    </div>
+
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    {% if tasks %}
+    <div class="divide-y divide-gray-50">
+        {% for task in tasks %}
+        <div class="px-6 py-4 {% if task.status == 'pending' %}bg-amber-50/30{% elif task.status == 'validated' %}bg-green-50/30{% endif %}">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl
+                        {% if task.task_type == 'hifz' %}bg-primary-50 text-primary-600
+                        {% else %}bg-amber-50 text-amber-600{% endif %}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if task.task_type == 'hifz' %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                            {% else %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            {% endif %}
+                        </svg>
+                    </span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium
+                                {% if task.task_type == 'hifz' %}bg-primary-50 text-primary-700
+                                {% else %}bg-amber-50 text-amber-700{% endif %}">
+                                {{ task.get_task_type_display }}
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium
+                                {% if task.status == 'pending' %}bg-amber-50 text-amber-700
+                                {% elif task.status == 'done' %}bg-blue-50 text-blue-700
+                                {% elif task.status == 'validated' %}bg-green-50 text-green-700
+                                {% else %}bg-red-50 text-red-700{% endif %}">
+                                {{ task.get_status_display }}
+                            </span>
+                            {% if task.is_overdue %}
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700">متأخرة</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm font-bold text-gray-800 mt-1">
+                            {{ task.surah.name_ar }} ({{ task.ayah_from }}–{{ task.ayah_to }})
+                        </p>
+                        {% if task.assigned_by %}
+                        <span class="text-xs text-purple-600">مسند من {{ task.assigned_by.full_name_ar }}</span>
+                        {% endif %}
+                        {% if task.due_date %}
+                        <span class="text-xs {% if task.is_overdue %}text-red-600 font-bold{% else %}text-gray-500{% endif %}">· الاستحقاق: {{ task.due_date|date:"Y/m/d" }}</span>
+                        {% endif %}
+                        {% if task.session %}
+                        <span class="text-xs text-gray-400">· حصة {{ task.session.session_date|date:"Y/m/d" }}</span>
+                        {% endif %}
+                        {% if task.notes %}
+                        <p class="text-xs text-gray-400 mt-1">{{ task.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if task.status == 'pending' %}
+                    <form method="POST" action="{% url 'accounts:student_task_mark_done' task.pk %}">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="px-4 py-2 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors">
+                            تم الإنجاز
+                        </button>
+                    </form>
+                    {% elif task.status == 'validated' %}
+                    <span class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg">
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        تم التحقق
+                    </span>
+                    {% elif task.status == 'rejected' %}
+                    <span class="text-xs text-red-500">{{ task.rejection_reason }}</span>
+                    {% endif %}
+                    <span class="text-xs text-gray-400">{{ task.created_at|date:"Y/m/d" }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+        </div>
+        <p class="text-sm text-gray-400">لا توجد مهام</p>
+        <p class="text-xs text-gray-300 mt-1">يمكنك تسجيل مهمة حفظ أو مراجعة جديدة</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

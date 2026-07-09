@@ -1,0 +1,60 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}طلب جديد{% endblock %}
+{% block page_heading %}طلب جديد{% endblock %}
+{% block page_breadcrumb %}الرئيسية / طلباتي / طلب جديد{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-2xl">
+    <div class="bg-white rounded-2xl border border-gray-100 p-8">
+        {% if error %}
+        <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-6">
+            <p class="text-sm text-red-700">{{ error }}</p>
+        </div>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-2">عنوان الطلب <span class="text-red-500">*</span></label>
+                    <input type="text" name="title" required value="{{ form_data.title|default:'' }}"
+                           class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                           placeholder="عنوان الطلب">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-2">النوع</label>
+                        <select name="type"
+                                class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors">
+                            <option value="technical" {% if form_data.type == 'technical' %}selected{% endif %}>دعم فني</option>
+                            <option value="administrative" {% if form_data.type == 'administrative' %}selected{% endif %}>إداري</option>
+                            <option value="academic" {% if form_data.type == 'academic' %}selected{% endif %}>أكاديمي</option>
+                            <option value="other" {% if form_data.type == 'other' or not form_data.type %}selected{% endif %}>أخرى</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-2">الأولوية</label>
+                        <select name="priority"
+                                class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors">
+                            <option value="urgent" {% if form_data.priority == 'urgent' %}selected{% endif %}>عاجل</option>
+                            <option value="high" {% if form_data.priority == 'high' %}selected{% endif %}>عالية</option>
+                            <option value="normal" {% if form_data.priority == 'normal' or not form_data.priority %}selected{% endif %}>عادية</option>
+                            <option value="low" {% if form_data.priority == 'low' %}selected{% endif %}>منخفضة</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-2">الوصف <span class="text-red-500">*</span></label>
+                    <textarea name="body" required rows="5"
+                              class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                              placeholder="اشرح طلبك بالتفصيل...">{{ form_data.body|default:'' }}</textarea>
+                </div>
+            </div>
+            <div class="mt-8">
+                <button type="submit" class="w-full px-6 py-3 bg-primary-600 text-white font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-md shadow-primary-500/25">
+                    إرسال الطلب
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

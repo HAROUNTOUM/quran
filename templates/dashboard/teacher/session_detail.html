@@ -1,0 +1,466 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تفاصيل الحصة{% endblock %}
+{% block page_heading %}تفاصيل الحصة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:teacher_dashboard' %}">لوحة المعلم</a> / {{ session.circle.name }} / {{ session.session_date|date:"Y-m-d" }}{% endblock %}
+{% block dashboard_content %}
+
+{% if session.is_unlocked %}
+<div class="bg-white border border-green-200 rounded-2xl p-6 mb-8">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            أدوار التسميع
+        </h3>
+        <div class="flex items-center gap-3">
+            <span class="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-lg font-medium">
+                {{ turns|length }} طالب
+            </span>
+            {% if session.is_unlocked %}
+            <form method="POST" action="{% url 'accounts:teacher_session_toggle_turns' session.id %}">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 text-xs font-medium rounded-lg transition-colors bg-red-50 text-red-700 hover:bg-red-100">
+                    إغلاق التسجيل
+                </button>
+            </form>
+            {% endif %}
+            {% if session.is_online and session.meeting_url %}
+            <a href="{{ session.meeting_url }}" target="_blank" class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                رابط الاجتماع
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="turn-list" class="space-y-2">
+        {% for turn in turns %}
+        <div class="flex items-center justify-between bg-green-50 rounded-xl px-4 py-3 border border-green-100 turn-item" data-student-id="{{ turn.student.id }}">
+            <div class="flex items-center gap-4">
+                <span class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">{{ turn.turn_number }}</span>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center">
+                        <span class="text-green-700 font-bold text-xs">{{ turn.student.full_name_ar.0 }}</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-800">{{ turn.student.full_name_ar }}</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <div class="flex flex-col gap-0.5">
+                    {% if not forloop.first %}
+                    <button onclick="moveTurn({{ session.id }}, {{ forloop.counter0 }}, -1)"
+                            class="p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors" title="تحريك للأعلى">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                    </button>
+                    {% endif %}
+                    {% if not forloop.last %}
+                    <button onclick="moveTurn({{ session.id }}, {{ forloop.counter0 }}, 1)"
+                            class="p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors" title="تحريك للأسفل">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    {% endif %}
+                </div>
+                <button onclick="removeTurn({{ session.id }}, '{{ turn.student.id }}')" class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="إزالة">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-sm text-gray-400 text-center py-4">لم يسجل أي طالب دوره بعد</p>
+        {% endfor %}
+    </div>
+
+    {% if students_without_turns %}
+    <div class="mt-6 pt-4 border-t border-green-100">
+        <p class="text-xs text-gray-400 mb-3">الطلاب الذين لم يسجلوا دورهم:</p>
+        <div class="flex flex-wrap gap-2">
+            {% for student in students_without_turns %}
+            <span class="text-xs bg-gray-50 text-gray-500 px-3 py-1.5 rounded-lg border border-gray-100">{{ student.full_name_ar }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="bg-white border border-gray-200 rounded-2xl p-6 mb-8">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            أدوار التسميع
+        </h3>
+    </div>
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
+        <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        <p class="text-sm font-bold text-gray-600">باب التسجيل في الأدوار مغلق</p>
+        <p class="text-xs text-gray-400 mt-1">يتم فتح التسجيل تلقائياً في وقت الحصة</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+        <p class="text-xs text-gray-400 mb-1">إجمالي الطلاب</p>
+        <p class="text-2xl font-black text-gray-800">{{ total_students }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+        <p class="text-xs text-gray-400 mb-1">حاضر</p>
+        <p class="text-2xl font-black text-green-600">{{ present_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+        <p class="text-xs text-gray-400 mb-1">غائب</p>
+        <p class="text-2xl font-black text-red-600">{{ absent_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+        <p class="text-xs text-gray-400 mb-1">معذور</p>
+        <p class="text-2xl font-black text-amber-600">{{ excused_count }}</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
+    <dl class="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+        <div>
+            <dt class="text-gray-400">الحلقة</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">{{ session.circle.name }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">التاريخ</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">{{ session.session_date|date:"Y-m-d" }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">الوقت</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">{% if session.session_time %}{{ session.session_time|time:"H:i" }}{% else %}—{% endif %}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-400">النوع</dt>
+            <dd class="font-medium text-gray-800 mt-0.5">
+                <span class="text-xs px-2 py-0.5 rounded-lg {% if session.is_online %}bg-blue-50 text-blue-700{% else %}bg-gray-50 text-gray-600{% endif %}">
+                    {{ session.get_session_type_display }}
+                </span>
+            </dd>
+        </div>
+    </dl>
+    {% if session.notes %}
+    <div class="mt-4 pt-4 border-t border-gray-100">
+        <p class="text-xs text-gray-500 mb-1">ملاحظات</p>
+        <p class="text-sm text-gray-700">{{ session.notes }}</p>
+    </div>
+    {% endif %}
+    <div class="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3 flex-wrap">
+        {% if session.status == 'live' %}
+        <a href="{% url 'accounts:teacher_session_attendance' session.id %}"
+           class="px-4 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors">
+            إدارة الحضور والدرجات
+        </a>
+        {% elif session.status == 'ended' %}
+        <a href="{% url 'accounts:teacher_session_attendance' session.id %}"
+           class="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors">
+            عرض الحضور والدرجات
+        </a>
+        {% endif %}
+        <form method="POST" action="{% url 'accounts:teacher_session_advance_status' session.id %}" class="inline">
+            {% csrf_token %}
+            <button type="submit"
+               class="px-4 py-2 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+                {% if session.status == 'scheduled' %}فتح التأكيد
+                {% elif session.status == 'confirmation_open' %}فتح الأدوار
+                {% elif session.status == 'turn_taking_open' %}بدء الحصة
+                {% elif session.status == 'live' %}إنهاء الحصة
+                {% else %}تقديم الحصة{% endif %}
+            </button>
+        </form>
+        <a href="{% url 'accounts:teacher_session_progress' session.circle.id %}"
+           class="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors">
+            متابعة التقدم
+        </a>
+        <a href="{% url 'accounts:teacher_session_edit' session.id %}"
+           class="px-4 py-2 bg-amber-50 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-100 transition-colors">
+            تعديل
+        </a>
+        <form method="POST" action="{% url 'accounts:teacher_session_delete' session.id %}" onsubmit="return confirm('هل أنت متأكد من حذف هذه الحصة؟')" class="inline">
+            {% csrf_token %}
+            <button type="submit"
+               class="px-4 py-2 bg-red-50 text-red-700 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors">
+                حذف
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">سجل الحضور</h3>
+        <span class="text-xs text-gray-400">{{ student_attendance|length }} طالب</span>
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-6 py-4 text-right font-medium">الطالب</th>
+                <th class="px-6 py-4 text-center font-medium">الحالة</th>
+                <th class="px-6 py-4 text-center font-medium">تبرير</th>
+                {% if all_criteria %}
+                <th class="px-6 py-4 text-center font-medium">الدرجات</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for item in student_attendance %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                            <span class="text-primary-700 font-bold text-xs">{{ item.student.full_name_ar.0 }}</span>
+                        </div>
+                        <span class="text-sm font-medium text-gray-800">{{ item.student.full_name_ar }}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    {% if item.attendance %}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
+                        {% if item.attendance.status == 'present' %}bg-green-50 text-green-700
+                        {% elif item.attendance.status == 'confirmed' %}bg-emerald-50 text-emerald-700
+                        {% elif item.attendance.status == 'late' %}bg-amber-50 text-amber-700
+                        {% elif item.attendance.status == 'absent_unjustified' or item.attendance.status == 'absent' %}bg-red-50 text-red-700
+                        {% elif item.attendance.status == 'absent_justified' %}bg-blue-50 text-blue-700
+                        {% elif item.attendance.status == 'left_early' %}bg-purple-50 text-purple-700
+                        {% elif item.attendance.status == 'not_responded' %}bg-gray-50 text-gray-500
+                        {% endif %}">
+                        {{ item.attendance.get_status_display }}
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    {% if item.attendance.justification %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+                        {% if item.attendance.justification_status == 'accepted' %}bg-green-50 text-green-700
+                        {% elif item.attendance.justification_status == 'refused' %}bg-red-50 text-red-700
+                        {% elif item.attendance.justification_status == 'pending' %}bg-amber-50 text-amber-700
+                        {% endif %}">
+                        {{ item.attendance.get_justification_status_display }}
+                    </span>
+                    <div class="text-xs text-gray-500 mt-0.5 truncate max-w-[180px]">{{ item.attendance.justification }}</div>
+                    {% else %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                {% if all_criteria %}
+                <td class="px-6 py-4 text-center">
+                    {% if item.grades %}
+                    <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                        {% for g in item.grades %}
+                        <span class="text-xs font-medium px-1.5 py-0.5 rounded
+                            {% if g.score >= 90 %}bg-green-50 text-green-700
+                            {% elif g.score >= 70 %}bg-amber-50 text-amber-700
+                            {% else %}bg-red-50 text-red-700{% endif %}">
+                            {{ g.criterion.name_ar }}: {{ g.score }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="{% if all_criteria %}4{% else %}3{% endif %}" class="p-8 text-center text-gray-400">لا يوجد طلاب</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{# ── تقرير الحصة: ما سُجّل لكل طالب (النوع، السورة والآيات، المقدار بالأثمان، النقطة/20، الملاحظة) ── #}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">تقرير الحصة — التسميع والتقييم</h3>
+        <span class="text-xs text-gray-400">{{ report_rows|length }} تسجيل</span>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-4 py-3 text-right font-medium">الطالب</th>
+                <th class="px-4 py-3 text-center font-medium">نوع الحصة</th>
+                <th class="px-4 py-3 text-right font-medium">السورة</th>
+                <th class="px-4 py-3 text-center font-medium">من الآية</th>
+                <th class="px-4 py-3 text-center font-medium">إلى الآية</th>
+                <th class="px-4 py-3 text-center font-medium">المقدار (حزب/ثمن)</th>
+                <th class="px-4 py-3 text-center font-medium">النقطة /20</th>
+                <th class="px-4 py-3 text-right font-medium">الملاحظة</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for r in report_rows %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ r.student.full_name_ar }}</td>
+                <td class="px-4 py-3 text-center">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg
+                        {% if r.category_code == 'HIFDH' %}bg-primary-50 text-primary-700
+                        {% elif r.category_code == 'MURAJAAH' %}bg-amber-50 text-amber-700
+                        {% else %}bg-purple-50 text-purple-700{% endif %}">{{ r.category }}</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-700">{{ r.surah }}</td>
+                <td class="px-4 py-3 text-center text-sm text-gray-600">{{ r.ayah_from }}</td>
+                <td class="px-4 py-3 text-center text-sm text-gray-600">{{ r.ayah_to }}</td>
+                <td class="px-4 py-3 text-center text-sm font-bold text-primary-700">{{ r.thumn_units }}</td>
+                <td class="px-4 py-3 text-center">
+                    {% if r.points is not None %}
+                    <span class="text-sm font-bold
+                        {% if r.points >= 16 %}text-green-600
+                        {% elif r.points >= 10 %}text-amber-600
+                        {% else %}text-red-600{% endif %}">{{ r.points }}/20</span>
+                    {% elif r.grade %}
+                    <span class="text-xs text-gray-500">{{ r.grade }}</span>
+                    {% else %}
+                    <span class="text-xs text-gray-300">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-500">{{ r.remark|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="p-8 text-center text-sm text-gray-400">لم يُسجَّل أي تسميع أو تقييم في هذه الحصة بعد</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+{# ── الواجبات المسندة عقب هذه الحصة ── #}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">الواجبات المسندة في هذه الحصة</h3>
+        <span class="text-xs text-gray-400">{{ todo_rows|length }} واجب</span>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-4 py-3 text-right font-medium">الطالب</th>
+                <th class="px-4 py-3 text-center font-medium">نوع الواجب</th>
+                <th class="px-4 py-3 text-right font-medium">السورة</th>
+                <th class="px-4 py-3 text-center font-medium">من الآية</th>
+                <th class="px-4 py-3 text-center font-medium">إلى الآية</th>
+                <th class="px-4 py-3 text-center font-medium">المقدار (حزب/ثمن)</th>
+                <th class="px-4 py-3 text-center font-medium">تاريخ الاستحقاق</th>
+                <th class="px-4 py-3 text-center font-medium">الحالة</th>
+                <th class="px-4 py-3 text-right font-medium">الملاحظة</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for t in todo_rows %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ t.student.full_name_ar }}</td>
+                <td class="px-4 py-3 text-center text-sm text-gray-600">{{ t.task_type }}</td>
+                <td class="px-4 py-3 text-sm text-gray-700">{{ t.surah }}</td>
+                <td class="px-4 py-3 text-center text-sm text-gray-600">{{ t.ayah_from }}</td>
+                <td class="px-4 py-3 text-center text-sm text-gray-600">{{ t.ayah_to }}</td>
+                <td class="px-4 py-3 text-center text-sm font-bold text-primary-700">{{ t.thumn_units }}</td>
+                <td class="px-4 py-3 text-center text-sm {% if t.is_overdue %}text-red-600 font-bold{% else %}text-gray-600{% endif %}">
+                    {{ t.due_date|date:"Y/m/d"|default:"—" }}
+                    {% if t.is_overdue %}<span class="block text-[10px]">متأخر</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg
+                        {% if t.status_code == 'validated' %}bg-green-50 text-green-700
+                        {% elif t.status_code == 'done' %}bg-blue-50 text-blue-700
+                        {% elif t.status_code == 'rejected' %}bg-red-50 text-red-700
+                        {% else %}bg-amber-50 text-amber-700{% endif %}">{{ t.status }}</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-500">{{ t.remark|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" class="p-8 text-center text-sm text-gray-400">لم يُسنَد أي واجب في هذه الحصة</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function getCSRFToken() {
+    var name = 'csrftoken';
+    var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : '';
+}
+
+function getSortedIds() {
+    var items = document.querySelectorAll('#turn-list .turn-item');
+    return Array.from(items).map(function(el) { return el.dataset.studentId; });
+}
+
+function sendNewOrder(sessionId) {
+    var order = getSortedIds();
+    fetch('/dashboard/teacher/sessions/' + sessionId + '/reorder-turns/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ order: order }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            window.dispatchEvent(new CustomEvent('showToast', {
+                detail: { message: 'تم تحديث الترتيب', type: 'success' }
+            }));
+            location.reload();
+        } else {
+            window.dispatchEvent(new CustomEvent('showToast', {
+                detail: { message: data.message || 'حدث خطأ', type: 'error' }
+            }));
+        }
+    })
+    .catch(function() {
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'حدث خطأ في الاتصال', type: 'error' }
+        }));
+    });
+}
+
+function moveTurn(sessionId, index, direction) {
+    var items = document.querySelectorAll('#turn-list .turn-item');
+    if (items.length < 2) return;
+    var swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= items.length) return;
+    var parent = items[0].parentNode;
+    if (direction < 0) {
+        parent.insertBefore(items[index], items[swapIndex]);
+    } else {
+        parent.insertBefore(items[swapIndex], items[index]);
+    }
+    sendNewOrder(sessionId);
+}
+
+function removeTurn(sessionId, studentId) {
+    if (!confirm('هل أنت متأكد من إزالة هذا الطالب من قائمة التسميع؟')) return;
+    fetch('/dashboard/teacher/sessions/' + sessionId + '/remove-turn/' + studentId + '/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            window.dispatchEvent(new CustomEvent('showToast', {
+                detail: { message: 'تمت الإزالة', type: 'success' }
+            }));
+            location.reload();
+        } else {
+            window.dispatchEvent(new CustomEvent('showToast', {
+                detail: { message: data.message || 'حدث خطأ', type: 'error' }
+            }));
+        }
+    })
+    .catch(function() {
+        window.dispatchEvent(new CustomEvent('showToast', {
+            detail: { message: 'حدث خطأ في الاتصال', type: 'error' }
+        }));
+    });
+}
+</script>
+{% endblock %}
