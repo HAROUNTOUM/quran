@@ -130,20 +130,13 @@ class Command(BaseCommand):
         # the previous unordered [:12] slice grabbed arbitrary accounts (incl.
         # real/QA users) and re-enrolled them on every deploy, violating the
         # one-active-circle rule.
-        active_students = User.objects.filter(
-            is_approved=User.ApprovalStatus.APPROVED,
-            role=User.Role.STUDENT,
-            email__regex=r"^student\d+@hafez\.com$",
-        ).exclude(
-            enrollments__status=CircleEnrollment.Status.ACTIVE,
-        ).order_by("email")[:12]
-
-        # Evaluate immediately so the queryset is cached as a list.
-        # Subsequent code (line ~180, support-request seeding) calls
-        # random.choice() on it, but by then the students already have
-        # active enrollments, which the exclude() filter would reject on
-        # a lazy re-query — causing IndexError from an empty sequence.
-        active_students = list(active_students)
+        active_students = list(
+            User.objects.filter(
+                is_approved=User.ApprovalStatus.APPROVED,
+                role=User.Role.STUDENT,
+                email__regex=r"^student\d+@hafez\.com$",
+            ).order_by("email")[:12]
+        )
 
         for i, student in enumerate(active_students):
             circle = circles[i % len(circles)]
