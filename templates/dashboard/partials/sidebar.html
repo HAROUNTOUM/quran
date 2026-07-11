@@ -90,30 +90,12 @@
             <span>طلبات الغياب</span>
         </a>
 
-        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الطلبات والمراجعة</p>
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">المراجعة</p>
         <a href="{% url 'accounts:teacher_review_requests' %}"
            :class="isActive('teacher_review_requests') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
             {% include "dashboard/partials/sidebar_icon.html" with name="clipboard" %}
             <span>التسميع والأسئلة</span>
-        </a>
-        <a href="{% url 'accounts:teacher_requests' %}"
-           :class="isActive('teacher_requests') || isActive('teacher_request_create') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
-            <span>الدعم والبلاغات</span>
-        </a>
-        <a href="{% url 'accounts:teacher_announcements' %}"
-           :class="isActive('teacher_announcements') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
-            <span>الإعلانات</span>
-        </a>
-        <a href="{% url 'accounts:teacher_notifications' %}"
-           :class="isActive('teacher_notifications') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="bell" %}
-            <span>الإشعارات</span>
         </a>
 
         {% elif request.user.role == 'student' %}
@@ -123,6 +105,7 @@
             {% include "dashboard/partials/sidebar_icon.html" with name="dashboard" %}
             <span>الرئيسية</span>
         </a>
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">التعلّم</p>
         <a href="{% url 'accounts:student_circles' %}"
            :class="isActive('student_circles') || isActive('student_circle_detail') || isActive('student_sessions') || isActive('student_session_detail') || isActive('my_classroom') || isActive('student_private_sessions') || isActive('student_leaderboard') || isActive('student_circle_leaderboard') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
@@ -141,24 +124,6 @@
             {% include "dashboard/partials/sidebar_icon.html" with name="clipboard" %}
             <span>التسميع والأسئلة</span>
         </a>
-        <a href="{% url 'accounts:student_requests' %}"
-           :class="isActive('student_requests') || isActive('student_request_detail') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
-            <span>الدعم والبلاغات</span>
-        </a>
-        <a href="{% url 'accounts:student_announcements' %}"
-           :class="isActive('student_announcements') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
-            <span>الإعلانات</span>
-        </a>
-        <a href="{% url 'accounts:student_notifications' %}"
-           :class="isActive('student_notifications') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="bell" %}
-            <span>الإشعارات</span>
-        </a>
         {% else %}
         <a href="{% url 'accounts:admin_dashboard' %}"
            :class="isActive('admin_dashboard') ? 'nav-link-active' : ''"
@@ -166,19 +131,6 @@
             {% include "dashboard/partials/sidebar_icon.html" with name="dashboard" %}
             <span>لوحة التحكم</span>
         </a>
-        <a href="{% url 'accounts:admin_batch_list' %}"
-           :class="isActive('admin_batch_list') || isActive('admin_batch_detail') || isActive('admin_batch_create') || isActive('admin_batch_edit') || isActive('admin_batch_circles') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="box" %}
-            <span>إدارة الدفعات</span>
-        </a>
-        <a href="{% url 'accounts:supervisor_groups' %}"
-           :class="isActive('supervisor_groups') || isActive('supervisor_group_board') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="chart" %}
-            <span>متابعة الدفعات</span>
-        </a>
-        {% include "dashboard/partials/_chat_link.html" %}
         <a href="{% url 'accounts:admin_inscriptions' %}"
            :class="isActive('admin_inscriptions') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
@@ -188,14 +140,22 @@
             <span class="mr-auto bg-accent-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">{{ pending_count }}</span>
             {% endif %}
         </a>
+
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الحلقات والمستخدمون</p>
         <a href="{% url 'accounts:admin_circles' %}"
            :class="isActive('admin_circles') || isActive('admin_circle_detail') || isActive('admin_circle_create') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
             {% include "dashboard/partials/sidebar_icon.html" with name="book" %}
             <span>إدارة الحلقات</span>
         </a>
+        <a href="{% url 'accounts:admin_students' %}"
+           :class="isActive('admin_students') || isActive('admin_student_detail') || isActive('admin_student_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="users" %}
+            <span>إدارة الطلاب</span>
+        </a>
         <a href="{% url 'accounts:admin_teachers' %}"
-           :class="isActive('admin_teachers') || isActive('admin_teacher_detail') || isActive('admin_teacher_create') || isActive('admin_teacher_edit') || isActive('admin_teacher_absences') || isActive('admin_active_substitutions') ? 'nav-link-active' : ''"
+           :class="isActive('admin_teachers') || isActive('admin_teacher_detail') || isActive('admin_teacher_create') || isActive('admin_teacher_edit') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
             {% include "dashboard/partials/sidebar_icon.html" with name="graduation" %}
             <span>الأساتذة</span>
@@ -208,30 +168,8 @@
             <span>المشرفون</span>
         </a>
         {% endif %}
-        <a href="{% url 'accounts:admin_students' %}"
-           :class="isActive('admin_students') || isActive('admin_student_detail') || isActive('admin_student_create') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="users" %}
-            <span>إدارة الطلاب</span>
-        </a>
-        <a href="{% url 'accounts:admin_requests' %}"
-           :class="isActive('admin_requests') || isActive('admin_request_detail') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="clipboard" %}
-            <span>الطلبات والبلاغات</span>
-        </a>
-        <a href="{% url 'accounts:admin_announcements' %}"
-           :class="isActive('admin_announcements') || isActive('admin_announcement_create') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
-            <span>الإعلانات</span>
-        </a>
-        <a href="{% url 'accounts:admin_notifications' %}"
-           :class="isActive('admin_notifications') || isActive('admin_notification_create') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="bell" %}
-            <span>الإشعارات</span>
-        </a>
+
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الامتحانات والتقارير</p>
         {% if features.exams or features.certificates %}
         <a href="{% if features.exams %}{% url 'accounts:admin_exam_list' %}{% else %}{% url 'certificates:list' %}{% endif %}"
            :class="isActive('admin_exam_list') || isActive('admin_exam_detail') || isActive('admin_exam_create') || isActive('admin_exam_edit') || isActive('report_exam_results') || isActive('list') || isActive('generate') ? 'nav-link-active' : ''"
@@ -254,6 +192,44 @@
             {% include "dashboard/partials/sidebar_icon.html" with name="chart" %}
             <span>التقارير والإحصائيات</span>
         </a>
+
+        {% with un=request.resolver_match.url_name %}
+        <div x-data="{ adminOpen: {% if un == 'admin_batch_list' or un == 'admin_batch_detail' or un == 'admin_batch_create' or un == 'admin_batch_edit' or un == 'admin_batch_circles' or un == 'supervisor_groups' or un == 'supervisor_group_board' or un == 'admin_teacher_absences' or un == 'admin_absence_manage' or un == 'admin_active_substitutions' or un == 'campaigns' %}true{% else %}false{% endif %} }" class="mt-5">
+            <button type="button" @click="adminOpen = !adminOpen" :aria-expanded="adminOpen"
+                    class="w-full flex items-center gap-2 px-3 mb-1.5 text-[10px] font-bold text-navy-300 uppercase tracking-wider hover:text-primary-600 transition-colors">
+                <span>الإدارة</span>
+                <svg class="w-3.5 h-3.5 mr-auto transition-transform duration-200" :class="adminOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="adminOpen" x-transition class="space-y-0.5">
+                <a href="{% url 'accounts:admin_batch_list' %}"
+                   :class="isActive('admin_batch_list') || isActive('admin_batch_detail') || isActive('admin_batch_create') || isActive('admin_batch_edit') || isActive('admin_batch_circles') ? 'nav-link-active' : ''"
+                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+                    {% include "dashboard/partials/sidebar_icon.html" with name="box" %}
+                    <span>إدارة الدفعات</span>
+                </a>
+                <a href="{% url 'accounts:supervisor_groups' %}"
+                   :class="isActive('supervisor_groups') || isActive('supervisor_group_board') ? 'nav-link-active' : ''"
+                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+                    {% include "dashboard/partials/sidebar_icon.html" with name="chart" %}
+                    <span>متابعة الدفعات</span>
+                </a>
+                <a href="{% url 'accounts:admin_teacher_absences' %}"
+                   :class="isActive('admin_teacher_absences') || isActive('admin_absence_manage') || isActive('admin_active_substitutions') ? 'nav-link-active' : ''"
+                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+                    {% include "dashboard/partials/sidebar_icon.html" with name="calendar" %}
+                    <span>غياب الأساتذة</span>
+                </a>
+                {% if request.user.role == 'admin' %}
+                <a href="{% url 'emailcenter:campaigns' %}"
+                   :class="isActive('campaigns') ? 'nav-link-active' : ''"
+                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+                    {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
+                    <span>مركز البريد</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endwith %}
         {% endif %}
     </nav>
 
