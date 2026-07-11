@@ -8,9 +8,22 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.accounts import scoping
 
 from .models import Certificate, CertificateTemplate
 from .services import generate_certificate_pdf
+
+
+def _require_cert_access(user, cert, allow_owner=False):
+    """Object-level guard: MAIN_ADMIN sees all; a SUB_ADMIN may only touch a
+    certificate whose student is in a batch they supervise; the student may
+    view their own when ``allow_owner``. Everyone else is denied."""
+    if allow_owner and user == cert.student:
+        return
+    if user.role not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN):
+        raise PermissionDenied
+    # MAIN_ADMIN passes; SUB_ADMIN must supervise the student's batch.
+    scoping.check_batch_access(user, cert.student.batch_id)
 
 
 @login_required
@@ -24,6 +37,11 @@ def certificate_list(request):
     issued = Certificate.objects.filter(status="issued").select_related(
         "student", "template", "issued_by"
     ).order_by("-issue_date")
+    # SUB_ADMIN only sees certificates for students in their supervised batches.
+    batch_ids = scoping.scoped_batch_ids(request.user)
+    if batch_ids is not None:
+        pending = pending.filter(student__batch_id__in=batch_ids)
+        issued = issued.filter(student__batch_id__in=batch_ids)
     return render(request, "certificates/list.html", {
         "pending_certificates": pending,
         "issued_certificates": issued,
@@ -51,11 +69,11 @@ def certificate_generate(request):
     from apps.circles.models import Circle, CircleEnrollment
     circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
 
-    students = list(User.objects.filter(
+    students = list(scoping.scoped_users(request.user, User.objects.filter(
         role=User.Role.STUDENT,
         is_approved=User.ApprovalStatus.APPROVED,
         is_active=True,
-    ).only("id", "full_name_ar", "email"))
+    )).only("id", "full_name_ar", "email"))
 
     sids = [s.id for s in students]
     enrollments = CircleEnrollment.objects.filter(
@@ -112,7 +130,12 @@ def certificate_generate(request):
             })
 
         pdf_data = uploaded.read()
-        students_qs = User.objects.filter(id__in=student_ids, role=User.Role.STUDENT)
+        # Re-scope on the server: a tampered POST cannot target a student
+        # outside the issuer's supervised batches.
+        students_qs = scoping.scoped_users(
+            request.user,
+            User.objects.filter(id__in=student_ids, role=User.Role.STUDENT),
+        )
 
         metadata = {}
         if circle_name:
@@ -259,10 +282,8 @@ def teacher_certificate_list(request):
 
 @login_required
 def certificate_upload_pdf(request, pk):
-    if request.user.role not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN):
-        raise PermissionDenied
-
     cert = get_object_or_404(Certificate, pk=pk)
+    _require_cert_access(request.user, cert)
 
     if request.method == "POST":
         if "pdf_file" not in request.FILES:
@@ -298,8 +319,7 @@ def certificate_upload_pdf(request, pk):
 @login_required
 def certificate_download(request, pk):
     cert = get_object_or_404(Certificate, pk=pk)
-    if request.user.role not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN) and request.user != cert.student:
-        raise PermissionDenied
+    _require_cert_access(request.user, cert, allow_owner=True)
     if not cert.pdf_file:
         messages.error(request, "لم يتم رفع ملف PDF بعد")
         return redirect("certificates:list")
@@ -313,8 +333,7 @@ def certificate_download(request, pk):
 @login_required
 def certificate_preview(request, pk):
     cert = get_object_or_404(Certificate, pk=pk)
-    if request.user.role not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN) and request.user != cert.student:
-        raise PermissionDenied
+    _require_cert_access(request.user, cert, allow_owner=True)
     if cert.pdf_file:
         try:
             return FileResponse(cert.pdf_file.open(), content_type="application/pdf")
@@ -327,9 +346,8 @@ def certificate_preview(request, pk):
 
 @login_required
 def certificate_notify(request, pk):
-    if request.user.role not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN):
-        raise PermissionDenied
     cert = get_object_or_404(Certificate, pk=pk)
+    _require_cert_access(request.user, cert)
     if request.method == "POST":
         if cert.status != "issued" or not cert.pdf_file:
             messages.error(request, "يجب رفع ملف PDF أولاً قبل إرسال الإشعار")
@@ -348,9 +366,8 @@ def certificate_notify(request, pk):
 
 @login_required
 def certificate_revoke(request, pk):
-    if request.user.role not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN):
-        raise PermissionDenied
     cert = get_object_or_404(Certificate, pk=pk)
+    _require_cert_access(request.user, cert)
     if request.method == "POST":
         cert.status = "revoked"
         cert.save(update_fields=["status"])
