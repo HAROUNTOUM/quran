@@ -1,5 +1,6 @@
 {% extends "dashboard/base.html" %}
-{% block header_title %}{{ circle.name }}{% endblock %}
+{% block page_heading %}{{ circle.name }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / {{ circle.name }}{% endblock %}
 {% block title %}{{ circle.name }} — الطبيب الحافظ{% endblock %}
 {% block dashboard_content %}
 <div class="mb-8">

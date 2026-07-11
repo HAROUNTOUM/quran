@@ -1,12 +1,12 @@
 {% extends "dashboard/base.html" %}
-{% block header_title %}الإعلانات{% endblock %}
+{% block page_heading %}الإعلانات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الإعلانات{% endblock %}
 {% block title %}الإعلانات — الطبيب الحافظ{% endblock %}
 {% block dashboard_content %}
 {% include "dashboard/partials/subnav_comms.html" %}
 <div class="flex items-center justify-between mb-8">
     <div>
-        <h1 class="text-2xl font-black text-gray-800">الإعلانات</h1>
-        <p class="text-gray-400 mt-1">إدارة الإعلانات والتنبيهات</p>
+        <p class="text-gray-400">إدارة الإعلانات والتنبيهات</p>
         <form method="GET" class="mt-3">
             <input type="text" name="search" placeholder="بحث في الإعلانات..." value="{{ request.GET.search }}"
                    oninput="clearTimeout(this._timer); this._timer = setTimeout(() => this.closest('form').submit(), 500)"

@@ -1,12 +1,12 @@
 {% extends "dashboard/base.html" %}
-{% block header_title %}الإشعارات{% endblock %}
+{% block page_heading %}الإشعارات{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الإشعارات{% endblock %}
 {% block title %}الإشعارات — الطبيب الحافظ{% endblock %}
 {% block dashboard_content %}
 {% include "dashboard/partials/subnav_comms.html" %}
 <div class="flex items-center justify-between mb-8">
     <div>
-        <h1 class="text-2xl font-black text-gray-800">الإشعارات</h1>
-        <p class="text-gray-400 mt-1">إدارة الإشعارات المرسلة للمستخدمين</p>
+        <p class="text-gray-400">إدارة الإشعارات المرسلة للمستخدمين</p>
         <div class="flex items-center gap-3 mt-3">
             <input type="text" name="search" placeholder="بحث في الإشعارات..." value="{{ request.GET.search }}"
                    oninput="clearTimeout(this._timer); this._timer = setTimeout(() => { const p=new URLSearchParams(location.search); p.set('search',this.value); p.delete('page'); location.search=p.toString(); }, 500)"
