@@ -6,11 +6,9 @@ Extracted from accounts/views/admin.py as part of the strangler refactor
 (accounts:admin_requests / admin_announcements / admin_notifications / …);
 this module is re-exported from accounts.views.
 
-FOLLOW-UP (not changed in this behavior-preserving move): admin_requests
-and admin_notifications are not batch-scoped, so a SUB_ADMIN currently sees
-every support request / notification platform-wide. That is the same
-cross-batch class fixed for exams; confirm the intended visibility before
-adding a scoping guard.
+admin_requests / admin_request_detail / admin_notifications are batch-scoped
+via apps.accounts.scoping so a SUB_ADMIN only sees support requests submitted
+by, and notifications sent to, users in the batches they supervise.
 """
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -19,6 +17,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
+from apps.accounts import scoping
 from apps.accounts.decorators import role_required
 from apps.accounts.models import User
 from apps.announcements.models import Announcement
@@ -34,7 +33,11 @@ def admin_requests(request):
     req_status = request.GET.get("status", "")
     req_priority = request.GET.get("priority", "")
 
-    reqs = SupportRequest.objects.select_related('submitted_by').order_by('-created_at')
+    scoped = scoping.scoped_requests(
+        request.user,
+        SupportRequest.objects.select_related('submitted_by'),
+    )
+    reqs = scoped.order_by('-created_at')
 
     if search:
         reqs = reqs.filter(Q(title__icontains=search) | Q(body__icontains=search) | Q(submitted_by__full_name_ar__icontains=search))
@@ -45,10 +48,10 @@ def admin_requests(request):
     if req_priority:
         reqs = reqs.filter(priority=req_priority)
 
-    total_count = SupportRequest.objects.count()
-    under_review_count = SupportRequest.objects.filter(status='under_review').count()
-    approved_count = SupportRequest.objects.filter(status__in=['approved', 'resolved']).count()
-    urgent_count = SupportRequest.objects.filter(priority__in=['urgent', 'high']).count()
+    total_count = scoped.count()
+    under_review_count = scoped.filter(status='under_review').count()
+    approved_count = scoped.filter(status__in=['approved', 'resolved']).count()
+    urgent_count = scoped.filter(priority__in=['urgent', 'high']).count()
 
     paginator = Paginator(reqs, 15)
     page_obj = paginator.get_page(request.GET.get('page', 1))
@@ -67,16 +70,20 @@ def admin_requests(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_request_detail(request, pk):
     request_obj = get_object_or_404(
-        SupportRequest.objects.select_related('submitted_by'),
-        pk=pk
+        scoping.scoped_requests(
+            request.user,
+            SupportRequest.objects.select_related('submitted_by'),
+        ),
+        pk=pk,
     )
 
     if request.method == "POST":
-        if request.POST.get("comment_body"):
+        comment_body = request.POST.get("comment_body", "").strip()
+        if comment_body:
             Comment.objects.create(
                 request=request_obj,
                 author=request.user,
-                body=request.POST["comment_body"],
+                body=comment_body,
             )
             return redirect("accounts:admin_request_detail", pk=pk)
 
@@ -131,7 +138,10 @@ def admin_announcement_create(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_notifications(request):
-    qs = Notification.objects.select_related("recipient").order_by("-created_at")
+    qs = scoping.scoped_notifications(
+        request.user,
+        Notification.objects.select_related("recipient"),
+    ).order_by("-created_at")
 
     search = request.GET.get("search", "")
     if search:

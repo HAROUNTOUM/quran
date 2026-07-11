@@ -96,5 +96,9 @@ def scoped_requests(user, qs):
     return _scope(user, qs, "submitted_by__batch")
 
 
+def scoped_notifications(user, qs):
+    return _scope(user, qs, "recipient__batch")
+
+
 def scoped_attendance(user, qs):
     return _scope(user, qs, "student__batch")

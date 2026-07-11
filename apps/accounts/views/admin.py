@@ -20,8 +20,6 @@ from apps.accounts import scoping
 from apps.accounts.scoping import scoped_batch as _sub_admin_batch
 from apps.accounts.scoping import check_batch_access as _check_batch_access
 from apps.accounts.scoping import scoped_batch_ids as _scoped_batch_ids
-from apps.accounts.scoping import scoped_circles as _scoped_circles
-from apps.accounts.scoping import scoped_users as _scoped_users
 from apps.accounts.forms import SignupForm, ApprovalForm, BatchForm, ProfileForm
 from apps.accounts.utils.email import send_approval_email, send_rejection_email
 
@@ -30,10 +28,9 @@ logger = logging.getLogger(__name__)
 from apps.circles.models import Circle, CircleEnrollment, Session
 from apps.attendance.models import Attendance
 from apps.requests.models import SupportRequest
-from apps.announcements.models import Announcement
 from apps.notifications.models import Notification
 from apps.memorization.models import MemorizationProgress, RecitationGrade
-from apps.exams.models import Exam, ExamMark
+from apps.exams.models import Exam
 from apps.certificates.models import Certificate
 from apps.references.models import Surah, EvaluationCriterion
 from apps.references.utils import (

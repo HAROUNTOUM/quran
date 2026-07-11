@@ -961,6 +961,81 @@ class ExamScopingSecurityTests(TestCase):
         r = self.client.post(reverse("accounts:admin_exam_publish", args=[self.exam_foreign.pk]))
         self.assertEqual(r.status_code, 403)
 
+    # ── edit save (parse_date happy path) ───────────────────────────────
+    def test_admin_exam_edit_saves_valid_changes(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.post(
+            reverse("accounts:admin_exam_edit", args=[self.exam_own.pk]),
+            {
+                "title": "عنوان محدّث", "exam_type": "final",
+                "circle": str(self.circle_own.pk),
+                "exam_date": "2026-08-01", "max_marks": "120", "pass_percentage": "60",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.exam_own.refresh_from_db()
+        self.assertEqual(self.exam_own.title, "عنوان محدّث")
+        self.assertEqual(str(self.exam_own.exam_date), "2026-08-01")
+        self.assertEqual(self.exam_own.max_marks, 120)
+        self.assertEqual(self.exam_own.pass_percentage, 60)
+
+    # ── malformed input re-renders instead of raising a 500 ─────────────
+    def test_admin_exam_create_invalid_date_re_renders(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.post(reverse("accounts:admin_exam_create"), {
+            "title": "امتحان بتاريخ خاطئ", "exam_type": "monthly",
+            "circle": str(self.circle_own.pk),
+            "exam_date": "2026-13-40", "max_marks": "100", "pass_percentage": "50",
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "تاريخ الامتحان غير صالح")
+        self.assertFalse(self.Exam.objects.filter(title="امتحان بتاريخ خاطئ").exists())
+
+    def test_admin_exam_create_invalid_marks_re_renders(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.post(reverse("accounts:admin_exam_create"), {
+            "title": "امتحان بدرجة خاطئة", "exam_type": "monthly",
+            "circle": str(self.circle_own.pk),
+            "exam_date": "2026-07-11", "max_marks": "abc", "pass_percentage": "50",
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "أرقاماً")
+        self.assertFalse(self.Exam.objects.filter(title="امتحان بدرجة خاطئة").exists())
+
+    # ── approve-all / reject write paths (also NameError regressions) ───
+    def _make_pending_mark(self, exam):
+        from apps.exams.models import ExamMark
+        student = User.objects.create_user(
+            username="ex_student@test.com", email="ex_student@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch_own,
+        )
+        return ExamMark.objects.create(
+            exam=exam, student=student, marks_obtained=80,
+            status=ExamMark.Status.PENDING, entered_by=self.main_admin,
+        )
+
+    def test_admin_exam_approve_all_marks_succeeds(self):
+        from apps.exams.models import ExamMark
+        mark = self._make_pending_mark(self.exam_own)
+        self.client.force_login(self.main_admin)
+        r = self.client.post(reverse("accounts:admin_exam_approve_all", args=[self.exam_own.pk]))
+        self.assertEqual(r.status_code, 302)
+        mark.refresh_from_db()
+        self.assertEqual(mark.status, ExamMark.Status.APPROVED)
+
+    def test_admin_exam_reject_marks_succeeds(self):
+        from apps.exams.models import ExamMark
+        mark = self._make_pending_mark(self.exam_own)
+        self.client.force_login(self.main_admin)
+        r = self.client.post(
+            reverse("accounts:admin_exam_reject_marks", args=[self.exam_own.pk]),
+            {"mark_ids": [str(mark.pk)], "reason": "إعادة التصحيح"},
+        )
+        self.assertEqual(r.status_code, 302)
+        mark.refresh_from_db()
+        self.assertEqual(mark.status, ExamMark.Status.REJECTED)
+
 
 class SupervisorGroupsIDORTests(TestCase):
     """`?batch=` on the supervisor board must be clamped to the supervised set,
@@ -1009,3 +1084,100 @@ class SupervisorGroupsIDORTests(TestCase):
         self.assertEqual(r.context["selected_batch"], self.batch_own.pk)
         group_names = {g["circle"].name for g in r.context["groups"]}
         self.assertNotIn(self.circle_foreign.name, group_names)
+
+
+class CommunicationsScopingTests(TestCase):
+    """A SUB_ADMIN must only see support requests submitted by — and
+    notifications sent to — users in the batches they supervise."""
+
+    def setUp(self):
+        from apps.requests.models import SupportRequest
+        from apps.notifications.models import Notification
+
+        self.SupportRequest = SupportRequest
+        self.Notification = Notification
+        self.main_admin = User.objects.create_user(
+            username="cm_admin@test.com", email="cm_admin@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        self.batch_own = Batch.objects.create(
+            name="دفعتي", number=41, year=2026, created_by=self.main_admin,
+        )
+        self.batch_foreign = Batch.objects.create(
+            name="دفعة أجنبية", number=42, year=2026, created_by=self.main_admin,
+        )
+        self.sub = User.objects.create_user(
+            username="cm_sub@test.com", email="cm_sub@test.com", password="x",
+            full_name_ar="مشرف", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.batch_own.sub_admins.add(self.sub)
+        self.student_own = User.objects.create_user(
+            username="cm_own@test.com", email="cm_own@test.com", password="x",
+            full_name_ar="طالب دفعتي", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch_own,
+        )
+        self.student_foreign = User.objects.create_user(
+            username="cm_foreign@test.com", email="cm_foreign@test.com", password="x",
+            full_name_ar="طالب أجنبي", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch_foreign,
+        )
+        self.req_own = SupportRequest.objects.create(
+            submitted_by=self.student_own, title="طلب من دفعتي",
+        )
+        self.req_foreign = SupportRequest.objects.create(
+            submitted_by=self.student_foreign, title="طلب أجنبي",
+        )
+        self.notif_own = Notification.objects.create(
+            recipient=self.student_own, type=Notification.Type.SYSTEM,
+            title="إشعار دفعتي", message="…",
+        )
+        self.notif_foreign = Notification.objects.create(
+            recipient=self.student_foreign, type=Notification.Type.SYSTEM,
+            title="إشعار أجنبي", message="…",
+        )
+
+    def test_sub_admin_requests_list_hides_foreign(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:admin_requests"))
+        self.assertEqual(r.status_code, 200)
+        titles = {req.title for req in r.context["requests"]}
+        self.assertIn("طلب من دفعتي", titles)
+        self.assertNotIn("طلب أجنبي", titles)
+        self.assertEqual(r.context["total_count"], 1)
+
+    def test_main_admin_requests_list_sees_all(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.get(reverse("accounts:admin_requests"))
+        self.assertEqual(r.context["total_count"], 2)
+
+    def test_sub_admin_cannot_open_foreign_request_detail(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(
+            reverse("accounts:admin_request_detail", args=[self.req_foreign.pk])
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_sub_admin_can_open_own_request_detail(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(
+            reverse("accounts:admin_request_detail", args=[self.req_own.pk])
+        )
+        self.assertEqual(r.status_code, 200)
+
+    def test_whitespace_only_comment_is_ignored(self):
+        self.client.force_login(self.sub)
+        self.client.post(
+            reverse("accounts:admin_request_detail", args=[self.req_own.pk]),
+            {"comment_body": "   "},
+        )
+        self.assertEqual(self.req_own.comments.count(), 0)
+
+    def test_sub_admin_notifications_list_hides_foreign(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:admin_notifications"))
+        self.assertEqual(r.status_code, 200)
+        titles = {n.title for n in r.context["notifications"]}
+        self.assertIn("إشعار دفعتي", titles)
+        self.assertNotIn("إشعار أجنبي", titles)

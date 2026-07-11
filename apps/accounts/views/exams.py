@@ -34,6 +34,33 @@ from apps.exams.services import (
 )
 
 
+def _clean_exam_fields(request, default_date):
+    """Parse exam_date / max_marks / pass_percentage from POST.
+
+    Returns ``(exam_date, max_marks, pass_percentage, error)``. ``error`` is a
+    non-empty Arabic message when a value is malformed, in which case the view
+    should re-render the form instead of crashing. ``parse_date`` raises
+    ValueError on a well-formed-but-invalid date (e.g. 2026-13-01), and float()
+    raises on non-numeric input — both are handled here.
+    """
+    raw_date = request.POST.get("exam_date", "").strip()
+    if raw_date:
+        try:
+            exam_date = parse_date(raw_date)
+        except ValueError:
+            exam_date = None
+        if exam_date is None:
+            return None, None, None, "تاريخ الامتحان غير صالح"
+    else:
+        exam_date = default_date
+    try:
+        max_marks = float(request.POST.get("max_marks") or 100)
+        pass_percentage = float(request.POST.get("pass_percentage") or 50)
+    except (TypeError, ValueError):
+        return None, None, None, "الدرجة القصوى ونسبة النجاح يجب أن تكونا أرقاماً"
+    return exam_date, max_marks, pass_percentage, None
+
+
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def report_exam_results(request):
@@ -113,17 +140,20 @@ def admin_exam_create(request):
             return render(request, "dashboard/exams/create.html", {
                 "circles": circles, "teachers": teachers, "error": "المعلم المختار خارج نطاق إشرافك",
             })
+        exam_date, max_marks, pass_percentage, err = _clean_exam_fields(request, timezone.now().date())
+        if err:
+            return render(request, "dashboard/exams/create.html", {
+                "circles": circles, "teachers": teachers, "error": err,
+            })
         data = {
             "title": title,
             "description": request.POST.get("description", ""),
             "exam_type": request.POST.get("exam_type", "monthly"),
             "circle_id": circle_id,
             "assigned_teacher_id": assigned_teacher_id,
-            # POST always arrives as a string; the model's save() calls
-            # .strftime() on this, so it must be a real date object.
-            "exam_date": parse_date(request.POST.get("exam_date", "")) or timezone.now().date(),
-            "max_marks": float(request.POST.get("max_marks", 100)),
-            "pass_percentage": float(request.POST.get("pass_percentage", 50)),
+            "exam_date": exam_date,
+            "max_marks": max_marks,
+            "pass_percentage": pass_percentage,
             "auto_publish": request.POST.get("auto_publish") == "on",
         }
         exam = create_exam(data, request.user)
@@ -157,9 +187,15 @@ def admin_exam_edit(request, pk):
                 "exam": exam, "circles": circles, "teachers": teachers,
             })
         exam.assigned_teacher_id = new_teacher_id
-        exam.exam_date = parse_date(request.POST.get("exam_date", "")) or exam.exam_date
-        exam.max_marks = float(request.POST.get("max_marks", 100))
-        exam.pass_percentage = float(request.POST.get("pass_percentage", 50))
+        exam_date, max_marks, pass_percentage, err = _clean_exam_fields(request, exam.exam_date)
+        if err:
+            messages.error(request, err)
+            return render(request, "dashboard/exams/edit.html", {
+                "exam": exam, "circles": circles, "teachers": teachers,
+            })
+        exam.exam_date = exam_date
+        exam.max_marks = max_marks
+        exam.pass_percentage = pass_percentage
         exam.save()
         messages.success(request, "تم تحديث الامتحان")
         return redirect("accounts:admin_exam_detail", pk=exam.pk)
