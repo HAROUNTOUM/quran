@@ -5,8 +5,7 @@
 {% block dashboard_content %}
 {% include "dashboard/partials/subnav_staff.html" %}
 
-<div class="grid grid-cols-4 gap-4 mb-6">
-    {% url 'accounts:admin_teacher_absences' as all_url %}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     {% include "dashboard/partials/stat_card.html" with label="إجمالي الطلبات" value=pending_count|add:approved_count|add:rejected_count icon="requests" color="blue" %}
     {% include "dashboard/partials/stat_card.html" with label="قيد الانتظار" value=pending_count icon="requests" color="amber" %}
     {% include "dashboard/partials/stat_card.html" with label="مقبولة" value=approved_count icon="students" color="green" %}
@@ -22,8 +21,9 @@
     </select>
 </form>
 
-<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-    <table class="w-full">
+<div class="bg-white rounded-2xl border border-gray-100">
+  <div class="overflow-x-auto rounded-2xl">
+    <table class="w-full min-w-[720px]">
         <thead class="bg-gray-50 text-sm text-gray-500">
             <tr>
                 <th class="px-6 py-4 text-right font-medium">#</th>
@@ -47,12 +47,7 @@
                 <td class="px-6 py-4 text-sm text-gray-600">{{ a.duration_days }} يوم</td>
                 <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-[150px]">{{ a.reason }}</td>
                 <td class="px-6 py-4">
-                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
-                        {% if a.status == 'pending' %}bg-amber-50 text-amber-700
-                        {% elif a.status == 'approved' %}bg-green-50 text-green-700
-                        {% elif a.status == 'rejected' %}bg-red-50 text-red-700{% endif %}">
-                        {{ a.get_status_display }}
-                    </span>
+                    {% include "dashboard/components/status_chip.html" with value=a.status label=a.get_status_display %}
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-600">{{ a.substitute_teacher.full_name_ar|default:"—" }}</td>
                 <td class="px-6 py-4">
@@ -67,6 +62,7 @@
             {% endfor %}
         </tbody>
     </table>
+  </div>
 </div>
 {% include "dashboard/partials/pagination.html" %}
 {% endblock %}

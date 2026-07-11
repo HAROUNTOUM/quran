@@ -11,8 +11,9 @@
 </div>
 
 {% if substitutions %}
-<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-    <table class="w-full">
+<div class="bg-white rounded-2xl border border-gray-100">
+  <div class="overflow-x-auto rounded-2xl">
+    <table class="w-full min-w-[640px]">
         <thead class="bg-gray-50 text-sm text-gray-500">
             <tr>
                 <th class="px-6 py-4 text-right font-medium">الحلقة</th>
@@ -31,9 +32,7 @@
                 <td class="px-6 py-4 text-sm text-gray-600">{{ s.absence.teacher.full_name_ar }}</td>
                 <td class="px-6 py-4">
                     {% if s.substitute_teacher %}
-                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700">
-                        {{ s.substitute_teacher.full_name_ar }}
-                    </span>
+                    {% include "dashboard/components/status_chip.html" with tone="info" value="" label=s.substitute_teacher.full_name_ar %}
                     {% else %}
                     <span class="text-xs text-gray-400">لم يُعيّن</span>
                     {% endif %}
@@ -42,14 +41,13 @@
                     {{ s.absence.start_date|date:"d/m/Y" }} → {{ s.absence.end_date|date:"d/m/Y" }}
                 </td>
                 <td class="px-6 py-4">
-                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700">
-                        نشط
-                    </span>
+                    {% include "dashboard/components/status_chip.html" with value="active" label="نشط" %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+  </div>
 </div>
 {% else %}
 <div class="bg-white rounded-2xl border border-gray-100 p-12 text-center">

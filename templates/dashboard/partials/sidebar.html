@@ -155,7 +155,7 @@
             <span>إدارة الطلاب</span>
         </a>
         <a href="{% url 'accounts:admin_teachers' %}"
-           :class="isActive('admin_teachers') || isActive('admin_teacher_detail') || isActive('admin_teacher_create') || isActive('admin_teacher_edit') ? 'nav-link-active' : ''"
+           :class="isActive('admin_teachers') || isActive('admin_teacher_detail') || isActive('admin_teacher_create') || isActive('admin_teacher_edit') || isActive('admin_teacher_absences') || isActive('admin_absence_manage') || isActive('admin_active_substitutions') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
             {% include "dashboard/partials/sidebar_icon.html" with name="graduation" %}
             <span>الأساتذة</span>
@@ -193,43 +193,21 @@
             <span>التقارير والإحصائيات</span>
         </a>
 
-        {% with un=request.resolver_match.url_name %}
-        <div x-data="{ adminOpen: {% if un == 'admin_batch_list' or un == 'admin_batch_detail' or un == 'admin_batch_create' or un == 'admin_batch_edit' or un == 'admin_batch_circles' or un == 'supervisor_groups' or un == 'supervisor_group_board' or un == 'admin_teacher_absences' or un == 'admin_absence_manage' or un == 'admin_active_substitutions' or un == 'campaigns' %}true{% else %}false{% endif %} }" class="mt-5">
-            <button type="button" @click="adminOpen = !adminOpen" :aria-expanded="adminOpen"
-                    class="w-full flex items-center gap-2 px-3 mb-1.5 text-[10px] font-bold text-navy-300 uppercase tracking-wider hover:text-primary-600 transition-colors">
-                <span>الإدارة</span>
-                <svg class="w-3.5 h-3.5 mr-auto transition-transform duration-200" :class="adminOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            <div x-show="adminOpen" x-transition class="space-y-0.5">
-                <a href="{% url 'accounts:admin_batch_list' %}"
-                   :class="isActive('admin_batch_list') || isActive('admin_batch_detail') || isActive('admin_batch_create') || isActive('admin_batch_edit') || isActive('admin_batch_circles') ? 'nav-link-active' : ''"
-                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-                    {% include "dashboard/partials/sidebar_icon.html" with name="box" %}
-                    <span>إدارة الدفعات</span>
-                </a>
-                <a href="{% url 'accounts:supervisor_groups' %}"
-                   :class="isActive('supervisor_groups') || isActive('supervisor_group_board') ? 'nav-link-active' : ''"
-                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-                    {% include "dashboard/partials/sidebar_icon.html" with name="chart" %}
-                    <span>متابعة الدفعات</span>
-                </a>
-                <a href="{% url 'accounts:admin_teacher_absences' %}"
-                   :class="isActive('admin_teacher_absences') || isActive('admin_absence_manage') || isActive('admin_active_substitutions') ? 'nav-link-active' : ''"
-                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-                    {% include "dashboard/partials/sidebar_icon.html" with name="calendar" %}
-                    <span>غياب الأساتذة</span>
-                </a>
-                {% if request.user.role == 'admin' %}
-                <a href="{% url 'emailcenter:campaigns' %}"
-                   :class="isActive('campaigns') ? 'nav-link-active' : ''"
-                   class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-                    {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
-                    <span>مركز البريد</span>
-                </a>
-                {% endif %}
-            </div>
-        </div>
-        {% endwith %}
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الإدارة</p>
+        <a href="{% url 'accounts:admin_batch_list' %}"
+           :class="isActive('admin_batch_list') || isActive('admin_batch_detail') || isActive('admin_batch_create') || isActive('admin_batch_edit') || isActive('admin_batch_circles') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="box" %}
+            <span>إدارة الدفعات</span>
+        </a>
+        {% if request.user.role == 'admin' %}
+        <a href="{% url 'emailcenter:campaigns' %}"
+           :class="isActive('campaigns') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
+            <span>مركز البريد</span>
+        </a>
+        {% endif %}
         {% endif %}
     </nav>
 
