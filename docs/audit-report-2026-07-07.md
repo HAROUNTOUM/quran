@@ -106,3 +106,35 @@ Added:
 1. **C03/C04** — retire legacy `MemorizationProgress` in favor of rub/thumn-keyed `MemorizationRecord` (needs backfill migration; read-paths now isolated behind shared helpers, which makes the swap much smaller).
 2. Supervisor board recitation column (product decision).
 3. `StudentAchievement.total_*_ayahs/pages` kept for the legacy export; displays no longer use them.
+
+---
+
+## Addendum — production QA rounds (2026-07-09 → 2026-07-11)
+
+Manual API validation against the deployed Render backend (driver scripts replaying
+Postman-style requests; results JSON archived in the session scratchpad) surfaced and
+fixed four production-only bugs that local tests had missed:
+
+| # | Bug | Endpoint | Was | Now |
+|---|-----|----------|-----|-----|
+| B1 | Assigning a todo to a student the teacher doesn't teach crashed (missing `DjangoValidationError` import) | `POST /api/v1/tasks/` | 500 | 400 + Arabic message |
+| B2 | Review request from a non-enrolled student leaked the integrity-signal exception | `POST /api/v1/review-requests/` | 500 | 400 |
+| B3 | Removing a non-enrolled student used a bare `.get()` | `POST /api/v1/circles/{id}/remove_student/` | 500 | 400 |
+| B4 | Re-enrolling a previously removed student hit `unique_together` with a raw `create()` — a removed student could **never** be re-enrolled | `POST /api/v1/circles/{id}/enroll/` | 500 | 201 (reactivates the row) |
+
+Also fixed: `seed_data` re-enrolled an arbitrary slice of approved students on every
+deploy (captured real/QA accounts); now restricted to `studentN@hafez.com`.
+
+**After-session report (user request, 2026-07-09):** teacher and student session pages
+now show the Arabic session report — per entry: نوع الحصة (حفظ/مراجعة/تلاوة), السورة,
+من الآية/إلى الآية, المقدار (حزب/ثمن), النقطة /20 (`ProgressLog.points`, 0–20), and
+ملاحظة المعلم — plus the todos assigned in that session with the same details.
+Builder: `apps/memorization/engine.session_report_data()`.
+
+**Production data:** student1@gmail.com carries a months-long history (12+ weekly
+sessions with attendance incl. absences, ~30 marked progress logs across البقرة/آل عمران
+in all three types, memorization records spanning multiple ahzab, todos in every state
+incl. overdue, review requests in approved/answered/pending states). Edge accounts:
+fresh.noprogress@, partial.progress@, completed.hifz@, review.only@, recitation.only@,
+transfer.student@hafez.com (teacher change). Postman: collection "Quran LMS — Full API
+QA" + environment "Quran LMS — Render" in the user's workspace.
