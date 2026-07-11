@@ -697,7 +697,12 @@ def teacher_session_reorder_turns(request, pk):
     )
     from apps.circles.models import SessionTurn
     from django.db import transaction
-    data = json.loads(request.body)
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "طريقة غير مدعومة"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except (ValueError, json.JSONDecodeError):
+        return JsonResponse({"success": False, "message": "بيانات غير صالحة"}, status=400)
     order = data.get("order", [])
 
     existing_ids = set(
