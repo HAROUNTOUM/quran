@@ -28,6 +28,10 @@ class Batch(TimeStampedModel):
         "User", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="managed_batch", verbose_name="المشرف",
     )
+    sub_admins = models.ManyToManyField(
+        "User", blank=True, related_name="managed_batches",
+        verbose_name="المشرفون",
+    )
     created_by = models.ForeignKey(
         "User", on_delete=models.CASCADE, related_name="created_batches",
         verbose_name="تم الإنشاء بواسطة",

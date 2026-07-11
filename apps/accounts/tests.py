@@ -8,7 +8,7 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
-from apps.accounts.models import User
+from apps.accounts.models import Batch, User
 from apps.accounts.views import admin_dashboard, profile_edit_view, teacher_session_attendance
 from apps.accounts.forms import LoginForm, SignupForm, ApprovalForm
 from apps.circles.models import Circle, Session
@@ -389,6 +389,78 @@ class AdminPrivateSessionsAccessTests(TestCase):
             self.client.force_login(user)
             resp = self.client.get(self.url)
             self.assertEqual(resp.status_code, 403)
+
+
+class AdminUserEditTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="admin-edit@test.com",
+            email="admin-edit@test.com",
+            password="test1234",
+            full_name_ar="مدير التحرير",
+            role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.batch = Batch.objects.create(name="دفعة التحرير", created_by=self.admin)
+        self.student = User.objects.create_user(
+            username="student-edit@test.com",
+            email="student-edit@test.com",
+            password="test1234",
+            full_name_ar="طالب قديم",
+            role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+            phone="0500000000",
+            gender="male",
+        )
+        self.supervisor = User.objects.create_user(
+            username="supervisor-edit@test.com",
+            email="supervisor-edit@test.com",
+            password="test1234",
+            full_name_ar="مشرف قديم",
+            role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+            phone="0500000001",
+            gender="male",
+        )
+        self.client.force_login(self.admin)
+
+    def test_admin_can_update_student_profile(self):
+        resp = self.client.post(reverse("accounts:admin_student_edit", args=[self.student.pk]), {
+            "full_name_ar": "طالب محدث",
+            "email": "student-updated@test.com",
+            "phone": "0555555555",
+            "gender": "female",
+            "specialization": "حفظ",
+            "state": "الجزائر",
+            "level": "متوسط",
+            "memorization_amount": "جزءان",
+            "batch": self.batch.pk,
+            "is_active": "true",
+        })
+
+        self.assertRedirects(resp, reverse("accounts:admin_student_detail", args=[self.student.pk]))
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.full_name_ar, "طالب محدث")
+        self.assertEqual(self.student.email, "student-updated@test.com")
+        self.assertEqual(self.student.username, "student-updated@test.com")
+        self.assertEqual(self.student.batch, self.batch)
+        self.assertEqual(self.student.role, User.Role.STUDENT)
+
+    def test_admin_can_update_supervisor_profile(self):
+        resp = self.client.post(reverse("accounts:admin_supervisor_edit", args=[self.supervisor.pk]), {
+            "full_name_ar": "مشرف محدث",
+            "email": "supervisor-updated@test.com",
+            "phone": "0555555556",
+            "gender": "female",
+            "is_active": "true",
+        })
+
+        self.assertRedirects(resp, reverse("accounts:admin_supervisors"))
+        self.supervisor.refresh_from_db()
+        self.assertEqual(self.supervisor.full_name_ar, "مشرف محدث")
+        self.assertEqual(self.supervisor.email, "supervisor-updated@test.com")
+        self.assertEqual(self.supervisor.username, "supervisor-updated@test.com")
+        self.assertEqual(self.supervisor.role, User.Role.SUB_ADMIN)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

@@ -28,6 +28,7 @@ urlpatterns = [
     path("dashboard/students/", views.admin_students, name="admin_students"),
     path("dashboard/students/create/", views.admin_student_create, name="admin_student_create"),
     path("dashboard/students/<uuid:pk>/", views.admin_student_detail, name="admin_student_detail"),
+    path("dashboard/students/<uuid:pk>/edit/", views.admin_student_edit, name="admin_student_edit"),
     path("dashboard/students/<uuid:pk>/toggle-status/", views.admin_student_toggle_status, name="admin_student_toggle_status"),
     path("dashboard/students/export/pdf/", views.admin_students_export_pdf, name="admin_students_export_pdf"),
     path("dashboard/students/export/excel/", views.admin_students_export_excel, name="admin_students_export_excel"),
@@ -42,6 +43,7 @@ urlpatterns = [
 
     path("dashboard/supervisors/", views.admin_supervisors, name="admin_supervisors"),
     path("dashboard/supervisors/create/", views.admin_supervisor_create, name="admin_supervisor_create"),
+    path("dashboard/supervisors/<uuid:pk>/edit/", views.admin_supervisor_edit, name="admin_supervisor_edit"),
 
     path("dashboard/circles/", views.admin_circles, name="admin_circles"),
     path("dashboard/circles/create/", views.admin_circle_create, name="admin_circle_create"),
@@ -176,6 +178,7 @@ urlpatterns = [
     path("dashboard/batches/", views.admin_batch_list, name="admin_batch_list"),
     path("dashboard/batches/create/", views.admin_batch_create, name="admin_batch_create"),
     path("dashboard/batches/<int:pk>/", views.admin_batch_detail, name="admin_batch_detail"),
+    path("dashboard/batches/<int:pk>/circles/", views.admin_batch_circles, name="admin_batch_circles"),
     path("dashboard/batches/<int:pk>/edit/", views.admin_batch_edit, name="admin_batch_edit"),
     path("dashboard/batches/<int:pk>/toggle-status/", views.admin_batch_toggle_status, name="admin_batch_toggle_status"),
 ]

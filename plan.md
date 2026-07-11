@@ -318,3 +318,47 @@ templates/dashboard/
 └── partials/
     └── sidebar.html      ← "المهام" + "محفوظاتي" + "حاسبة الختمة" links
 ```
+
+---
+
+## Audit Journal
+
+### 2026-07-09 22:35:42 CET — API pagination and JWT fixture hardening
+
+- **Problem discovered:** Comprehensive route/template validation and the full Django test suite passed functionally, but test output exposed production-quality warnings:
+  - DRF paginated `RecitationGrade` lists used an unordered queryset.
+  - DRF paginated absence/justification lists used an unordered `Attendance` queryset.
+  - Jitsi JWT tests used a short HS256 secret fixture, producing an insecure key length warning.
+- **Analysis:** Unordered paginated querysets can produce duplicate or missing rows across pages as data changes or as the database planner changes result order. The JWT warning came from the test fixture constant, not from production Jitsi settings; however, leaving the warning in the suite hides future real cryptographic configuration warnings.
+- **Decision made:** Add deterministic newest-first ordering to the affected API querysets and use a realistic 32+ byte Jitsi test secret.
+- **Files modified:**
+  - `apps/api/views.py`
+  - `apps/classrooms/test_jitsi.py`
+  - `plan.md`
+- **Reason for the decision:** Ordering is backwards-compatible for API consumers and aligns paginated operational lists with expected newest-first behavior. Updating the test secret removes noise without changing token behavior.
+- **Impact on users:** API pagination for grades and absence justifications becomes stable and predictable. No user-facing workflow or business rule changes.
+- **Migration or compatibility considerations:** No database migration required. API ordering is deterministic but still returns the same resources.
+- **Remaining TODO items:** Rerun targeted API/classroom tests and `manage.py check`; continue auditing route semantics, navigation coherence, permissions, and CRUD completeness.
+
+### 2026-07-09 22:41:35 CET — Student and supervisor CRUD update paths
+
+- **Problem discovered:** The admin CRUD audit found incomplete update workflows:
+  - Students had list, create, read/detail, status toggle, import/export-adjacent reporting, and enrollment management, but no explicit edit route for profile fields.
+  - Supervisors had list and create only; no edit action was visible or routable.
+- **Analysis:** Teacher records already had a dedicated edit workflow. Students and supervisors expose profile/contact fields in list/detail pages, so admins need a clear update path without relying on Django admin or direct database edits. Full hard delete remains intentionally absent because these users have historical attendance, enrollment, messages, and audit relationships; soft status control is safer.
+- **Decision made:** Add conservative edit views, URL names, templates, navigation actions, and regression tests for student and supervisor profile updates. Preserve role values server-side and allow only main admins to change a student's batch assignment.
+- **Files modified:**
+  - `apps/accounts/views/admin.py`
+  - `apps/accounts/urls.py`
+  - `apps/accounts/views/__init__.py`
+  - `apps/accounts/tests.py`
+  - `templates/dashboard/students/edit.html`
+  - `templates/dashboard/students/detail.html`
+  - `templates/dashboard/students/list.html`
+  - `templates/dashboard/supervisors/edit.html`
+  - `templates/dashboard/supervisors/list.html`
+  - `plan.md`
+- **Reason for the decision:** Completes the missing Update leg for two admin-managed user entities while preserving existing approval, enrollment, and soft-disable business rules.
+- **Impact on users:** Main admins and eligible sub-admins can now edit student data from student list/detail pages. Main admins can edit supervisor contact/profile fields from the supervisor list.
+- **Migration or compatibility considerations:** No database migration required. New URL names are additive: `accounts:admin_student_edit` and `accounts:admin_supervisor_edit`.
+- **Remaining TODO items:** Continue broader route/navigation/permission audit; consider adding a dedicated supervisor detail page if supervisor operations grow beyond profile editing.

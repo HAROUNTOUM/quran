@@ -13,6 +13,7 @@ from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
 
 from apps.accounts.decorators import role_required
@@ -104,8 +105,9 @@ def supervisor_group_board(request, pk):
     """Step 3: the per-student follow-up board for one group (فوج)."""
     user = request.user
     circle = get_object_or_404(Circle.objects.select_related("teacher"), pk=pk)
-    managed = user.managed_batch.first()
-    if user.role == User.Role.SUB_ADMIN and (not managed or circle.batch_id != managed.pk):
+    if user.role == User.Role.SUB_ADMIN and not Batch.objects.filter(
+        Q(sub_admin=user) | Q(sub_admins=user), pk=circle.batch_id,
+    ).exists():
         raise PermissionDenied
 
     sessions = list(circle.sessions.order_by("session_date", "id"))

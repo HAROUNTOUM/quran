@@ -1,0 +1,60 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}حلقات {{ batch.name }}{% endblock %}
+{% block page_heading %}حلقات {{ batch.name }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:admin_batch_list' %}">الدفعات</a> / <a href="{% url 'accounts:admin_batch_detail' batch.pk %}">{{ batch.name }}</a> / الحلقات{% endblock %}
+{% block dashboard_content %}
+
+<div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+    <div class="flex items-center justify-between gap-3">
+        <div>
+            <h2 class="font-bold text-gray-900">الحلقات في دفعة {{ batch.name }}</h2>
+            <p class="text-sm text-gray-500 mt-1">اختر حلقة للاطلاع على التقرير المفصل أو إدارة الحلقة.</p>
+        </div>
+        <a href="{% url 'accounts:admin_batch_detail' batch.pk %}" class="px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors">
+            العودة للدفعة
+        </a>
+    </div>
+</div>
+
+<div class="grid gap-4">
+    {% for circle in circles %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-5 hover:border-primary-100 hover:shadow-sm transition-all">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex items-center gap-4 min-w-0">
+                <div class="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                    <span class="text-primary-600 font-bold text-lg">{{ forloop.counter }}</span>
+                </div>
+                <div class="min-w-0">
+                    <p class="font-bold text-gray-900">{{ circle.name }}</p>
+                    <div class="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-400">
+                        {% if circle.teacher %}<span>المعلم: {{ circle.teacher.full_name_ar }}</span>{% endif %}
+                        <span>{{ circle.active_students }} طالب</span>
+                        <span>{{ circle.sessions_count }} جلسة</span>
+                        {% if circle.location %}<span>{{ circle.location }}</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="px-3 py-1 rounded-full text-xs font-medium
+                    {% if circle.status == 'active' %}bg-emerald-50 text-emerald-600
+                    {% elif circle.status == 'paused' %}bg-amber-50 text-amber-600
+                    {% else %}bg-gray-100 text-gray-500{% endif %}">
+                    {{ circle.get_status_display }}
+                </span>
+                <a href="{% url 'accounts:supervisor_group_board' circle.id %}" class="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-lg hover:bg-emerald-100 transition-colors">
+                    التقرير المفصل
+                </a>
+                <a href="{% url 'accounts:admin_circle_detail' circle.id %}" class="px-3 py-1.5 bg-primary-50 text-primary-700 text-xs font-medium rounded-lg hover:bg-primary-100 transition-colors">
+                    إدارة الحلقة
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100">
+        <p class="text-lg">لا توجد حلقات في هذه الدفعة</p>
+        <a href="{% url 'accounts:admin_circle_create' %}" class="inline-block mt-3 text-sm text-primary-600 hover:text-primary-700">إنشاء حلقة جديدة</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

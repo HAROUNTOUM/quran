@@ -1,9 +1,9 @@
 {% extends "dashboard/base.html" %}
 {% block page_title %}الجلسات الخاصة{% endblock %}
 {% block page_heading %}الجلسات الخاصة{% endblock %}
-{% block page_breadcrumb %}الرئيسية / الطلبات / الجلسات الخاصة{% endblock %}
+{% block page_breadcrumb %}الرئيسية / الحلقات والحصص / الجلسات الخاصة{% endblock %}
 {% block dashboard_content %}
-{% include "dashboard/teacher/_requests_tabs.html" %}
+{% include "dashboard/partials/halaqa_sessions_tabs.html" %}
 
 <div class="flex items-center gap-2 mb-6">
     <a href="." class="px-3 py-1.5 text-xs font-medium rounded-lg {% if not request.GET.status %}bg-primary-50 text-primary-700{% else %}bg-gray-50 text-gray-500 hover:bg-gray-100{% endif %} transition-colors">الكل</a>

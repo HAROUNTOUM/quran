@@ -18,7 +18,7 @@ from django.utils import timezone
 from apps.accounts.models import User, TeacherAbsence, TeacherSubstitution, Batch
 from apps.accounts import scoping
 from apps.accounts.scoping import scoped_batch as _sub_admin_batch
-from apps.accounts.forms import SignupForm, ApprovalForm
+from apps.accounts.forms import SignupForm, ApprovalForm, BatchForm, ProfileForm
 from apps.accounts.utils.email import send_approval_email, send_rejection_email
 
 logger = logging.getLogger(__name__)
@@ -472,13 +472,13 @@ def admin_active_substitutions(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_teachers(request):
 
-    batch = _sub_admin_batch(request.user)
+    batch_ids = scoping.scoped_batch_ids(request.user)
     search = request.GET.get("search", "")
     status_filter = request.GET.get("status", "")
 
     base_qs = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED)
-    if batch:
-        base_qs = base_qs.filter(batch=batch)
+    if batch_ids is not None:
+        base_qs = base_qs.filter(batch_id__in=batch_ids)
     teachers = base_qs.annotate(
         circles_count=Count('teaching_circles', filter=Q(teaching_circles__status=Circle.Status.ACTIVE)),
         students_count=Count('teaching_circles__enrollments', filter=Q(teaching_circles__enrollments__status=CircleEnrollment.Status.ACTIVE)),
@@ -518,14 +518,14 @@ def admin_teachers(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_students(request):
 
-    batch = _sub_admin_batch(request.user)
+    batch_ids = scoping.scoped_batch_ids(request.user)
     search = request.GET.get("search", "")
     status_filter = request.GET.get("status", "")
     circle_filter = request.GET.get("circle", "")
 
     base_qs = User.objects.filter(role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED)
-    if batch:
-        base_qs = base_qs.filter(batch=batch)
+    if batch_ids is not None:
+        base_qs = base_qs.filter(batch_id__in=batch_ids)
     students = base_qs.annotate(
         active_enrollments=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
         total_sessions=Count('attendance_records', distinct=True),
@@ -547,14 +547,14 @@ def admin_students(request):
     active_base = User.objects.filter(
         role=User.Role.STUDENT, enrollments__status=CircleEnrollment.Status.ACTIVE,
     )
-    if batch:
-        active_base = active_base.filter(batch=batch)
+    if batch_ids is not None:
+        active_base = active_base.filter(batch_id__in=batch_ids)
     active_students = active_base.distinct().count()
     inactive_students = total_students - active_students
 
     circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
-    if batch:
-        circles = circles.filter(batch=batch)
+    if batch_ids is not None:
+        circles = circles.filter(batch_id__in=batch_ids)
 
     paginator = Paginator(students, 15)
     page_obj = paginator.get_page(request.GET.get('page', 1))
@@ -655,6 +655,37 @@ def admin_student_create(request):
         form = SignupForm()
 
     return render(request, "dashboard/students/create.html", {"form": form})
+
+
+@login_required
+@role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
+def admin_student_edit(request, pk):
+    batch = _sub_admin_batch(request.user)
+    student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
+    if batch and student.batch_id != batch.pk:
+        raise PermissionDenied
+
+    if request.method == "POST":
+        form = ProfileForm(request.POST, instance=student)
+        if form.is_valid():
+            student = form.save(commit=False)
+            student.role = User.Role.STUDENT
+            student.is_active = request.POST.get("is_active") == "true"
+            if request.user.role == User.Role.MAIN_ADMIN:
+                batch_id = request.POST.get("batch") or None
+                if batch_id is None or Batch.objects.filter(pk=batch_id).exists():
+                    student.batch_id = batch_id
+            student.save()
+            messages.success(request, "تم تحديث بيانات الطالب بنجاح")
+            return redirect("accounts:admin_student_detail", pk=student.pk)
+    else:
+        form = ProfileForm(instance=student)
+
+    return render(request, "dashboard/students/edit.html", {
+        "form": form,
+        "student": student,
+        "active_batches": Batch.objects.filter(status=Batch.Status.ACTIVE),
+    })
 
 
 # ─── Export: PDF for list pages ──────────────────────
@@ -1175,6 +1206,29 @@ def admin_supervisor_create(request):
         form = SignupForm()
 
     return render(request, "dashboard/supervisors/create.html", {"form": form})
+
+
+@login_required
+@role_required(User.Role.MAIN_ADMIN)
+def admin_supervisor_edit(request, pk):
+    supervisor = get_object_or_404(User, pk=pk, role=User.Role.SUB_ADMIN)
+
+    if request.method == "POST":
+        form = ProfileForm(request.POST, instance=supervisor)
+        if form.is_valid():
+            supervisor = form.save(commit=False)
+            supervisor.role = User.Role.SUB_ADMIN
+            supervisor.is_active = request.POST.get("is_active") == "true"
+            supervisor.save()
+            messages.success(request, "تم تحديث بيانات المشرف بنجاح")
+            return redirect("accounts:admin_supervisors")
+    else:
+        form = ProfileForm(instance=supervisor)
+
+    return render(request, "dashboard/supervisors/edit.html", {
+        "form": form,
+        "supervisor": supervisor,
+    })
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_circles(request):
@@ -2555,13 +2609,69 @@ def admin_private_sessions(request):
 # ── Batch Management ───────────────────────────────────────────────────
 
 
+def _batch_detail_context(request, batch, batch_form=None):
+    circles = Circle.objects.filter(batch=batch).select_related("teacher")
+    unassigned_circles = Circle.objects.filter(batch__isnull=True).select_related("teacher").order_by("name")
+    teachers = User.objects.filter(
+        role=User.Role.TEACHER, batch=batch,
+    ).order_by("full_name_ar")
+    students_qs = User.objects.filter(
+        role=User.Role.STUDENT, batch=batch,
+    ).order_by("full_name_ar")
+
+    students_paginator = Paginator(students_qs, 20)
+    students_page = students_paginator.get_page(request.GET.get("page", 1))
+
+    unassigned_users = User.objects.filter(
+        is_approved=User.ApprovalStatus.APPROVED,
+        role__in=[User.Role.STUDENT, User.Role.TEACHER],
+    ).exclude(batch=batch).order_by("role", "full_name_ar")
+
+    supervisors = (
+        User.objects.filter(
+            role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        if request.user.role == User.Role.MAIN_ADMIN else User.objects.none()
+    )
+
+    return {
+        "batch": batch,
+        "batch_form": batch_form or BatchForm(instance=batch),
+        "circles": circles,
+        "unassigned_circles": unassigned_circles,
+        "teachers": teachers,
+        "students": students_page,
+        "teachers_total": teachers.count(),
+        "students_total": students_paginator.count,
+        "page_obj": students_page,
+        "unassigned_users": unassigned_users,
+        "supervisors": supervisors,
+        "status_choices": Batch.Status.choices,
+    }
+
+
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_batch_list(request):
+    batch_form = BatchForm()
+
+    if request.method == "POST":
+        if request.user.role != User.Role.MAIN_ADMIN:
+            raise PermissionDenied
+        batch_form = BatchForm(request.POST)
+        if batch_form.is_valid():
+            batch = batch_form.save(commit=False)
+            batch.created_by = request.user
+            batch.save()
+            batch_form.save_m2m()
+            messages.success(request, f"تم إنشاء الدفعة {batch.name} بنجاح")
+            return redirect("accounts:admin_batch_detail", pk=batch.pk)
+
     if request.user.role == User.Role.MAIN_ADMIN:
         batches = Batch.objects.all()
     else:
-        batches = Batch.objects.filter(sub_admin=request.user)
+        batches = Batch.objects.filter(Q(sub_admin=request.user) | Q(sub_admins=request.user))
 
     status_filter = request.GET.get("status", "")
     search = request.GET.get("search", "")
@@ -2578,6 +2688,7 @@ def admin_batch_list(request):
 
     return render(request, "dashboard/admin/batches/list.html", {
         "batches": batches,
+        "batch_form": batch_form,
         "status_filter": status_filter,
         "search": search,
     })
@@ -2586,38 +2697,48 @@ def admin_batch_list(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN)
 def admin_batch_create(request):
-    from apps.accounts.forms import BatchForm
     if request.method == "POST":
         form = BatchForm(request.POST)
         if form.is_valid():
             batch = form.save(commit=False)
             batch.created_by = request.user
             batch.save()
+            form.save_m2m()
             messages.success(request, f"تم إنشاء الدفعة {batch.name} بنجاح")
-            return redirect("accounts:admin_batch_list")
-    else:
-        form = BatchForm()
-    return render(request, "dashboard/admin/batches/create.html", {
-        "form": form,
-    })
+            return redirect("accounts:admin_batch_detail", pk=batch.pk)
+
+        batches = Batch.objects.select_related("sub_admin").annotate(
+            students_count=Count("users", filter=Q(users__role=User.Role.STUDENT), distinct=True),
+            teachers_count=Count("users", filter=Q(users__role=User.Role.TEACHER), distinct=True),
+            circles_count=Count("circles", distinct=True),
+        ).order_by("-created_at")
+        return render(request, "dashboard/admin/batches/list.html", {
+            "batches": batches,
+            "batch_form": form,
+            "status_filter": "",
+            "search": "",
+        })
+
+    return redirect("accounts:admin_batch_list")
 
 
 @login_required
 @role_required(User.Role.MAIN_ADMIN)
 def admin_batch_edit(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
-    from apps.accounts.forms import BatchForm
     if request.method == "POST":
         form = BatchForm(request.POST, instance=batch)
         if form.is_valid():
             form.save()
             messages.success(request, f"تم تحديث الدفعة {batch.name} بنجاح")
             return redirect("accounts:admin_batch_detail", pk=batch.pk)
-    else:
-        form = BatchForm(instance=batch)
-    return render(request, "dashboard/admin/batches/edit.html", {
-        "form": form, "batch": batch,
-    })
+        return render(
+            request,
+            "dashboard/admin/batches/detail.html",
+            _batch_detail_context(request, batch, form),
+        )
+
+    return redirect("accounts:admin_batch_detail", pk=batch.pk)
 
 
 @login_required
@@ -2625,22 +2746,57 @@ def admin_batch_edit(request, pk):
 def admin_batch_detail(request, pk):
     """The one page for everything دفعة: members, circles, supervisor,
     status and deletion are all actions of this view — no satellite pages."""
-    batch = get_object_or_404(Batch.objects.select_related("sub_admin"), pk=pk)
-    if request.user.role != User.Role.MAIN_ADMIN and batch.sub_admin != request.user:
+    batch = get_object_or_404(
+        Batch.objects.select_related("sub_admin").prefetch_related("sub_admins"),
+        pk=pk,
+    )
+    if (
+        request.user.role != User.Role.MAIN_ADMIN
+        and batch.sub_admin != request.user
+        and not batch.sub_admins.filter(pk=request.user.pk).exists()
+    ):
         raise PermissionDenied
 
     if request.method == "POST":
         action = request.POST.get("action")
         is_main_admin = request.user.role == User.Role.MAIN_ADMIN
 
-        if action == "assign_users":
+        if action == "update_batch" and is_main_admin:
+            form = BatchForm(request.POST, instance=batch)
+            if form.is_valid():
+                form.save()
+                messages.success(request, f"تم تحديث الدفعة {batch.name} بنجاح")
+                return redirect("accounts:admin_batch_detail", pk=batch.pk)
+            return render(
+                request,
+                "dashboard/admin/batches/detail.html",
+                _batch_detail_context(request, batch, form),
+            )
+
+        elif action == "assign_users":
             user_ids = request.POST.getlist("user_ids")
             updated = User.objects.filter(
-                pk__in=user_ids, batch__isnull=True,
+                pk__in=user_ids,
                 is_approved=User.ApprovalStatus.APPROVED,
                 role__in=[User.Role.STUDENT, User.Role.TEACHER],
-            ).update(batch=batch)
+            ).exclude(batch=batch).update(batch=batch)
             messages.success(request, f"تم إسناد {updated} عضواً إلى الدفعة")
+
+        elif action == "assign_circles" and is_main_admin:
+            circle_ids = request.POST.getlist("circle_ids")
+            updated = Circle.objects.filter(
+                pk__in=circle_ids, batch__isnull=True,
+            ).update(batch=batch)
+            messages.success(request, f"تم إسناد {updated} حلقة إلى الدفعة")
+
+        elif action == "unassign_circle" and is_main_admin:
+            circle = Circle.objects.filter(
+                pk=request.POST.get("circle_id"), batch=batch,
+            ).first()
+            if circle:
+                circle.batch = None
+                circle.save(update_fields=["batch", "updated_at"])
+                messages.success(request, f"تمت إزالة حلقة {circle.name} من الدفعة")
 
         elif action == "unassign_user":
             member = User.objects.filter(
@@ -2651,20 +2807,17 @@ def admin_batch_detail(request, pk):
                 member.save(update_fields=["batch", "updated_at"])
                 messages.success(request, f"تمت إزالة {member.full_name_ar} من الدفعة")
 
-        elif action == "set_supervisor" and is_main_admin:
-            sup_id = request.POST.get("supervisor") or None
-            supervisor = None
-            if sup_id:
-                supervisor = User.objects.filter(
-                    pk=sup_id, role=User.Role.SUB_ADMIN,
-                    is_approved=User.ApprovalStatus.APPROVED,
-                ).first()
-                if supervisor is None:
-                    messages.error(request, "المشرف غير موجود")
-                    return redirect("accounts:admin_batch_detail", pk=batch.pk)
-            batch.sub_admin = supervisor
+        elif action == "set_supervisors" and is_main_admin:
+            supervisor_ids = request.POST.getlist("supervisor_ids")
+            supervisors = User.objects.filter(
+                pk__in=supervisor_ids,
+                role=User.Role.SUB_ADMIN,
+                is_approved=User.ApprovalStatus.APPROVED,
+            )
+            batch.sub_admin = supervisors.first()
             batch.save(update_fields=["sub_admin", "updated_at"])
-            messages.success(request, "تم تحديث مشرف الدفعة")
+            batch.sub_admins.set(supervisors)
+            messages.success(request, "تم تحديث مشرفي الدفعة")
 
         elif action == "change_status" and is_main_admin:
             new_status = request.POST.get("status")
@@ -2692,37 +2845,11 @@ def admin_batch_detail(request, pk):
 
         return redirect("accounts:admin_batch_detail", pk=batch.pk)
 
-    circles = Circle.objects.filter(batch=batch).select_related("teacher")
-    teachers = User.objects.filter(role=User.Role.TEACHER, batch=batch).order_by("full_name_ar")
-    students = User.objects.filter(role=User.Role.STUDENT, batch=batch).order_by("full_name_ar")
-
-    students_paginator = Paginator(students, 20)
-    students_page = students_paginator.get_page(request.GET.get("page", 1))
-
-    # Approved members not yet in any batch — the assignment pool.
-    unassigned_users = User.objects.filter(
-        batch__isnull=True, is_approved=User.ApprovalStatus.APPROVED,
-        role__in=[User.Role.STUDENT, User.Role.TEACHER],
-    ).order_by("role", "full_name_ar")
-
-    supervisors = (
-        User.objects.filter(
-            role=User.Role.SUB_ADMIN, is_approved=User.ApprovalStatus.APPROVED,
-        )
-        if request.user.role == User.Role.MAIN_ADMIN else User.objects.none()
+    return render(
+        request,
+        "dashboard/admin/batches/detail.html",
+        _batch_detail_context(request, batch),
     )
-
-    return render(request, "dashboard/admin/batches/detail.html", {
-        "batch": batch,
-        "circles": circles,
-        "teachers": teachers,
-        "students": students_page,
-        "students_total": students_paginator.count,
-        "page_obj": students_page,
-        "unassigned_users": unassigned_users,
-        "supervisors": supervisors,
-        "status_choices": Batch.Status.choices,
-    })
 
 
 @login_required
@@ -2741,3 +2868,39 @@ def admin_batch_toggle_status(request, pk):
     batch.save(update_fields=["status", "updated_at"])
     messages.success(request, f"تم تغيير حالة الدفعة {batch.name} إلى {batch.get_status_display()}")
     return redirect("accounts:admin_batch_list")
+
+
+@login_required
+@role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
+def admin_batch_circles(request, pk):
+    """Circles belonging to a specific batch — navigation step between
+    Batch List → [Open Batch] → Halaqas → [Open] → supervisor_group_board."""
+    batch = get_object_or_404(
+        Batch.objects.select_related("sub_admin").prefetch_related("sub_admins"),
+        pk=pk,
+    )
+    if (
+        request.user.role != User.Role.MAIN_ADMIN
+        and batch.sub_admin != request.user
+        and not batch.sub_admins.filter(pk=request.user.pk).exists()
+    ):
+        raise PermissionDenied
+
+    circles = (
+        Circle.objects.filter(batch=batch)
+        .select_related("teacher")
+        .annotate(
+            active_students=Count(
+                "enrollments",
+                filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE),
+                distinct=True,
+            ),
+            sessions_count=Count("sessions", distinct=True),
+        )
+        .order_by("name")
+    )
+
+    return render(request, "dashboard/admin/batches/circles.html", {
+        "batch": batch,
+        "circles": circles,
+    })

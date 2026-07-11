@@ -1,5 +1,4 @@
-{% comment %}Workspace sub-nav: التواصل — sibling pages of the consolidated
-sidebar entry (requests, announcements, notifications, private sessions).{% endcomment %}
+{% comment %}Workspace sub-nav: التواصل — requests, announcements, and notifications.{% endcomment %}
 {% with vn=request.resolver_match.view_name %}
 <div class="flex items-center gap-8 mb-6 border-b-2 border-[#E4EBE9] overflow-x-auto" dir="rtl">
     <a href="{% url 'accounts:admin_requests' %}"
@@ -8,7 +7,5 @@ sidebar entry (requests, announcements, notifications, private sessions).{% endc
        class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'accounts:admin_announcements' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">الإعلانات</a>
     <a href="{% url 'accounts:admin_notifications' %}"
        class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'accounts:admin_notifications' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">الإشعارات</a>
-    <a href="{% url 'accounts:admin_private_sessions' %}"
-       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'accounts:admin_private_sessions' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">الجلسات الخاصة</a>
 </div>
 {% endwith %}

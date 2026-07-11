@@ -254,7 +254,7 @@ class PasswordResetVerifyForm(forms.Form):
 class BatchForm(forms.ModelForm):
     class Meta:
         model = Batch
-        fields = ["name", "number", "year", "description", "status", "start_date", "end_date", "sub_admin"]
+        fields = ["name", "number", "year", "description", "status", "start_date", "end_date", "sub_admins"]
         widgets = {
             "name": forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "اسم الدفعة"}),
             "number": forms.NumberInput(attrs={"class": INPUT_CLASS, "placeholder": "رقم الدفعة"}),
@@ -263,16 +263,25 @@ class BatchForm(forms.ModelForm):
             "start_date": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
             "end_date": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
             "status": forms.Select(attrs={"class": SELECT_CLASS}),
-            "sub_admin": forms.Select(attrs={"class": SELECT_CLASS}),
+            "sub_admins": forms.SelectMultiple(attrs={"class": SELECT_CLASS, "size": 4}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["sub_admin"].queryset = User.objects.filter(
+        self.fields["sub_admins"].queryset = User.objects.filter(
             role=User.Role.SUB_ADMIN, is_approved=User.ApprovalStatus.APPROVED,
         )
-        self.fields["sub_admin"].required = False
-        self.fields["sub_admin"].label = "المشرف المسؤول"
+        self.fields["sub_admins"].required = False
+        self.fields["sub_admins"].label = "المشرفون المسؤولون"
+
+    def save(self, commit=True):
+        batch = super().save(commit=False)
+        supervisors = list(self.cleaned_data.get("sub_admins") or [])
+        batch.sub_admin = supervisors[0] if supervisors else None
+        if commit:
+            batch.save()
+            self.save_m2m()
+        return batch
 
 
 class PasswordResetSetForm(forms.Form):

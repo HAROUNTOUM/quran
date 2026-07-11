@@ -801,7 +801,9 @@ class AttendanceTrendView(APIView):
 # ─── GRADES VIEWSET ────────────────────────────
 
 class RecitationGradeViewSet(viewsets.ModelViewSet):
-    queryset = RecitationGrade.objects.select_related("session__circle", "student", "criterion").all()
+    queryset = RecitationGrade.objects.select_related("session__circle", "student", "criterion").order_by(
+        "-created_at", "-id"
+    )
     serializer_class = RecitationGradeSerializer
     filterset_fields = ["session", "student", "criterion"]
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAbove]
@@ -810,7 +812,7 @@ class RecitationGradeViewSet(viewsets.ModelViewSet):
         qs = RecitationGrade.objects.select_related("session__circle", "student", "criterion")
         if self.request.user.role == User.Role.TEACHER:
             qs = qs.filter(session__circle__teacher=self.request.user)
-        return qs
+        return qs.order_by("-created_at", "-id")
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -855,7 +857,7 @@ class RecitationGradeViewSet(viewsets.ModelViewSet):
 # ─── JUSTIFICATIONS VIEWSET ────────────────────
 
 class AbsenceJustificationViewSet(viewsets.GenericViewSet):
-    queryset = Attendance.objects.all()
+    queryset = Attendance.objects.select_related("student", "session__circle").order_by("-created_at", "-id")
     serializer_class = AbsenceJustificationSerializer
     filterset_fields = ["student", "status"]
 
@@ -871,7 +873,7 @@ class AbsenceJustificationViewSet(viewsets.GenericViewSet):
             qs = qs.filter(student=user)
         elif user.role == User.Role.TEACHER:
             qs = qs.filter(session__circle__teacher=user)
-        return qs
+        return qs.order_by("-created_at", "-id")
 
     def list(self, request):
         queryset = self.filter_queryset(self.get_queryset())

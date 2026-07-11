@@ -1,0 +1,87 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}تعديل بيانات الطالب{% endblock %}
+{% block page_heading %}تعديل بيانات {{ student.full_name_ar }}{% endblock %}
+{% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:admin_students' %}">إدارة الطلاب</a> / <a href="{% url 'accounts:admin_student_detail' student.pk %}">{{ student.full_name_ar }}</a> / تعديل{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl border border-gray-100 p-6">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="mb-4 rounded-xl bg-red-50 text-red-700 text-sm p-3">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.full_name_ar.id_for_label }}">الاسم الكامل</label>
+                    {{ form.full_name_ar }}
+                    {{ form.full_name_ar.errors }}
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.email.id_for_label }}">البريد الإلكتروني</label>
+                    {{ form.email }}
+                    {{ form.email.errors }}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.phone.id_for_label }}">الهاتف</label>
+                        {{ form.phone }}
+                        {{ form.phone.errors }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.gender.id_for_label }}">الجنس</label>
+                        {{ form.gender }}
+                        {{ form.gender.errors }}
+                    </div>
+                    {% if request.user.role == 'admin' %}
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">الدفعة</label>
+                        <select name="batch" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">بدون دفعة</option>
+                            {% for b in active_batches %}
+                            <option value="{{ b.pk }}" {% if student.batch_id == b.pk %}selected{% endif %}>{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.specialization.id_for_label }}">التخصص</label>
+                        {{ form.specialization }}
+                        {{ form.specialization.errors }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.state.id_for_label }}">الولاية</label>
+                        {{ form.state }}
+                        {{ form.state.errors }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.level.id_for_label }}">المستوى</label>
+                        {{ form.level }}
+                        {{ form.level.errors }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1" for="{{ form.memorization_amount.id_for_label }}">مقدار الحفظ</label>
+                        {{ form.memorization_amount }}
+                        {{ form.memorization_amount.errors }}
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" name="is_active" value="true" id="is_active" {% if student.is_active %}checked{% endif %}
+                           class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                    <label for="is_active" class="text-sm text-gray-700">الحساب نشط</label>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    حفظ التعديلات
+                </button>
+                <a href="{% url 'accounts:admin_student_detail' student.pk %}" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors text-center">
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

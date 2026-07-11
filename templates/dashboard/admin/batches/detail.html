@@ -4,78 +4,240 @@
 {% block page_breadcrumb %}الرئيسية / <a href="{% url 'accounts:admin_batch_list' %}">الدفعات</a> / {{ batch.name }}{% endblock %}
 {% block dashboard_content %}
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
     <div class="bg-white rounded-2xl border border-gray-100 p-5">
         <p class="text-xs text-gray-400 mb-1">الحلقات</p>
         <p class="text-2xl font-bold text-gray-900">{{ circles.count }}</p>
     </div>
     <div class="bg-white rounded-2xl border border-gray-100 p-5">
         <p class="text-xs text-gray-400 mb-1">المعلمون</p>
-        <p class="text-2xl font-bold text-gray-900">{{ teachers.count }}</p>
+        <p class="text-2xl font-bold text-gray-900">{{ teachers_total }}</p>
     </div>
     <div class="bg-white rounded-2xl border border-gray-100 p-5">
         <p class="text-xs text-gray-400 mb-1">الطلاب</p>
-        <p class="text-2xl font-bold text-gray-900">{{ students.count }}</p>
+        <p class="text-2xl font-bold text-gray-900">{{ students_total }}</p>
     </div>
 </div>
 
-<div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
-    <div class="grid grid-cols-2 gap-4 text-sm">
-        <div><span class="text-gray-400">الوصف:</span> <span class="text-gray-700">{{ batch.description|default:"—" }}</span></div>
-        <div><span class="text-gray-400">السنة:</span> <span class="text-gray-700">{{ batch.year|default:"—" }}</span></div>
-        <div><span class="text-gray-400">المشرف:</span> <span class="text-gray-700">{{ batch.sub_admin.full_name_ar|default:"—" }}</span></div>
-        <div><span class="text-gray-400">الحالة:</span>
-            <span class="px-2 py-0.5 rounded-full text-xs font-medium
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+    <section class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-3">
+                <h2 class="font-bold text-gray-900">بيانات الدفعة</h2>
+                <a href="{% url 'accounts:admin_batch_circles' batch.pk %}" class="px-3 py-1.5 bg-primary-50 text-primary-700 text-xs font-medium rounded-lg hover:bg-primary-100 transition-colors">
+                    إدارة الحلقات
+                </a>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-medium
                 {% if batch.status == 'active' %}bg-emerald-50 text-emerald-600
                 {% elif batch.status == 'inactive' %}bg-amber-50 text-amber-600
                 {% else %}bg-gray-100 text-gray-500{% endif %}">
                 {{ batch.get_status_display }}
             </span>
         </div>
-    </div>
-    {% if request.user.role == 'admin' %}
-    <div class="flex items-center gap-3 mt-4 pt-4 border-t border-gray-50">
-        <a href="{% url 'accounts:admin_batch_edit' batch.pk %}" class="px-4 py-2 text-sm bg-primary-50 text-primary-600 rounded-xl hover:bg-primary-100 transition-colors">
-            تعديل الدفعة
-        </a>
-        <a href="{% url 'accounts:admin_batch_toggle_status' batch.pk %}" class="px-4 py-2 text-sm bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors" onclick="return confirm('تأكيد تغيير حالة الدفعة؟')">
-            تغيير الحالة
-        </a>
-    </div>
-    {% endif %}
+        {% if request.user.role == 'admin' %}
+        <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_batch">
+            <div class="grid md:grid-cols-2 gap-4">
+                {% for field in batch_form %}
+                <div class="{% if field.name == 'description' %}md:col-span-2{% endif %}">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-gray-50">
+                <button type="submit" class="px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">
+                    حفظ التعديلات
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="grid sm:grid-cols-2 gap-4 text-sm">
+            <div><span class="text-gray-400">الوصف:</span> <span class="text-gray-700">{{ batch.description|default:"—" }}</span></div>
+            <div><span class="text-gray-400">السنة:</span> <span class="text-gray-700">{{ batch.year|default:"—" }}</span></div>
+            <div><span class="text-gray-400">المشرف:</span> <span class="text-gray-700">{{ batch.sub_admin.full_name_ar|default:"—" }}</span></div>
+            <div><span class="text-gray-400">الفترة:</span> <span class="text-gray-700">{{ batch.start_date|date:"Y-m-d"|default:"—" }}{% if batch.end_date %} إلى {{ batch.end_date|date:"Y-m-d" }}{% endif %}</span></div>
+        </div>
+        {% endif %}
+    </section>
+
+    <aside class="space-y-4">
+        {% if request.user.role == 'admin' %}
+        <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}" class="bg-white rounded-2xl border border-gray-100 p-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="change_status">
+            <label class="block text-xs font-medium text-gray-500 mb-2">حالة الدفعة</label>
+            <div class="flex items-center gap-2">
+                <select name="status" class="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                    {% for value,label in status_choices %}
+                    <option value="{{ value }}" {% if batch.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="px-4 py-2.5 bg-amber-50 text-amber-700 text-sm font-medium rounded-xl hover:bg-amber-100 transition-colors">تحديث</button>
+            </div>
+        </form>
+
+        <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}" class="bg-white rounded-2xl border border-gray-100 p-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="set_supervisors">
+            <label class="block text-xs font-medium text-gray-500 mb-2">مشرفو الدفعة</label>
+            <div class="space-y-3">
+                <select name="supervisor_ids" multiple size="5" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                    {% for supervisor in supervisors %}
+                    <option value="{{ supervisor.pk }}" {% if supervisor in batch.sub_admins.all or batch.sub_admin_id == supervisor.pk %}selected{% endif %}>{{ supervisor.full_name_ar }}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-gray-400">يمكن اختيار أكثر من مشرف للدفعة.</p>
+                <button type="submit" class="px-4 py-2.5 bg-primary-50 text-primary-700 text-sm font-medium rounded-xl hover:bg-primary-100 transition-colors">حفظ المشرفين</button>
+            </div>
+        </form>
+
+        <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}" class="bg-white rounded-2xl border border-red-100 p-5" onsubmit="return confirm('تأكيد حذف الدفعة؟')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <p class="text-sm text-red-600 mb-3">يمكن حذف الدفعة فقط إذا لم تكن مرتبطة بأعضاء أو حلقات.</p>
+            <button type="submit" class="px-4 py-2.5 bg-red-50 text-red-700 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors">حذف الدفعة</button>
+        </form>
+        {% endif %}
+    </aside>
 </div>
 
-<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-    <div class="px-5 py-4 border-b border-gray-50">
-        <h3 class="font-bold text-gray-900">الحلقات في هذه الدفعة</h3>
-    </div>
-    {% if circles %}
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead class="bg-gray-50 text-xs text-gray-500">
-                <tr>
-                    <th class="px-5 py-3 text-right font-medium">اسم الحلقة</th>
-                    <th class="px-5 py-3 text-right font-medium">المعلم</th>
-                    <th class="px-5 py-3 text-center font-medium">الحالة</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50">
-                {% for circle in circles %}
-                <tr class="hover:bg-gray-25">
-                    <td class="px-5 py-3 text-sm font-medium text-gray-900">{{ circle.name }}</td>
-                    <td class="px-5 py-3 text-sm text-gray-500">{{ circle.teacher.full_name_ar|default:"—" }}</td>
-                    <td class="px-5 py-3 text-center">
-                        <span class="px-2 py-0.5 rounded-full text-xs font-medium {% if circle.status == 'active' %}bg-emerald-50 text-emerald-600{% else %}bg-gray-100 text-gray-500{% endif %}">
-                            {{ circle.get_status_display }}
-                        </span>
-                    </td>
-                </tr>
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+    <section class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <h3 class="font-bold text-gray-900">الحلقات في هذه الدفعة</h3>
+            <span class="text-xs text-gray-400">{{ circles.count }} حلقة</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 text-xs text-gray-500">
+                    <tr>
+                        <th class="px-5 py-3 text-right font-medium">اسم الحلقة</th>
+                        <th class="px-5 py-3 text-right font-medium">المعلم</th>
+                        <th class="px-5 py-3 text-center font-medium">الحالة</th>
+                        <th class="px-5 py-3 text-center font-medium">متابعة</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for circle in circles %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-5 py-3 text-sm font-medium text-gray-900">{{ circle.name }}</td>
+                        <td class="px-5 py-3 text-sm text-gray-500">{{ circle.teacher.full_name_ar|default:"—" }}</td>
+                        <td class="px-5 py-3 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium {% if circle.status == 'active' %}bg-emerald-50 text-emerald-600{% else %}bg-gray-100 text-gray-500{% endif %}">
+                                {{ circle.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                            <a href="{% url 'accounts:supervisor_group_board' circle.id %}" class="text-xs font-medium text-primary-700 hover:text-primary-800">فتح</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4">{% include "dashboard/partials/empty_state.html" with message="لا توجد حلقات في هذه الدفعة بعد" %}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-gray-100 p-5">
+        <h3 class="font-bold text-gray-900 mb-4">إضافة أو نقل أعضاء إلى الدفعة</h3>
+        {% if request.user.role == 'admin' and unassigned_users %}
+        <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign_users">
+            <select name="user_ids" multiple size="10" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                {% for user in unassigned_users %}
+                <option value="{{ user.pk }}">{{ user.full_name_ar }} — {{ user.get_role_display }}</option>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p class="text-center py-8 text-gray-400 text-sm">لا توجد حلقات في هذه الدفعة بعد</p>
-    {% endif %}
+            </select>
+            <p class="text-xs text-gray-400 mt-2">يمكن اختيار أكثر من عضو. إذا كان العضو في دفعة أخرى سيتم نقله إلى هذه الدفعة.</p>
+            <button type="submit" class="mt-4 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">إسناد للدفعة</button>
+        </form>
+        {% else %}
+        <p class="text-sm text-gray-400">لا يوجد أعضاء معتمدون خارج هذه الدفعة حالياً.</p>
+        {% endif %}
+    </section>
+
+    <section class="bg-white rounded-2xl border border-gray-100 p-5">
+        <h3 class="font-bold text-gray-900 mb-4">إضافة حلقات إلى الدفعة</h3>
+        {% if request.user.role == 'admin' and unassigned_circles %}
+        <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign_circles">
+            <select name="circle_ids" multiple size="10" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                {% for circle in unassigned_circles %}
+                <option value="{{ circle.pk }}">{{ circle.name }}{% if circle.teacher %} — {{ circle.teacher.full_name_ar }}{% endif %}</option>
+                {% endfor %}
+            </select>
+            <p class="text-xs text-gray-400 mt-2">يمكن اختيار أكثر من حلقة.</p>
+            <button type="submit" class="mt-4 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors">إسناد الحلقات</button>
+        </form>
+        {% else %}
+        <p class="text-sm text-gray-400">لا توجد حلقات خارج الدفعات حالياً.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <section class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <h3 class="font-bold text-gray-900">المعلمون</h3>
+            <span class="text-xs text-gray-400">{{ teachers_total }} معلم</span>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for teacher in teachers %}
+            <div class="px-5 py-3 flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">{{ teacher.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ teacher.email }}</p>
+                </div>
+                {% if request.user.role == 'admin' %}
+                <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="unassign_user">
+                    <input type="hidden" name="user_id" value="{{ teacher.pk }}">
+                    <button type="submit" class="text-xs text-red-600 hover:text-red-700">إزالة</button>
+                </form>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="p-6 text-center text-sm text-gray-400">لا يوجد معلمون في هذه الدفعة.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <h3 class="font-bold text-gray-900">الطلاب</h3>
+            <span class="text-xs text-gray-400">{{ students_total }} طالب</span>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for student in students %}
+            <div class="px-5 py-3 flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">{{ student.full_name_ar }}</p>
+                    <p class="text-xs text-gray-400">{{ student.email }}</p>
+                </div>
+                {% if request.user.role == 'admin' %}
+                <form method="post" action="{% url 'accounts:admin_batch_detail' batch.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="unassign_user">
+                    <input type="hidden" name="user_id" value="{{ student.pk }}">
+                    <button type="submit" class="text-xs text-red-600 hover:text-red-700">إزالة</button>
+                </form>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="p-6 text-center text-sm text-gray-400">لا يوجد طلاب في هذه الدفعة.</div>
+            {% endfor %}
+        </div>
+        <div class="px-5 py-3 border-t border-gray-50">
+            {% include "dashboard/partials/pagination.html" %}
+        </div>
+    </section>
 </div>
 {% endblock %}

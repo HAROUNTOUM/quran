@@ -1,0 +1,47 @@
+{% comment %}Shared حلقات/حصص navigation: regular sessions and private sessions live together here.{% endcomment %}
+{% with active=request.resolver_match.url_name %}
+<nav class="flex items-center gap-1 mb-6 border-b border-gray-100 overflow-x-auto" dir="rtl" aria-label="أقسام الحلقات والحصص">
+    {% if request.user.role == 'admin' or request.user.role == 'supervisor' %}
+    <a href="{% url 'accounts:admin_circles' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'admin_circles' or active == 'admin_circle_detail' or active == 'admin_circle_create' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        الحلقات والحصص
+    </a>
+    <a href="{% url 'accounts:admin_private_sessions' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'admin_private_sessions' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        الجلسات الخاصة
+    </a>
+    {% elif request.user.role == 'teacher' %}
+    <a href="{% url 'accounts:teacher_session_manage' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'teacher_session_manage' or active == 'teacher_circle_detail' or active == 'teacher_session_detail' or active == 'teacher_session_progress' or active == 'teacher_session_create' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        الحلقات والحصص
+    </a>
+    <a href="{% url 'accounts:teacher_private_sessions' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'teacher_private_sessions' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        الجلسات الخاصة
+    </a>
+    {% elif request.user.role == 'student' %}
+    <a href="{% url 'accounts:student_circles' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'student_circles' or active == 'student_circle_detail' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        حلقاتي
+    </a>
+    <a href="{% url 'accounts:student_sessions' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'student_sessions' or active == 'student_session_detail' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        الحصص
+    </a>
+    <a href="{% url 'accounts:student_private_sessions' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'student_private_sessions' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        الجلسات الخاصة
+    </a>
+    <a href="{% url 'classrooms:my_classroom' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'my_classroom' or active == 'join' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        غرفة الصف
+    </a>
+    {% if features.leaderboard %}
+    <a href="{% url 'accounts:student_leaderboard' %}"
+       class="whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {% if active == 'student_leaderboard' %}border-primary-600 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+        لوحة الترتيب
+    </a>
+    {% endif %}
+    {% endif %}
+</nav>
+{% endwith %}

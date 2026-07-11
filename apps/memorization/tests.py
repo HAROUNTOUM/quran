@@ -715,3 +715,42 @@ class SessionReportTest(TestCase):
             "circle": self.circle.id, "type": "question", "notes": "سؤال",
         }, content_type="application/json")
         self.assertEqual(resp.status_code, 400, resp.content)
+
+
+class CircleRemoveStudentApiTest(TestCase):
+    """Regression: removing a non-enrolled student returned 500 (bare .get())."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_quran")
+        cls.admin = User.objects.create_user(
+            username="rm_a@test.com", email="rm_a@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        cls.student = User.objects.create_user(
+            username="rm_s@test.com", email="rm_s@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        cls.circle = Circle.objects.create(name="حلقة", status=Circle.Status.ACTIVE)
+
+    def test_remove_non_enrolled_student_returns_400(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(f"/api/v1/circles/{self.circle.id}/remove_student/", {
+            "student_id": str(self.student.id),
+        }, content_type="application/json")
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_remove_enrolled_student_succeeds(self):
+        CircleEnrollment.objects.create(
+            circle=self.circle, student=self.student,
+            status=CircleEnrollment.Status.ACTIVE,
+        )
+        self.client.force_login(self.admin)
+        resp = self.client.post(f"/api/v1/circles/{self.circle.id}/remove_student/", {
+            "student_id": str(self.student.id),
+        }, content_type="application/json")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        enr = CircleEnrollment.objects.get(circle=self.circle, student=self.student)
+        self.assertEqual(enr.status, CircleEnrollment.Status.INACTIVE)

@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 from apps.accounts.models import User
 from apps.classrooms.services import is_moderator, jitsi_auth_enabled, mint_jitsi_jwt
 
-SECRET = "test-secret-key"
+SECRET = "test-secret-key-with-at-least-32-bytes"
 
 
 class JitsiJWTTest(TestCase):

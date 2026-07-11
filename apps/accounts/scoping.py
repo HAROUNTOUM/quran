@@ -4,8 +4,8 @@ pass through one of these helpers.
 
 Policy:
 - MAIN_ADMIN sees everything (queryset returned unchanged).
-- SUB_ADMIN sees only rows belonging to their managed batch.
-- SUB_ADMIN with no managed batch sees nothing (qs.none()), never an error.
+- SUB_ADMIN sees rows belonging to any batch they supervise.
+- SUB_ADMIN with no managed batches sees nothing (qs.none()), never an error.
 - Pending signups are the one exception: they have batch=NULL until approval,
   so `scoped_pending_users` keeps them visible to sub-admins (who assign
   their own batch on approval).
@@ -13,30 +13,43 @@ Policy:
 
 from django.db.models import Q
 
-from .models import User
+from .models import Batch, User
+
+
+def scoped_batches(user):
+    """All batches a Sub Admin supervises.
+
+    Supports both the legacy single `sub_admin` field and the newer
+    multi-supervisor `sub_admins` relation during the transition.
+    """
+    if user.role != User.Role.SUB_ADMIN:
+        return Batch.objects.none()
+    return Batch.objects.filter(
+        Q(sub_admin=user) | Q(sub_admins=user)
+    ).distinct().order_by("status", "-created_at")
 
 
 def scoped_batch(user):
-    """The batch this Sub Admin manages. Deterministic: prefers the active
-    batch, then the newest — a sub-admin listed on several batches always
-    resolves to the same one."""
-    if user.role != User.Role.SUB_ADMIN:
+    """Primary batch for legacy callers. Deterministic: prefers active, newest."""
+    return scoped_batches(user).first()
+
+
+def scoped_batch_ids(user):
+    if user.role == User.Role.MAIN_ADMIN:
         return None
-    return (
-        user.managed_batch
-        .order_by("status", "-created_at")  # "active" < "archived"/"inactive"
-        .first()
+    return list(
+        scoped_batches(user).values_list("pk", flat=True)
     )
 
 
 def _scope(user, qs, batch_filter):
-    """MAIN_ADMIN → unchanged; SUB_ADMIN → filtered by batch; no batch → none."""
+    """MAIN_ADMIN → unchanged; SUB_ADMIN → filtered by supervised batches."""
     if user.role == User.Role.MAIN_ADMIN:
         return qs
-    batch = scoped_batch(user)
-    if batch is None:
+    batch_ids = scoped_batch_ids(user)
+    if not batch_ids:
         return qs.none()
-    return qs.filter(**{batch_filter: batch})
+    return qs.filter(**{f"{batch_filter}__in": batch_ids})
 
 
 def scoped_users(user, qs):
@@ -48,10 +61,10 @@ def scoped_pending_users(user, qs):
     (plus any pending user already placed in their batch)."""
     if user.role == User.Role.MAIN_ADMIN:
         return qs
-    batch = scoped_batch(user)
-    if batch is None:
+    batch_ids = scoped_batch_ids(user)
+    if not batch_ids:
         return qs.none()
-    return qs.filter(Q(batch__isnull=True) | Q(batch=batch))
+    return qs.filter(Q(batch__isnull=True) | Q(batch_id__in=batch_ids))
 
 
 def scoped_circles(user, qs):

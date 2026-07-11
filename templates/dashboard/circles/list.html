@@ -3,6 +3,8 @@
 {% block page_heading %}إدارة الحلقات{% endblock %}
 {% block page_breadcrumb %}الرئيسية / إدارة الحلقات{% endblock %}
 {% block dashboard_content %}
+{% include "dashboard/partials/halaqa_sessions_tabs.html" %}
+
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     {% if request.GET.status %}
       {% include "dashboard/partials/stat_card.html" with label="إجمالي الحلقات" value=total_count icon="circles" color="blue" filter_url="?status=" %}
