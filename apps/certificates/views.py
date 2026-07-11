@@ -303,7 +303,11 @@ def certificate_download(request, pk):
     if not cert.pdf_file:
         messages.error(request, "لم يتم رفع ملف PDF بعد")
         return redirect("certificates:list")
-    return FileResponse(cert.pdf_file.open(), as_attachment=True, filename=f"{cert.certificate_number}.pdf")
+    try:
+        return FileResponse(cert.pdf_file.open(), as_attachment=True, filename=f"{cert.certificate_number}.pdf")
+    except FileNotFoundError:
+        messages.error(request, "ملف PDF غير موجود على الخادم، يرجى إعادة رفعه")
+        return redirect("certificates:list")
 
 
 @login_required
@@ -312,7 +316,11 @@ def certificate_preview(request, pk):
     if request.user.role not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN) and request.user != cert.student:
         raise PermissionDenied
     if cert.pdf_file:
-        return FileResponse(cert.pdf_file.open(), content_type="application/pdf")
+        try:
+            return FileResponse(cert.pdf_file.open(), content_type="application/pdf")
+        except FileNotFoundError:
+            messages.error(request, "ملف PDF غير موجود على الخادم، يرجى إعادة رفعه")
+            return redirect("certificates:list")
     pdf_bytes = generate_certificate_pdf(cert)
     return HttpResponse(pdf_bytes, content_type="application/pdf")
 
