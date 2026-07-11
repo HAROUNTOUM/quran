@@ -90,6 +90,32 @@
             <span>طلبات الغياب</span>
         </a>
 
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الطلبات والمراجعة</p>
+        <a href="{% url 'accounts:teacher_review_requests' %}"
+           :class="isActive('teacher_review_requests') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="clipboard" %}
+            <span>التسميع والأسئلة</span>
+        </a>
+        <a href="{% url 'accounts:teacher_requests' %}"
+           :class="isActive('teacher_requests') || isActive('teacher_request_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            <span>الدعم والبلاغات</span>
+        </a>
+        <a href="{% url 'accounts:teacher_announcements' %}"
+           :class="isActive('teacher_announcements') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
+            <span>الإعلانات</span>
+        </a>
+        <a href="{% url 'accounts:teacher_notifications' %}"
+           :class="isActive('teacher_notifications') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="bell" %}
+            <span>الإشعارات</span>
+        </a>
+
         {% elif request.user.role == 'student' %}
         <a href="{% url 'accounts:student_dashboard' %}"
            :class="isActive('student_dashboard') ? 'nav-link-active' : ''"
@@ -108,6 +134,30 @@
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
             {% include "dashboard/partials/sidebar_icon.html" with name="book" %}
             <span>الحفظ والحضور</span>
+        </a>
+        <a href="{% url 'accounts:student_review_requests' %}"
+           :class="isActive('student_review_requests') || isActive('student_review_request_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="clipboard" %}
+            <span>التسميع والأسئلة</span>
+        </a>
+        <a href="{% url 'accounts:student_requests' %}"
+           :class="isActive('student_requests') || isActive('student_request_detail') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            <span>الدعم والبلاغات</span>
+        </a>
+        <a href="{% url 'accounts:student_announcements' %}"
+           :class="isActive('student_announcements') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
+            <span>الإعلانات</span>
+        </a>
+        <a href="{% url 'accounts:student_notifications' %}"
+           :class="isActive('student_notifications') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="bell" %}
+            <span>الإشعارات</span>
         </a>
         {% else %}
         <a href="{% url 'accounts:admin_dashboard' %}"
@@ -164,16 +214,22 @@
             {% include "dashboard/partials/sidebar_icon.html" with name="users" %}
             <span>إدارة الطلاب</span>
         </a>
+        <a href="{% url 'accounts:admin_requests' %}"
+           :class="isActive('admin_requests') || isActive('admin_request_detail') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="clipboard" %}
+            <span>الطلبات والبلاغات</span>
+        </a>
         <a href="{% url 'accounts:admin_announcements' %}"
            :class="isActive('admin_announcements') || isActive('admin_announcement_create') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
             <span>الإعلانات</span>
         </a>
         <a href="{% url 'accounts:admin_notifications' %}"
            :class="isActive('admin_notifications') || isActive('admin_notification_create') ? 'nav-link-active' : ''"
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="shield" %}
+            {% include "dashboard/partials/sidebar_icon.html" with name="bell" %}
             <span>الإشعارات</span>
         </a>
         {% if features.exams or features.certificates %}
