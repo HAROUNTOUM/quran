@@ -273,7 +273,10 @@ class CircleEnrollSerializer(serializers.Serializer):
     def save(self, **kwargs):
         circle = self.context["circle"]
         student = self.validated_data["student_id"]
-        return CircleEnrollment.objects.create(circle=circle, student=student)
+        # Reactivate a previous (dropped/inactive) enrollment row instead of
+        # a raw create — the unique_together(circle, student) constraint made
+        # re-enrolling a removed student crash with IntegrityError.
+        return CircleEnrollment.enroll(student, circle)
 
 
 class CircleRemoveStudentSerializer(serializers.Serializer):

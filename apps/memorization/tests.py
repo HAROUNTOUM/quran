@@ -754,3 +754,43 @@ class CircleRemoveStudentApiTest(TestCase):
         self.assertEqual(resp.status_code, 200, resp.content)
         enr = CircleEnrollment.objects.get(circle=self.circle, student=self.student)
         self.assertEqual(enr.status, CircleEnrollment.Status.INACTIVE)
+
+
+class CircleReEnrollApiTest(TestCase):
+    """Regression: re-enrolling a previously removed student raised
+    IntegrityError (unique_together) → 500. Enrollment must reactivate."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_quran")
+        cls.admin = User.objects.create_user(
+            username="re_a@test.com", email="re_a@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        cls.student = User.objects.create_user(
+            username="re_s@test.com", email="re_s@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        cls.circle = Circle.objects.create(name="حلقة", status=Circle.Status.ACTIVE)
+
+    def test_remove_then_reenroll_reactivates(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(f"/api/v1/circles/{self.circle.id}/enroll/",
+                             {"student_id": str(self.student.id)},
+                             content_type="application/json")
+        self.assertEqual(r.status_code, 201, r.content)
+        r = self.client.post(f"/api/v1/circles/{self.circle.id}/remove_student/",
+                             {"student_id": str(self.student.id)},
+                             content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.client.post(f"/api/v1/circles/{self.circle.id}/enroll/",
+                             {"student_id": str(self.student.id)},
+                             content_type="application/json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(
+            CircleEnrollment.objects.filter(circle=self.circle, student=self.student).count(), 1)
+        self.assertEqual(
+            CircleEnrollment.objects.get(circle=self.circle, student=self.student).status,
+            CircleEnrollment.Status.ACTIVE)
