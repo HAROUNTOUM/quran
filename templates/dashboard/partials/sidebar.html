@@ -98,6 +98,14 @@
             <span>التسميع والأسئلة</span>
         </a>
 
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الإعلانات</p>
+        <a href="{% url 'accounts:teacher_announcements' %}"
+           :class="isActive('teacher_announcements') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
+            <span>الإعلانات</span>
+        </a>
+
         {% elif request.user.role == 'student' %}
         <a href="{% url 'accounts:student_dashboard' %}"
            :class="isActive('student_dashboard') ? 'nav-link-active' : ''"
@@ -123,6 +131,14 @@
            class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
             {% include "dashboard/partials/sidebar_icon.html" with name="clipboard" %}
             <span>التسميع والأسئلة</span>
+        </a>
+
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الإعلانات</p>
+        <a href="{% url 'accounts:student_announcements' %}"
+           :class="isActive('student_announcements') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
+            <span>الإعلانات</span>
         </a>
         {% else %}
         <a href="{% url 'accounts:admin_dashboard' %}"
@@ -178,6 +194,20 @@
             <span>الامتحانات والشهادات</span>
         </a>
         {% endif %}
+        <a href="{% url 'accounts:admin_reports' %}"
+           :class="isActive('admin_reports') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="chart" %}
+            <span>التقارير والإحصائيات</span>
+        </a>
+
+        <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الإعلانات والندوات</p>
+        <a href="{% url 'accounts:admin_announcements' %}"
+           :class="isActive('admin_announcements') || isActive('admin_announcement_create') ? 'nav-link-active' : ''"
+           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
+            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
+            <span>الإعلانات</span>
+        </a>
         {% if features.webinars %}
         <a href="{% url 'webinars:admin_list' %}"
            :class="isActive('admin_list') || isActive('admin_manage') || isActive('admin_create') ? 'nav-link-active' : ''"
@@ -186,12 +216,6 @@
             <span>الندوات المباشرة</span>
         </a>
         {% endif %}
-        <a href="{% url 'accounts:admin_reports' %}"
-           :class="isActive('admin_reports') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="chart" %}
-            <span>التقارير والإحصائيات</span>
-        </a>
 
         <p class="text-[10px] font-bold text-navy-300 uppercase tracking-wider px-3 mb-1.5 mt-5">الإدارة</p>
         <a href="{% url 'accounts:admin_batch_list' %}"

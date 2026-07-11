@@ -54,18 +54,15 @@
                     <div class="max-h-80 overflow-y-auto" hx-get="{% url 'accounts:notification_list' %}" hx-trigger="load" hx-swap="innerHTML">
                         <p class="p-6 text-center text-sm text-navy-300">جاري التحميل...</p>
                     </div>
-                    <div class="p-2 border-t border-cream-300/60 grid grid-cols-3 gap-1 text-center text-xs font-bold text-primary-600">
+                    <div class="p-2 border-t border-cream-300/60 grid grid-cols-2 gap-1 text-center text-xs font-bold text-primary-600">
                         {% if request.user.role == 'teacher' %}
                         <a href="{% url 'accounts:teacher_notifications' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الإشعارات</a>
-                        <a href="{% url 'accounts:teacher_announcements' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الإعلانات</a>
                         <a href="{% url 'accounts:teacher_requests' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الطلبات والبلاغات</a>
                         {% elif request.user.role == 'student' %}
                         <a href="{% url 'accounts:student_notifications' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الإشعارات</a>
-                        <a href="{% url 'accounts:student_announcements' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الإعلانات</a>
                         <a href="{% url 'accounts:student_requests' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الطلبات والبلاغات</a>
                         {% else %}
                         <a href="{% url 'accounts:admin_notifications' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الإشعارات</a>
-                        <a href="{% url 'accounts:admin_announcements' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الإعلانات</a>
                         <a href="{% url 'accounts:admin_requests' %}" class="py-2 rounded-lg hover:bg-primary-50 transition-colors">الطلبات والبلاغات</a>
                         {% endif %}
                     </div>
