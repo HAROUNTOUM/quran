@@ -200,14 +200,6 @@
             {% include "dashboard/partials/sidebar_icon.html" with name="box" %}
             <span>إدارة الدفعات</span>
         </a>
-        {% if request.user.role == 'admin' %}
-        <a href="{% url 'emailcenter:campaigns' %}"
-           :class="isActive('campaigns') ? 'nav-link-active' : ''"
-           class="nav-link flex items-center gap-3 px-4 py-2.5 text-sm">
-            {% include "dashboard/partials/sidebar_icon.html" with name="megaphone" %}
-            <span>مركز البريد</span>
-        </a>
-        {% endif %}
         {% endif %}
     </nav>
 

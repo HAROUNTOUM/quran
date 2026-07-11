@@ -66,12 +66,6 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
             </a>
             {% endif %}
-            {% if request.user.role == 'admin' %}
-            <a href="{% url 'emailcenter:campaigns' %}" title="مركز البريد" aria-label="مركز البريد"
-               class="relative w-10 h-10 rounded-full flex items-center justify-center text-navy-600 hover:bg-primary-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-18 8h18a2 2 0 002-2V8a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
-            </a>
-            {% endif %}
         </nav>
 
                 <div x-show="open" x-cloak @click.outside="open = false"
