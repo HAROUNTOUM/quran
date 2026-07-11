@@ -1264,6 +1264,31 @@ class CommunicationsScopingTests(TestCase):
         self.assertIn("إشعار دفعتي", titles)
         self.assertNotIn("إشعار أجنبي", titles)
 
+    # ── broadcast create is scoped to the sub-admin's batch (#4) ─────────
+    def test_sub_admin_broadcast_scoped_to_own_batch(self):
+        self.client.force_login(self.sub)
+        self.client.post(reverse("accounts:admin_notification_create"), {
+            "type": "system", "title": "بث", "message": "رسالة", "target": "students",
+        })
+        self.assertTrue(
+            self.Notification.objects.filter(recipient=self.student_own, title="بث").exists()
+        )
+        self.assertFalse(
+            self.Notification.objects.filter(recipient=self.student_foreign, title="بث").exists()
+        )
+
+    def test_main_admin_broadcast_reaches_all_batches(self):
+        self.client.force_login(self.main_admin)
+        self.client.post(reverse("accounts:admin_notification_create"), {
+            "type": "system", "title": "بث٢", "message": "رسالة", "target": "students",
+        })
+        self.assertTrue(
+            self.Notification.objects.filter(recipient=self.student_own, title="بث٢").exists()
+        )
+        self.assertTrue(
+            self.Notification.objects.filter(recipient=self.student_foreign, title="بث٢").exists()
+        )
+
 
 class TeacherExamGradingTests(TestCase):
     """Regression: teacher_exam_grade/submit/export referenced exam service
@@ -1340,3 +1365,51 @@ class TeacherExamGradingTests(TestCase):
         self.client.force_login(other)
         r = self.client.get(reverse("accounts:teacher_exam_grade", args=[self.exam.pk]))
         self.assertEqual(r.status_code, 403)
+
+
+class NotificationRedirectSafetyTests(TestCase):
+    """notification_mark_read follows the notification's link on a GET
+    click-through — that link is admin-settable, so it must be restricted to
+    internal URLs to avoid an open redirect (#5)."""
+
+    def setUp(self):
+        from apps.notifications.models import Notification
+
+        self.Notification = Notification
+        self.user = User.objects.create_user(
+            username="nr_user@test.com", email="nr_user@test.com", password="x",
+            full_name_ar="مستخدم", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+
+    def _notif(self, link):
+        return self.Notification.objects.create(
+            recipient=self.user, type=self.Notification.Type.SYSTEM,
+            title="ت", message="ر", link=link,
+        )
+
+    def test_external_link_falls_back_to_dashboard(self):
+        n = self._notif("https://evil.example.com/phish")
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("accounts:notification_mark_read", args=[n.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.url, "/dashboard/")
+
+    def test_protocol_relative_link_falls_back(self):
+        n = self._notif("//evil.example.com")
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("accounts:notification_mark_read", args=[n.pk]))
+        self.assertEqual(r.url, "/dashboard/")
+
+    def test_internal_link_is_followed(self):
+        n = self._notif("/dashboard/certificates/own/")
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("accounts:notification_mark_read", args=[n.pk]))
+        self.assertEqual(r.url, "/dashboard/certificates/own/")
+
+    def test_mark_read_marks_notification(self):
+        n = self._notif("/dashboard/")
+        self.client.force_login(self.user)
+        self.client.get(reverse("accounts:notification_mark_read", args=[n.pk]))
+        n.refresh_from_db()
+        self.assertTrue(n.is_read)

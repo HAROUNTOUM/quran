@@ -3,6 +3,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Sum, F, IntegerField, Case, When, Count, Q
+from django.utils.http import url_has_allowed_host_and_scheme
+
+
+def _safe_redirect_target(request, url, fallback="/dashboard/"):
+    """Only follow same-host / relative URLs — prevents an open redirect via a
+    notification.link (admin-settable) or a spoofed Referer header."""
+    if url and url_has_allowed_host_and_scheme(
+        url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return url
+    return fallback
 
 from apps.accounts.models import User, TeacherAbsence
 from apps.accounts.forms import ProfileForm
@@ -121,7 +132,7 @@ def notification_mark_read(request, pk):
     notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
     notification.mark_as_read()
     _send_unread_count_ws(request.user.id)
-    return redirect(notification.link or "/dashboard/")
+    return redirect(_safe_redirect_target(request, notification.link))
 @login_required
 def notification_mark_all_read(request):
     if request.method == "POST":
@@ -132,5 +143,5 @@ def notification_mark_all_read(request):
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"status": "ok"})
         messages.success(request, "تم تحديد جميع الإشعارات كمقروءة")
-        return redirect(request.META.get("HTTP_REFERER", "/dashboard/"))
+        return redirect(_safe_redirect_target(request, request.META.get("HTTP_REFERER")))
     return redirect("/dashboard/")

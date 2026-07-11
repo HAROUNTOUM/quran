@@ -208,6 +208,11 @@ def admin_notification_create(request):
                 "form_data": request.POST,
             })
 
+        # A SUB_ADMIN broadcasts only to users in the batches they supervise;
+        # MAIN_ADMIN reaches everyone. (Recipients with no batch — e.g. admins —
+        # are naturally excluded for sub-admins.)
+        users = scoping.scoped_users(request.user, users)
+
         notifications = [
             Notification(recipient=u, type=notif_type, title=title, message=message, link=link)
             for u in users
