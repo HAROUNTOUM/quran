@@ -930,6 +930,37 @@ class ExamScopingSecurityTests(TestCase):
         self.assertIn(self.circle_own.pk, circle_ids)
         self.assertNotIn(self.circle_foreign.pk, circle_ids)
 
+    # ── regression: these write paths raised NameError in the god-file
+    #    (service functions were used but never imported) ────────────────
+    def test_create_exam_post_succeeds(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.post(reverse("accounts:admin_exam_create"), {
+            "title": "امتحان جديد", "exam_type": "monthly",
+            "circle": str(self.circle_own.pk),
+            "exam_date": "2026-07-11", "max_marks": "100", "pass_percentage": "50",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(self.Exam.objects.filter(title="امتحان جديد").exists())
+
+    def test_publish_exam_succeeds(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.post(reverse("accounts:admin_exam_publish", args=[self.exam_own.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.exam_own.refresh_from_db()
+        self.assertEqual(self.exam_own.status, self.Exam.Status.PUBLISHED)
+
+    # ── new guards on the remaining exam actions ────────────────────────
+    def test_sub_admin_cannot_delete_foreign_exam(self):
+        self.client.force_login(self.sub)
+        r = self.client.post(reverse("accounts:admin_exam_delete", args=[self.exam_foreign.pk]))
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(self.Exam.objects.filter(pk=self.exam_foreign.pk).exists())
+
+    def test_sub_admin_cannot_publish_foreign_exam(self):
+        self.client.force_login(self.sub)
+        r = self.client.post(reverse("accounts:admin_exam_publish", args=[self.exam_foreign.pk]))
+        self.assertEqual(r.status_code, 403)
+
 
 class SupervisorGroupsIDORTests(TestCase):
     """`?batch=` on the supervisor board must be clamped to the supervised set,
