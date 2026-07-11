@@ -20,6 +20,15 @@ from apps.announcements.models import Announcement
 from apps.notifications.models import Notification
 from apps.memorization.models import MemorizationProgress, RecitationGrade, StudentAchievement, ReviewRequest, StudyTask
 from apps.exams.models import Exam
+from apps.exams.services import (
+    verify_teacher_assignment,
+    verify_exam_status,
+    validate_mark_value,
+    save_mark,
+    submit_for_approval,
+    get_export_data,
+)
+from apps.exams.utils import generate_exam_pdf
 from apps.references.models import Surah, EvaluationCriterion
 
 @login_required

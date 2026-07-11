@@ -132,7 +132,6 @@ def admin_dashboard(request):
     # Line chart: last 7 months attendance trend
     months_data = []
     now = timezone.now()
-    from django.utils.dateparse import parse_date
     for i in range(6, -1, -1):
         month_start = now.replace(day=1) - timedelta(days=30 * i)
         month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)

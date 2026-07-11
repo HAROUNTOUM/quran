@@ -1036,6 +1036,29 @@ class ExamScopingSecurityTests(TestCase):
         mark.refresh_from_db()
         self.assertEqual(mark.status, ExamMark.Status.REJECTED)
 
+    # ── destructive actions must reject GET (CSRF-safe: POST-only) ───────
+    def test_exam_delete_ignores_get(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.get(reverse("accounts:admin_exam_delete", args=[self.exam_own.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(self.Exam.objects.filter(pk=self.exam_own.pk).exists())
+
+    def test_exam_publish_ignores_get(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.get(reverse("accounts:admin_exam_publish", args=[self.exam_own.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.exam_own.refresh_from_db()
+        self.assertNotEqual(self.exam_own.status, self.Exam.Status.PUBLISHED)
+
+    def test_exam_approve_all_ignores_get(self):
+        from apps.exams.models import ExamMark
+        mark = self._make_pending_mark(self.exam_own)
+        self.client.force_login(self.main_admin)
+        r = self.client.get(reverse("accounts:admin_exam_approve_all", args=[self.exam_own.pk]))
+        self.assertEqual(r.status_code, 302)
+        mark.refresh_from_db()
+        self.assertEqual(mark.status, ExamMark.Status.PENDING)
+
 
 class SupervisorGroupsIDORTests(TestCase):
     """`?batch=` on the supervisor board must be clamped to the supervised set,
@@ -1181,3 +1204,80 @@ class CommunicationsScopingTests(TestCase):
         titles = {n.title for n in r.context["notifications"]}
         self.assertIn("إشعار دفعتي", titles)
         self.assertNotIn("إشعار أجنبي", titles)
+
+
+class TeacherExamGradingTests(TestCase):
+    """Regression: teacher_exam_grade/submit/export referenced exam service
+    helpers (verify_teacher_assignment, save_mark, …) that were never imported
+    into accounts.views.teacher — every teacher grading route raised
+    NameError (500). These exercise the grade → submit write path end to end."""
+
+    def setUp(self):
+        from apps.circles.models import CircleEnrollment
+        from apps.exams.models import Exam
+
+        self.Exam = Exam
+        self.teacher = User.objects.create_user(
+            username="tg_teacher@test.com", email="tg_teacher@test.com", password="x",
+            full_name_ar="معلم", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.circle = Circle.objects.create(
+            name="حلقة الاختبار", teacher=self.teacher, status=Circle.Status.ACTIVE,
+        )
+        self.student = User.objects.create_user(
+            username="tg_student@test.com", email="tg_student@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        CircleEnrollment.objects.create(
+            circle=self.circle, student=self.student,
+            status=CircleEnrollment.Status.ACTIVE,
+        )
+        self.exam = Exam.objects.create(
+            title="امتحان المعلم", circle=self.circle, created_by=self.teacher,
+            status=Exam.Status.PUBLISHED, max_marks=100,
+        )
+
+    def test_teacher_can_open_grade_page(self):
+        self.client.force_login(self.teacher)
+        r = self.client.get(reverse("accounts:teacher_exam_grade", args=[self.exam.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    def test_teacher_grade_saves_marks(self):
+        from apps.exams.models import ExamMark
+        self.client.force_login(self.teacher)
+        r = self.client.post(
+            reverse("accounts:teacher_exam_grade", args=[self.exam.pk]),
+            {f"mark_{self.student.id}": "85"},
+        )
+        self.assertEqual(r.status_code, 302)
+        mark = ExamMark.objects.get(exam=self.exam, student=self.student)
+        self.assertEqual(mark.marks_obtained, 85)
+        self.assertEqual(mark.status, ExamMark.Status.PENDING)
+        self.exam.refresh_from_db()
+        self.assertEqual(self.exam.status, self.Exam.Status.GRADING)
+
+    def test_teacher_submit_for_approval(self):
+        from apps.exams.services import save_mark
+        save_mark(
+            exam=self.exam, student=self.student, marks_obtained=85,
+            entered_by=self.teacher,
+        )
+        self.exam.status = self.Exam.Status.GRADING
+        self.exam.save(update_fields=["status"])
+        self.client.force_login(self.teacher)
+        r = self.client.post(reverse("accounts:teacher_exam_submit", args=[self.exam.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.exam.refresh_from_db()
+        self.assertEqual(self.exam.status, self.Exam.Status.PENDING_APPROVAL)
+
+    def test_foreign_teacher_cannot_grade(self):
+        other = User.objects.create_user(
+            username="tg_other@test.com", email="tg_other@test.com", password="x",
+            full_name_ar="معلم آخر", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.client.force_login(other)
+        r = self.client.get(reverse("accounts:teacher_exam_grade", args=[self.exam.pk]))
+        self.assertEqual(r.status_code, 403)

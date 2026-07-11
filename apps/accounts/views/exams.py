@@ -241,6 +241,8 @@ def admin_exam_detail(request, pk):
 def admin_exam_delete(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
     _check_batch_access(request.user, exam.circle.batch_id if exam.circle else None)
+    if request.method != "POST":
+        return redirect("accounts:admin_exam_detail", pk=exam.pk)
     exam.delete()
     messages.success(request, "تم حذف الامتحان")
     return redirect("accounts:admin_exam_list")
@@ -251,6 +253,8 @@ def admin_exam_delete(request, pk):
 def admin_exam_publish(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
     _check_batch_access(request.user, exam.circle.batch_id if exam.circle else None)
+    if request.method != "POST":
+        return redirect("accounts:admin_exam_detail", pk=exam.pk)
     exam.status = Exam.Status.PUBLISHED
     exam.save(update_fields=["status"])
     notify_published(exam, request.user)
@@ -263,6 +267,8 @@ def admin_exam_publish(request, pk):
 def admin_exam_approve_all(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
     _check_batch_access(request.user, exam.circle.batch_id if exam.circle else None)
+    if request.method != "POST":
+        return redirect("accounts:admin_exam_detail", pk=exam.pk)
     approve_all_marks(exam, request.user)
     messages.success(request, "تم اعتماد جميع النتائج")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
