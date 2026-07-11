@@ -68,6 +68,11 @@ def report_exam_results(request):
         status=ExamMark.Status.APPROVED,
         exam__status=Exam.Status.COMPLETED,
     ).select_related("exam__circle", "student", "approved_by").order_by("-exam__exam_date")
+    # Batch-scope: a SUB_ADMIN only sees results for exams in the batches they
+    # supervise (batch-less exams are excluded for them). MAIN_ADMIN → all.
+    batch_ids = _scoped_batch_ids(request.user)
+    if batch_ids is not None:
+        marks = marks.filter(exam__circle__batch_id__in=batch_ids)
     students_data = {}
     for m in marks:
         sid = m.student_id
@@ -287,7 +292,12 @@ def admin_exam_reject_marks(request, pk):
     if not mark_ids:
         messages.error(request, "لم يتم تحديد درجات للرفض")
         return redirect("accounts:admin_exam_detail", pk=exam.pk)
-    reject_marks(exam, [int(m) for m in mark_ids], request.user, reason)
+    try:
+        parsed_ids = [int(m) for m in mark_ids]
+    except (TypeError, ValueError):
+        messages.error(request, "معرّفات درجات غير صالحة")
+        return redirect("accounts:admin_exam_detail", pk=exam.pk)
+    reject_marks(exam, parsed_ids, request.user, reason)
     messages.success(request, "تم رفض الدرجات المحددة")
     return redirect("accounts:admin_exam_detail", pk=exam.pk)
 

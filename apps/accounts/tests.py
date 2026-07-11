@@ -1059,6 +1059,65 @@ class ExamScopingSecurityTests(TestCase):
         mark.refresh_from_db()
         self.assertEqual(mark.status, ExamMark.Status.PENDING)
 
+    # ── report_exam_results must be batch-scoped ────────────────────────
+    def _approved_mark(self, exam, student):
+        from apps.exams.models import ExamMark
+        exam.status = self.Exam.Status.COMPLETED
+        exam.save(update_fields=["status"])
+        return ExamMark.objects.create(
+            exam=exam, student=student, marks_obtained=90,
+            status=ExamMark.Status.APPROVED, entered_by=self.main_admin,
+            approved_by=self.main_admin,
+        )
+
+    def test_report_results_scoped_for_sub_admin(self):
+        student_own = User.objects.create_user(
+            username="rep_own@test.com", email="rep_own@test.com", password="x",
+            full_name_ar="طالب دفعتي", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch_own,
+        )
+        student_foreign = User.objects.create_user(
+            username="rep_foreign@test.com", email="rep_foreign@test.com", password="x",
+            full_name_ar="طالب أجنبي", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch_foreign,
+        )
+        self._approved_mark(self.exam_own, student_own)
+        self._approved_mark(self.exam_foreign, student_foreign)
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:report_exam_results"))
+        self.assertEqual(r.status_code, 200)
+        students = {row["student"].pk for row in r.context["exam_data"]}
+        self.assertIn(student_own.pk, students)
+        self.assertNotIn(student_foreign.pk, students)
+
+    def test_report_results_unscoped_for_main_admin(self):
+        student_own = User.objects.create_user(
+            username="rep_own2@test.com", email="rep_own2@test.com", password="x",
+            full_name_ar="طالب دفعتي", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch_own,
+        )
+        student_foreign = User.objects.create_user(
+            username="rep_foreign2@test.com", email="rep_foreign2@test.com", password="x",
+            full_name_ar="طالب أجنبي", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch_foreign,
+        )
+        self._approved_mark(self.exam_own, student_own)
+        self._approved_mark(self.exam_foreign, student_foreign)
+        self.client.force_login(self.main_admin)
+        r = self.client.get(reverse("accounts:report_exam_results"))
+        students = {row["student"].pk for row in r.context["exam_data"]}
+        self.assertIn(student_own.pk, students)
+        self.assertIn(student_foreign.pk, students)
+
+    # ── reject_marks must not 500 on tampered mark_ids ──────────────────
+    def test_reject_marks_invalid_ids_does_not_crash(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.post(
+            reverse("accounts:admin_exam_reject_marks", args=[self.exam_own.pk]),
+            {"mark_ids": ["not-a-number"], "reason": "x"},
+        )
+        self.assertEqual(r.status_code, 302)  # graceful redirect, not a 500
+
 
 class SupervisorGroupsIDORTests(TestCase):
     """`?batch=` on the supervisor board must be clamped to the supervised set,
