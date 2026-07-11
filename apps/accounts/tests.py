@@ -732,3 +732,249 @@ class BatchScopingSecurityTests(TestCase):
         self.assertFalse(
             CircleEnrollment.objects.filter(circle=circle_b1, student=self.student_b2).exists()
         )
+
+
+class BatchScopingCoverageTests(TestCase):
+    """Close the review's coverage gaps: teacher views, circle detail,
+    circle create branching, and null-batch targets."""
+
+    def setUp(self):
+        self.main_admin = User.objects.create_user(
+            username="bc_admin@test.com", email="bc_admin@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        self.batch1 = Batch.objects.create(
+            name="دفعة أ", number=11, year=2026, created_by=self.main_admin,
+        )
+        self.batch2 = Batch.objects.create(
+            name="دفعة ب", number=12, year=2026, created_by=self.main_admin,
+        )
+        self.sub_multi = User.objects.create_user(
+            username="bc_multi@test.com", email="bc_multi@test.com", password="x",
+            full_name_ar="مشرف متعدد", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.batch1.sub_admins.add(self.sub_multi)
+        self.batch2.sub_admins.add(self.sub_multi)
+        self.sub_none = User.objects.create_user(
+            username="bc_none@test.com", email="bc_none@test.com", password="x",
+            full_name_ar="مشرف بلا دفعة", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.teacher_b2 = User.objects.create_user(
+            username="bc_t2@test.com", email="bc_t2@test.com", password="x",
+            full_name_ar="معلم دفعة ب", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch2,
+        )
+        self.circle_b2 = Circle.objects.create(
+            name="حلقة دفعة ب", batch=self.batch2, status=Circle.Status.ACTIVE,
+        )
+
+    # ── teacher detail/edit mirror the student pair ─────────────────────
+    def test_zero_batch_sub_admin_denied_on_teacher_views(self):
+        self.client.force_login(self.sub_none)
+        r = self.client.get(reverse("accounts:admin_teacher_detail", args=[self.teacher_b2.pk]))
+        self.assertEqual(r.status_code, 403)
+        r = self.client.get(reverse("accounts:admin_teacher_edit", args=[self.teacher_b2.pk]))
+        self.assertEqual(r.status_code, 403)
+
+    def test_multi_batch_sub_admin_reaches_second_batch_teacher(self):
+        self.client.force_login(self.sub_multi)
+        r = self.client.get(reverse("accounts:admin_teacher_detail", args=[self.teacher_b2.pk]))
+        self.assertEqual(r.status_code, 200)
+        r = self.client.get(reverse("accounts:admin_teacher_edit", args=[self.teacher_b2.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    # ── circle detail object guard ──────────────────────────────────────
+    def test_circle_detail_scoping(self):
+        self.client.force_login(self.sub_none)
+        r = self.client.get(reverse("accounts:admin_circle_detail", args=[self.circle_b2.pk]))
+        self.assertEqual(r.status_code, 403)
+        self.client.force_login(self.sub_multi)
+        r = self.client.get(reverse("accounts:admin_circle_detail", args=[self.circle_b2.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    # ── null-batch target: not theirs to touch ──────────────────────────
+    def test_null_batch_target_denied_for_sub_admins(self):
+        floater = User.objects.create_user(
+            username="bc_f@test.com", email="bc_f@test.com", password="x",
+            full_name_ar="طالب بلا دفعة", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        for sub in (self.sub_multi, self.sub_none):
+            self.client.force_login(sub)
+            r = self.client.get(reverse("accounts:admin_student_detail", args=[floater.pk]))
+            self.assertEqual(r.status_code, 403, f"{sub.email} reached a batch-less student")
+        self.client.force_login(self.main_admin)
+        r = self.client.get(reverse("accounts:admin_student_detail", args=[floater.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    # ── circle create branching ─────────────────────────────────────────
+    def _create_circle(self, name, batch_field=""):
+        return self.client.post(reverse("accounts:admin_circle_create"), {
+            "name": name, "gender": "male", "max_students": "20",
+            "status": "active", "circle_type": "hifd", "batch": batch_field,
+        })
+
+    def test_zero_batch_sub_admin_cannot_create_circle(self):
+        self.client.force_login(self.sub_none)
+        r = self._create_circle("حلقة يتيمة")
+        self.assertEqual(r.status_code, 200)  # re-rendered with errors
+        self.assertFalse(Circle.objects.filter(name="حلقة يتيمة").exists())
+
+    def test_multi_batch_sub_admin_picks_second_batch(self):
+        self.client.force_login(self.sub_multi)
+        self._create_circle("حلقة الاختيار", batch_field=str(self.batch2.pk))
+        c = Circle.objects.get(name="حلقة الاختيار")
+        self.assertEqual(c.batch_id, self.batch2.pk)
+
+    def test_sub_admin_foreign_batch_falls_back_to_own(self):
+        foreign = Batch.objects.create(
+            name="دفعة أجنبية", number=13, year=2026, created_by=self.main_admin,
+        )
+        self.client.force_login(self.sub_multi)
+        self._create_circle("حلقة محاولة اختراق", batch_field=str(foreign.pk))
+        c = Circle.objects.get(name="حلقة محاولة اختراق")
+        self.assertNotEqual(c.batch_id, foreign.pk)
+        self.assertIn(c.batch_id, [self.batch1.pk, self.batch2.pk])
+
+    def test_garbage_batch_id_does_not_crash(self):
+        self.client.force_login(self.sub_multi)
+        r = self._create_circle("حلقة قيمة تالفة", batch_field="not-a-number")
+        self.assertIn(r.status_code, (200, 302))
+        c = Circle.objects.get(name="حلقة قيمة تالفة")
+        self.assertIn(c.batch_id, [self.batch1.pk, self.batch2.pk])
+
+
+class ExamScopingSecurityTests(TestCase):
+    """A sub-admin must not read or re-point exams outside the batches they
+    supervise — including exams with no circle (batch-less)."""
+
+    def setUp(self):
+        from apps.exams.models import Exam
+
+        self.Exam = Exam
+        self.main_admin = User.objects.create_user(
+            username="ex_admin@test.com", email="ex_admin@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        self.batch_own = Batch.objects.create(
+            name="دفعتي", number=21, year=2026, created_by=self.main_admin,
+        )
+        self.batch_foreign = Batch.objects.create(
+            name="دفعة أجنبية", number=22, year=2026, created_by=self.main_admin,
+        )
+        self.sub = User.objects.create_user(
+            username="ex_sub@test.com", email="ex_sub@test.com", password="x",
+            full_name_ar="مشرف", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.batch_own.sub_admins.add(self.sub)
+        self.circle_own = Circle.objects.create(
+            name="حلقتي", batch=self.batch_own, status=Circle.Status.ACTIVE,
+        )
+        self.circle_foreign = Circle.objects.create(
+            name="حلقة أجنبية", batch=self.batch_foreign, status=Circle.Status.ACTIVE,
+        )
+        self.exam_foreign = Exam.objects.create(
+            title="امتحان أجنبي", circle=self.circle_foreign, created_by=self.main_admin,
+        )
+        self.exam_own = Exam.objects.create(
+            title="امتحاني", circle=self.circle_own, created_by=self.main_admin,
+        )
+        self.exam_no_circle = Exam.objects.create(
+            title="امتحان بلا حلقة", circle=None, created_by=self.main_admin,
+        )
+
+    def test_sub_admin_cannot_view_foreign_exam(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:admin_exam_detail", args=[self.exam_foreign.pk]))
+        self.assertEqual(r.status_code, 403)
+
+    def test_sub_admin_cannot_view_batchless_exam(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:admin_exam_detail", args=[self.exam_no_circle.pk]))
+        self.assertEqual(r.status_code, 403)
+
+    def test_main_admin_can_view_batchless_exam(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.get(reverse("accounts:admin_exam_detail", args=[self.exam_no_circle.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    def test_sub_admin_cannot_edit_foreign_exam(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:admin_exam_edit", args=[self.exam_foreign.pk]))
+        self.assertEqual(r.status_code, 403)
+
+    def test_sub_admin_cannot_repoint_own_exam_to_foreign_circle(self):
+        self.client.force_login(self.sub)
+        r = self.client.post(
+            reverse("accounts:admin_exam_edit", args=[self.exam_own.pk]),
+            {
+                "title": "امتحاني", "exam_type": "monthly",
+                "circle": str(self.circle_foreign.pk),
+                "exam_date": "2026-07-11", "max_marks": "100", "pass_percentage": "50",
+            },
+        )
+        self.assertEqual(r.status_code, 200)  # re-rendered with error, not saved
+        self.exam_own.refresh_from_db()
+        self.assertEqual(self.exam_own.circle_id, self.circle_own.pk)
+
+    def test_sub_admin_create_form_hides_foreign_circle(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:admin_exam_create"))
+        self.assertEqual(r.status_code, 200)
+        circle_ids = {c.pk for c in r.context["circles"]}
+        self.assertIn(self.circle_own.pk, circle_ids)
+        self.assertNotIn(self.circle_foreign.pk, circle_ids)
+
+
+class SupervisorGroupsIDORTests(TestCase):
+    """`?batch=` on the supervisor board must be clamped to the supervised set,
+    and the batch list must include M2M-supervised batches, not just the legacy FK."""
+
+    def setUp(self):
+        self.main_admin = User.objects.create_user(
+            username="sg_admin@test.com", email="sg_admin@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        self.batch_own = Batch.objects.create(
+            name="دفعتي", number=31, year=2026, created_by=self.main_admin,
+        )
+        self.batch_foreign = Batch.objects.create(
+            name="دفعة أجنبية", number=32, year=2026, created_by=self.main_admin,
+        )
+        self.sub = User.objects.create_user(
+            username="sg_sub@test.com", email="sg_sub@test.com", password="x",
+            full_name_ar="مشرف", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        # Supervised only through the M2M relation (legacy FK left null).
+        self.batch_own.sub_admins.add(self.sub)
+        self.circle_own = Circle.objects.create(
+            name="حلقتي", batch=self.batch_own, status=Circle.Status.ACTIVE,
+        )
+        self.circle_foreign = Circle.objects.create(
+            name="حلقة أجنبية", batch=self.batch_foreign, status=Circle.Status.ACTIVE,
+        )
+
+    def test_m2m_supervised_batch_appears(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("accounts:supervisor_groups"))
+        self.assertEqual(r.status_code, 200)
+        batch_ids = {b.pk for b in r.context["batches"]}
+        self.assertIn(self.batch_own.pk, batch_ids)
+
+    def test_foreign_batch_query_is_clamped(self):
+        self.client.force_login(self.sub)
+        r = self.client.get(
+            reverse("accounts:supervisor_groups") + f"?batch={self.batch_foreign.pk}"
+        )
+        self.assertEqual(r.status_code, 200)
+        # Clamped back to a supervised batch — the foreign circle never leaks.
+        self.assertEqual(r.context["selected_batch"], self.batch_own.pk)
+        group_names = {g["circle"].name for g in r.context["groups"]}
+        self.assertNotIn(self.circle_foreign.name, group_names)

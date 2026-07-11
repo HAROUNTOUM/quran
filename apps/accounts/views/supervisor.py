@@ -16,6 +16,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
 
+from apps.accounts import scoping
 from apps.accounts.decorators import role_required
 from apps.accounts.models import User, Batch
 from apps.attendance.models import Attendance
@@ -56,27 +57,29 @@ def supervisor_groups(request):
     """Step 1+2: pick a batch (الدفعة), then see its groups (الأفواج)."""
     user = request.user
     if user.role == User.Role.MAIN_ADMIN:
-        batches = Batch.objects.all().order_by("-created_at")
+        batches = list(Batch.objects.all().order_by("-created_at"))
     else:
-        batches = list(Batch.objects.filter(sub_admin=user))
+        # Covers both the legacy `sub_admin` FK and the newer `sub_admins` M2M.
+        batches = list(scoping.scoped_batches(user))
         if not batches:
             return render(request, "dashboard/supervisor/groups.html", {
                 "batches": [], "selected_batch": None, "groups": [],
             })
 
+    allowed_ids = {b.pk for b in batches}
+
     raw = request.GET.get("batch")
     selected_batch = None
     if raw:
         try:
-            selected_batch = int(raw)
+            candidate = int(raw)
         except (TypeError, ValueError):
-            selected_batch = None
+            candidate = None
+        # Only honour a requested batch the user is actually allowed to see.
+        if candidate in allowed_ids:
+            selected_batch = candidate
     if selected_batch is None and batches:
-        if hasattr(batches, "first"):
-            first = batches.first()
-            selected_batch = first.pk if first else None
-        else:
-            selected_batch = batches[0].pk
+        selected_batch = batches[0].pk
 
     groups_qs = Circle.objects.select_related("teacher").filter(batch_id=selected_batch)
 

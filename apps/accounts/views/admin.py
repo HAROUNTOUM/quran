@@ -17,10 +17,11 @@ from django.utils import timezone
 
 from apps.accounts.models import User, TeacherAbsence, TeacherSubstitution, Batch
 from apps.accounts import scoping
-from apps.accounts import scoping
 from apps.accounts.scoping import scoped_batch as _sub_admin_batch
 from apps.accounts.scoping import check_batch_access as _check_batch_access
 from apps.accounts.scoping import scoped_batch_ids as _scoped_batch_ids
+from apps.accounts.scoping import scoped_circles as _scoped_circles
+from apps.accounts.scoping import scoped_users as _scoped_users
 from apps.accounts.forms import SignupForm, ApprovalForm, BatchForm, ProfileForm
 from apps.accounts.utils.email import send_approval_email, send_rejection_email
 
@@ -2448,20 +2449,30 @@ def admin_exam_list(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_exam_create(request):
-    circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
-    teachers = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED, is_active=True)
+    circles = _scoped_circles(request.user, Circle.objects.filter(status=Circle.Status.ACTIVE))
+    teachers = _scoped_users(request.user, User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED, is_active=True))
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         if not title:
             return render(request, "dashboard/exams/create.html", {
                 "circles": circles, "teachers": teachers, "error": "عنوان الامتحان مطلوب"
             })
+        circle_id = request.POST.get("circle") or None
+        if circle_id and not circles.filter(pk=circle_id).exists():
+            return render(request, "dashboard/exams/create.html", {
+                "circles": circles, "teachers": teachers, "error": "الحلقة المختارة خارج نطاق إشرافك",
+            })
+        assigned_teacher_id = request.POST.get("assigned_teacher") or None
+        if assigned_teacher_id and not teachers.filter(pk=assigned_teacher_id).exists():
+            return render(request, "dashboard/exams/create.html", {
+                "circles": circles, "teachers": teachers, "error": "المعلم المختار خارج نطاق إشرافك",
+            })
         data = {
             "title": title,
             "description": request.POST.get("description", ""),
             "exam_type": request.POST.get("exam_type", "monthly"),
-            "circle_id": request.POST.get("circle") or None,
-            "assigned_teacher_id": request.POST.get("assigned_teacher") or None,
+            "circle_id": circle_id,
+            "assigned_teacher_id": assigned_teacher_id,
             "exam_date": request.POST.get("exam_date", timezone.now().date()),
             "max_marks": float(request.POST.get("max_marks", 100)),
             "pass_percentage": float(request.POST.get("pass_percentage", 50)),
@@ -2475,14 +2486,27 @@ def admin_exam_create(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_exam_edit(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
-    circles = Circle.objects.filter(status=Circle.Status.ACTIVE)
-    teachers = User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED, is_active=True)
+    _check_batch_access(request.user, exam.circle.batch_id if exam.circle else None)
+    circles = _scoped_circles(request.user, Circle.objects.filter(status=Circle.Status.ACTIVE))
+    teachers = _scoped_users(request.user, User.objects.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED, is_active=True))
     if request.method == "POST":
         exam.title = request.POST.get("title", exam.title)
         exam.description = request.POST.get("description", "")
         exam.exam_type = request.POST.get("exam_type", exam.exam_type)
-        exam.circle_id = request.POST.get("circle") or None
-        exam.assigned_teacher_id = request.POST.get("assigned_teacher") or None
+        new_circle_id = request.POST.get("circle") or None
+        if new_circle_id and not circles.filter(pk=new_circle_id).exists():
+            messages.error(request, "الحلقة المختارة خارج نطاق إشرافك")
+            return render(request, "dashboard/exams/edit.html", {
+                "exam": exam, "circles": circles, "teachers": teachers,
+            })
+        exam.circle_id = new_circle_id
+        new_teacher_id = request.POST.get("assigned_teacher") or None
+        if new_teacher_id and not teachers.filter(pk=new_teacher_id).exists():
+            messages.error(request, "المعلم المختار خارج نطاق إشرافك")
+            return render(request, "dashboard/exams/edit.html", {
+                "exam": exam, "circles": circles, "teachers": teachers,
+            })
+        exam.assigned_teacher_id = new_teacher_id
         exam.exam_date = request.POST.get("exam_date", exam.exam_date)
         exam.max_marks = float(request.POST.get("max_marks", 100))
         exam.pass_percentage = float(request.POST.get("pass_percentage", 50))
@@ -2499,8 +2523,7 @@ def admin_exam_detail(request, pk):
         Exam.objects.select_related("circle", "created_by", "assigned_teacher"),
         pk=pk,
     )
-    if exam.circle:
-        _check_batch_access(request.user, exam.circle.batch_id)
+    _check_batch_access(request.user, exam.circle.batch_id if exam.circle else None)
     marks = exam.marks.select_related("student", "entered_by", "approved_by").all()
     enrolled_students = []
     if exam.circle:
