@@ -11,6 +11,7 @@ Policy:
   their own batch on approval).
 """
 
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 
 from .models import Batch, User
@@ -40,6 +41,18 @@ def scoped_batch_ids(user):
     return list(
         scoped_batches(user).values_list("pk", flat=True)
     )
+
+
+def check_batch_access(user, batch_id):
+    """Object-level guard for detail/edit views: MAIN_ADMIN always passes;
+    a SUB_ADMIN must supervise the row's batch. A sub-admin with zero
+    supervised batches is always denied (never fail-open), and rows without
+    a batch are not theirs to touch."""
+    ids = scoped_batch_ids(user)
+    if ids is None:
+        return
+    if batch_id is None or batch_id not in ids:
+        raise PermissionDenied
 
 
 def _scope(user, qs, batch_filter):

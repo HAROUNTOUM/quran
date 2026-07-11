@@ -17,7 +17,10 @@ from django.utils import timezone
 
 from apps.accounts.models import User, TeacherAbsence, TeacherSubstitution, Batch
 from apps.accounts import scoping
+from apps.accounts import scoping
 from apps.accounts.scoping import scoped_batch as _sub_admin_batch
+from apps.accounts.scoping import check_batch_access as _check_batch_access
+from apps.accounts.scoping import scoped_batch_ids as _scoped_batch_ids
 from apps.accounts.forms import SignupForm, ApprovalForm, BatchForm, ProfileForm
 from apps.accounts.utils.email import send_approval_email, send_rejection_email
 
@@ -214,18 +217,18 @@ def admin_dashboard(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_inscriptions(request):
 
-    batch = _sub_admin_batch(request.user)
+    batch_ids = _scoped_batch_ids(request.user)
     status = request.GET.get('status', 'pending')
     role_filter = request.GET.get('role', '')
     search = request.GET.get('search', '')
     role_tab = request.GET.get('role_tab', '')
 
     users = User.objects.all().order_by('-created_at')
-    if batch:
+    if batch_ids is not None:
         # Pending signups have no batch yet — keep them visible so the
         # sub-admin can approve them (batch gets set on approval).
         users = users.filter(
-            Q(batch=batch) | Q(batch__isnull=True, is_approved='pending')
+            Q(batch_id__in=batch_ids) | Q(batch__isnull=True, is_approved='pending')
         )
 
     if status == 'approved':
@@ -245,9 +248,9 @@ def admin_inscriptions(request):
     page_obj = paginator.get_page(page_number)
 
     user_qs = User.objects.all()
-    if batch:
+    if batch_ids is not None:
         user_qs = user_qs.filter(
-            Q(batch=batch) | Q(batch__isnull=True, is_approved='pending')
+            Q(batch_id__in=batch_ids) | Q(batch__isnull=True, is_approved='pending')
         )
 
     pending_count = user_qs.filter(is_approved='pending').count()
@@ -268,8 +271,8 @@ def admin_inscriptions(request):
 
     # Stats for the top row
     circle_qs = Circle.objects.filter(status=Circle.Status.ACTIVE)
-    if batch:
-        circle_qs = circle_qs.filter(batch=batch)
+    if batch_ids is not None:
+        circle_qs = circle_qs.filter(batch_id__in=batch_ids)
         total_teachers_count = user_qs.filter(role=User.Role.TEACHER, is_approved=User.ApprovalStatus.APPROVED).count()
         total_students_count = user_qs.filter(role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED).count()
     else:
@@ -571,10 +574,8 @@ def admin_students(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_student_detail(request, pk):
 
-    batch = _sub_admin_batch(request.user)
     student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
-    if batch and student.batch_id != batch.pk:
-        raise PermissionDenied
+    _check_batch_access(request.user, student.batch_id)
 
     enrollments = CircleEnrollment.objects.filter(student=student).select_related(
         "circle__teacher"
@@ -660,10 +661,8 @@ def admin_student_create(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_student_edit(request, pk):
-    batch = _sub_admin_batch(request.user)
     student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
-    if batch and student.batch_id != batch.pk:
-        raise PermissionDenied
+    _check_batch_access(request.user, student.batch_id)
 
     if request.method == "POST":
         form = ProfileForm(request.POST, instance=student)
@@ -1079,10 +1078,8 @@ def admin_inscriptions_export_excel(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_teacher_detail(request, pk):
 
-    batch = _sub_admin_batch(request.user)
     teacher = get_object_or_404(User, pk=pk, role=User.Role.TEACHER)
-    if batch and teacher.batch_id != batch.pk:
-        raise PermissionDenied
+    _check_batch_access(request.user, teacher.batch_id)
 
     circles = Circle.objects.filter(teacher=teacher).annotate(
         active_students=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE))
@@ -1143,10 +1140,8 @@ def admin_teacher_create(request):
 def admin_teacher_edit(request, pk):
     teacher = get_object_or_404(User, pk=pk, role=User.Role.TEACHER)
 
-    # A Sub Admin may only edit teachers of their own batch.
-    own_batch = _sub_admin_batch(request.user)
-    if own_batch and teacher.batch_id != own_batch.pk:
-        raise PermissionDenied
+    # A Sub Admin may only edit teachers of a batch they supervise.
+    _check_batch_access(request.user, teacher.batch_id)
 
     if request.method == "POST":
         teacher.full_name_ar = request.POST.get("full_name_ar", teacher.full_name_ar)
@@ -1233,13 +1228,13 @@ def admin_supervisor_edit(request, pk):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_circles(request):
 
-    batch = _sub_admin_batch(request.user)
+    batch_ids = _scoped_batch_ids(request.user)
     search = request.GET.get("search", "")
     status_filter = request.GET.get("status", "")
 
     base_qs = Circle.objects.select_related('teacher')
-    if batch:
-        base_qs = base_qs.filter(batch=batch)
+    if batch_ids is not None:
+        base_qs = base_qs.filter(batch_id__in=batch_ids)
     circles = (
         base_qs.annotate(
             active_students_count=Count('enrollments', filter=Q(enrollments__status=CircleEnrollment.Status.ACTIVE)),
@@ -1274,13 +1269,11 @@ def admin_circles(request):
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_circle_detail(request, pk):
 
-    batch = _sub_admin_batch(request.user)
     circle = get_object_or_404(
         Circle.objects.select_related('teacher'),
         pk=pk
     )
-    if batch and circle.batch_id != batch.pk:
-        raise PermissionDenied
+    _check_batch_access(request.user, circle.batch_id)
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -1516,10 +1509,20 @@ def admin_circle_create(request):
             errors["gender"] = "جنس غير صحيح"
         if circle_type not in dict(Circle.CircleType.choices):
             errors["circle_type"] = "نوع حلقة غير صحيح"
-        # الدفعة: a sub-admin's circle always lands in their own batch;
-        # the main admin picks any active batch (or none).
-        if own_batch is not None:
-            batch_id = own_batch.pk
+        # الدفعة: a sub-admin's circle must land in a batch they supervise
+        # (they may pick among several); the main admin picks any active
+        # batch (or none). A sub-admin with no batches cannot create circles.
+        supervised_ids = _scoped_batch_ids(request.user)
+        if supervised_ids is not None:
+            if not supervised_ids:
+                errors["batch"] = "لا توجد دفعة تحت إشرافك"
+            else:
+                try:
+                    chosen = int(batch_id) if batch_id else None
+                except (TypeError, ValueError):
+                    chosen = None
+                if chosen not in supervised_ids:
+                    batch_id = own_batch.pk if own_batch else None
         elif batch_id and not active_batches.filter(pk=batch_id).exists():
             errors["batch"] = "الدفعة غير موجودة"
 
@@ -2431,7 +2434,7 @@ def report_exam_results(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_exam_list(request):
-    batch = _sub_admin_batch(request.user)
+    batch_ids = _scoped_batch_ids(request.user)
     exams = Exam.objects.select_related("circle", "created_by", "assigned_teacher").annotate(
         student_count_annotated=Count("marks"),
         average_marks_annotated=Avg("marks__marks_obtained"),
@@ -2439,8 +2442,8 @@ def admin_exam_list(request):
         pending_count=Count("marks", filter=Q(marks__status=ExamMark.Status.PENDING)),
         rejected_count=Count("marks", filter=Q(marks__status=ExamMark.Status.REJECTED)),
     )
-    if batch:
-        exams = exams.filter(circle__batch=batch)
+    if batch_ids is not None:
+        exams = exams.filter(circle__batch_id__in=batch_ids)
     return render(request, "dashboard/exams/list.html", {"exams": exams})
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
@@ -2492,13 +2495,12 @@ def admin_exam_edit(request, pk):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def admin_exam_detail(request, pk):
-    batch = _sub_admin_batch(request.user)
     exam = get_object_or_404(
         Exam.objects.select_related("circle", "created_by", "assigned_teacher"),
         pk=pk,
     )
-    if batch and exam.circle and exam.circle.batch_id != batch.pk:
-        raise PermissionDenied
+    if exam.circle:
+        _check_batch_access(request.user, exam.circle.batch_id)
     marks = exam.marks.select_related("student", "entered_by", "approved_by").all()
     enrolled_students = []
     if exam.circle:
@@ -2775,11 +2777,16 @@ def admin_batch_detail(request, pk):
 
         elif action == "assign_users":
             user_ids = request.POST.getlist("user_ids")
-            updated = User.objects.filter(
+            candidates = User.objects.filter(
                 pk__in=user_ids,
                 is_approved=User.ApprovalStatus.APPROVED,
                 role__in=[User.Role.STUDENT, User.Role.TEACHER],
-            ).exclude(batch=batch).update(batch=batch)
+            ).exclude(batch=batch)
+            if not is_main_admin:
+                # A sub-admin may only claim unassigned members — moving a
+                # user out of another batch is a main-admin decision.
+                candidates = candidates.filter(batch__isnull=True)
+            updated = candidates.update(batch=batch)
             messages.success(request, f"تم إسناد {updated} عضواً إلى الدفعة")
 
         elif action == "assign_circles" and is_main_admin:

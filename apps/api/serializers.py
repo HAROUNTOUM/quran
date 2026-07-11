@@ -253,6 +253,13 @@ class CircleEnrollSerializer(serializers.Serializer):
         circle = self.context["circle"]
         student = data["student_id"]
 
+        # Batch match first — CircleEnrollment.enroll() re-checks it with a
+        # Django ValidationError that DRF would surface as a 500.
+        try:
+            CircleEnrollment._check_batch_match(student, circle)
+        except DjangoValidationError as e:
+            raise DRFValidationError(e.messages)
+
         if CircleEnrollment.objects.filter(
             circle=circle, student=student,
             status__in=[CircleEnrollment.Status.ACTIVE, CircleEnrollment.Status.PENDING]

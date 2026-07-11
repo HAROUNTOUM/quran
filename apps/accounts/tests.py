@@ -606,3 +606,129 @@ class SupervisorBoardTests(TestCase):
             reverse("accounts:supervisor_group_board", args=[self.circle.pk])
         )
         self.assertIn(resp.status_code, (302, 403))
+
+
+class BatchScopingSecurityTests(TestCase):
+    """Review fixes C1/C2/H1: sub-admin batch scoping must never fail open
+    (zero batches) and must honor every supervised batch (multi-batch)."""
+
+    def setUp(self):
+        self.main_admin = User.objects.create_user(
+            username="bs_admin@test.com", email="bs_admin@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        self.batch1 = Batch.objects.create(
+            name="دفعة 1", number=1, year=2026, created_by=self.main_admin,
+        )
+        self.batch2 = Batch.objects.create(
+            name="دفعة 2", number=2, year=2026, created_by=self.main_admin,
+        )
+        self.sub_multi = User.objects.create_user(
+            username="bs_multi@test.com", email="bs_multi@test.com", password="x",
+            full_name_ar="مشرف متعدد", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.batch1.sub_admins.add(self.sub_multi)
+        self.batch2.sub_admins.add(self.sub_multi)
+        self.sub_none = User.objects.create_user(
+            username="bs_none@test.com", email="bs_none@test.com", password="x",
+            full_name_ar="مشرف بلا دفعة", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.student_b2 = User.objects.create_user(
+            username="bs_s2@test.com", email="bs_s2@test.com", password="x",
+            full_name_ar="طالب دفعة 2", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=self.batch2,
+        )
+
+    def test_zero_batch_sub_admin_cannot_view_or_edit_students(self):
+        """Was fail-open: batch=None skipped the guard entirely."""
+        self.client.force_login(self.sub_none)
+        r = self.client.get(reverse("accounts:admin_student_detail", args=[self.student_b2.pk]))
+        self.assertEqual(r.status_code, 403)
+        r = self.client.get(reverse("accounts:admin_student_edit", args=[self.student_b2.pk]))
+        self.assertEqual(r.status_code, 403)
+
+    def test_multi_batch_sub_admin_reaches_second_batch_student(self):
+        """Was wrong-deny: only the 'first' supervised batch passed."""
+        self.client.force_login(self.sub_multi)
+        r = self.client.get(reverse("accounts:admin_student_detail", args=[self.student_b2.pk]))
+        self.assertEqual(r.status_code, 200)
+        r = self.client.get(reverse("accounts:admin_student_edit", args=[self.student_b2.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    def test_sub_admin_cannot_hijack_member_from_other_batch(self):
+        """C1: assign_users must not move users out of foreign batches."""
+        self.client.force_login(self.sub_multi)
+        # sub_multi supervises batch1; student_b2 belongs to batch2 which
+        # sub_multi ALSO supervises — so use a batch they don't supervise.
+        batch3 = Batch.objects.create(
+            name="دفعة 3", number=3, year=2026, created_by=self.main_admin,
+        )
+        victim = User.objects.create_user(
+            username="bs_v@test.com", email="bs_v@test.com", password="x",
+            full_name_ar="طالب دفعة 3", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED, batch=batch3,
+        )
+        r = self.client.post(
+            reverse("accounts:admin_batch_detail", args=[self.batch1.pk]),
+            {"action": "assign_users", "user_ids": [str(victim.pk)]},
+        )
+        victim.refresh_from_db()
+        self.assertEqual(victim.batch_id, batch3.pk, "sub-admin stole a member from another batch")
+
+    def test_sub_admin_can_claim_unassigned_member(self):
+        self.client.force_login(self.sub_multi)
+        free_agent = User.objects.create_user(
+            username="bs_f@test.com", email="bs_f@test.com", password="x",
+            full_name_ar="طالب بلا دفعة", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.client.post(
+            reverse("accounts:admin_batch_detail", args=[self.batch1.pk]),
+            {"action": "assign_users", "user_ids": [str(free_agent.pk)]},
+        )
+        free_agent.refresh_from_db()
+        self.assertEqual(free_agent.batch_id, self.batch1.pk)
+
+    def test_main_admin_can_still_move_members_across_batches(self):
+        self.client.force_login(self.main_admin)
+        self.client.post(
+            reverse("accounts:admin_batch_detail", args=[self.batch1.pk]),
+            {"action": "assign_users", "user_ids": [str(self.student_b2.pk)]},
+        )
+        self.student_b2.refresh_from_db()
+        self.assertEqual(self.student_b2.batch_id, self.batch1.pk)
+
+    def test_zero_batch_sub_admin_sees_no_circles(self):
+        Circle.objects.create(name="حلقة دفعة 2", batch=self.batch2, status=Circle.Status.ACTIVE)
+        self.client.force_login(self.sub_none)
+        r = self.client.get(reverse("accounts:admin_circles"))
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, "حلقة دفعة 2")
+
+    def test_multi_batch_sub_admin_sees_both_batches_circles(self):
+        Circle.objects.create(name="حلقة الدفعة الأولى", batch=self.batch1, status=Circle.Status.ACTIVE)
+        Circle.objects.create(name="حلقة الدفعة الثانية", batch=self.batch2, status=Circle.Status.ACTIVE)
+        self.client.force_login(self.sub_multi)
+        r = self.client.get(reverse("accounts:admin_circles"))
+        self.assertContains(r, "حلقة الدفعة الأولى")
+        self.assertContains(r, "حلقة الدفعة الثانية")
+
+    def test_enroll_api_batch_mismatch_returns_400(self):
+        """H2: was a raw Django ValidationError → 500 through DRF."""
+        from apps.circles.models import CircleEnrollment
+        circle_b1 = Circle.objects.create(
+            name="حلقة الدفعة 1", batch=self.batch1, status=Circle.Status.ACTIVE,
+        )
+        self.client.force_login(self.main_admin)
+        r = self.client.post(
+            f"/api/v1/circles/{circle_b1.pk}/enroll/",
+            {"student_id": str(self.student_b2.pk)},
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertFalse(
+            CircleEnrollment.objects.filter(circle=circle_b1, student=self.student_b2).exists()
+        )
