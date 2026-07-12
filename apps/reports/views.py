@@ -59,49 +59,48 @@ def _thumn_columns(surah_id, ayah_from, ayah_to, keys):
 
 
 def _export_hifz(request, start, end):
-    from apps.memorization.models import MemorizationProgress
-    qs = MemorizationProgress.objects.filter(type=MemorizationProgress.Type.HIFZ)
-    qs = qs.select_related("enrollment__student", "surah")
-    if start:
-        qs = qs.filter(created_at__gte=start)
-    if end:
-        qs = qs.filter(created_at__lte=end)
-    if not request.user.is_staff:
-        qs = qs.filter(enrollment__circle__teacher=request.user)
-    keys = thumn_start_keys()
-    headers = ["الطالب", "من سورة", "من آية", "إلى سورة", "إلى آية",
-               "الثمن", "المقدار (حزب/ثمن)", "الحالة", "التاريخ"]
-    rows = (
-        (r.enrollment.student.full_name_ar,
-         r.surah.name_ar, r.ayah_from, r.surah.name_ar, r.ayah_to,
-         *_thumn_columns(r.surah_id, r.ayah_from, r.ayah_to, keys),
-         r.get_status_display(), r.created_at.date())
-        for r in qs.iterator(chunk_size=500)
+    from apps.memorization.models import ProgressLog
+    return _export_progress_category(
+        request, start, end, ProgressLog.Category.HIFDH, "hifz.csv"
     )
-    return CSVRenderer("hifz.csv").render(headers, rows)
 
 
 def _export_murajaa(request, start, end):
-    from apps.memorization.models import MemorizationProgress
-    qs = MemorizationProgress.objects.filter(type=MemorizationProgress.Type.MURAJAA)
-    qs = qs.select_related("enrollment__student", "surah")
+    from apps.memorization.models import ProgressLog
+    return _export_progress_category(
+        request, start, end, ProgressLog.Category.MURAJAAH, "murajaa.csv"
+    )
+
+
+def _export_progress_category(request, start, end, category, filename):
+    """Hifz/murajaa export from the canonical ProgressLog (the same table the
+    session reports and StudentAchievement read). The deprecated
+    MemorizationProgress table these exports used to read has no writers, so
+    it only ever showed pre-refactor historical rows."""
+    from apps.memorization.models import ProgressLog
+    qs = ProgressLog.objects.filter(log_category=category)
+    qs = qs.select_related("student", "surah", "session__circle")
     if start:
         qs = qs.filter(created_at__gte=start)
     if end:
         qs = qs.filter(created_at__lte=end)
     if not request.user.is_staff:
-        qs = qs.filter(enrollment__circle__teacher=request.user)
+        qs = qs.filter(session__circle__teacher=request.user)
     keys = thumn_start_keys()
     headers = ["الطالب", "من سورة", "من آية", "إلى سورة", "إلى آية",
-               "الثمن", "المقدار (حزب/ثمن)", "عدد المراجعات", "الحالة", "التاريخ"]
+               "الثمن", "المقدار (حزب/ثمن)", "النقطة /20", "الدرجة",
+               "الحلقة", "التاريخ"]
     rows = (
-        (r.enrollment.student.full_name_ar,
-         r.surah.name_ar, r.ayah_from, r.surah.name_ar, r.ayah_to,
-         *_thumn_columns(r.surah_id, r.ayah_from, r.ayah_to, keys),
-         r.revision_count, r.get_status_display(), r.created_at.date())
+        (r.student.full_name_ar,
+         r.surah.name_ar, r.start_ayah, r.surah.name_ar, r.end_ayah,
+         *_thumn_columns(r.surah_id, r.start_ayah, r.end_ayah, keys),
+         r.points if r.points is not None else "",
+         r.evaluation_grade,
+         r.session.circle.name if r.session.circle_id else "",
+         r.created_at.date())
         for r in qs.iterator(chunk_size=500)
     )
-    return CSVRenderer("murajaa.csv").render(headers, rows)
+    return CSVRenderer(filename).render(headers, rows)
 
 
 def _export_grades(request, start, end):
