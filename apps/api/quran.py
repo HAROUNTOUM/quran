@@ -31,7 +31,10 @@ class JuzListView(APIView):
                 }
                 for j in Juz.objects.prefetch_related("hizbs").order_by("number")
             ]
-            cache.set("quran:juz", data, _CACHE_TTL)
+            # Never cache an empty payload: a request served before seeding
+            # would otherwise pin "no data" for the whole TTL.
+            if data:
+                cache.set("quran:juz", data, _CACHE_TTL)
         return api_response(data=data)
 
 
@@ -126,7 +129,8 @@ class QuranSurahListView(APIView):
                 }
                 for s in Surah.objects.order_by("id")
             ]
-            cache.set("quran:surahs", data, _CACHE_TTL)
+            if data:  # see JuzListView — don't pin an unseeded empty list
+                cache.set("quran:surahs", data, _CACHE_TTL)
         return api_response(data=data)
 
 

@@ -438,6 +438,11 @@ class QuranAPITest(TestCase):
         )
 
     def setUp(self):
+        # The quran:* reference endpoints cache their payloads and Django does
+        # not reset the cache between test cases — clear it so earlier tests
+        # can't feed this class stale (e.g. pre-seed empty) responses.
+        from django.core.cache import cache
+        cache.clear()
         self.client = APIClient()
         self.client.force_authenticate(user=self.student)
 
