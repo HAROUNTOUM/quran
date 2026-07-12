@@ -9,9 +9,12 @@ class CSVRenderer:
     def render(self, headers, rows):
         pseudo_buffer = PseudoBuffer()
         writer = csv.writer(pseudo_buffer)
+        # Plain utf-8: with charset=utf-8-sig Django's encoder prepends a BOM
+        # to EVERY streamed chunk (one per row). The single Excel-detection BOM
+        # is yielded explicitly by _iter instead.
         response = StreamingHttpResponse(
             streaming_content=self._iter(writer, headers, rows),
-            content_type="text/csv; charset=utf-8-sig",
+            content_type="text/csv; charset=utf-8",
         )
         response["Content-Disposition"] = f'attachment; filename="{self.filename}"'
         return response

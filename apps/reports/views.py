@@ -1,6 +1,8 @@
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseBadRequest
 from django.shortcuts import render
+from django.utils.dateparse import parse_date
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_GET
@@ -8,25 +10,34 @@ from django.views.decorators.http import require_GET
 from apps.reports.utils import CSVRenderer
 from apps.references.utils import count_thumns, format_hizb_thumn, thumn_span, thumn_start_keys
 
+def _parse_date_param(raw):
+    """Parse a YYYY-MM-DD query param. Returns (date-or-None, ok):
+    empty → (None, True); valid → (date, True); malformed → (None, False)."""
+    if not raw:
+        return None, True
+    try:
+        parsed = parse_date(raw)
+    except ValueError:  # well-formed but impossible date, e.g. 2026-02-30
+        return None, False
+    return parsed, parsed is not None
+
 
 @require_GET
 @login_required
 def report_csv_export(request):
-    report_type = request.GET.get("type", "")
-    start = request.GET.get("start", "")
-    end = request.GET.get("end", "")
+    # Empty type keeps the historical default (attendance); an unknown type is
+    # rejected instead of silently serving the wrong report.
+    report_type = request.GET.get("type", "") or "attendance"
+    export = _EXPORTS.get(report_type)
+    if export is None:
+        return HttpResponseBadRequest("نوع تقرير غير معروف")
 
-    if report_type == "attendance":
-        return _export_attendance(request, start, end)
-    elif report_type == "hifz":
-        return _export_hifz(request, start, end)
-    elif report_type == "murajaa":
-        return _export_murajaa(request, start, end)
-    elif report_type == "grades":
-        return _export_grades(request, start, end)
-    elif report_type == "tasks":
-        return _export_tasks(request, start, end)
-    return _export_attendance(request, start, end)
+    start, start_ok = _parse_date_param(request.GET.get("start", ""))
+    end, end_ok = _parse_date_param(request.GET.get("end", ""))
+    if not (start_ok and end_ok):
+        return HttpResponseBadRequest("صيغة تاريخ غير صالحة (المطلوب: YYYY-MM-DD)")
+
+    return export(request, start, end)
 
 
 def _export_attendance(request, start, end):
@@ -72,20 +83,29 @@ def _export_murajaa(request, start, end):
     )
 
 
-def _export_progress_category(request, start, end, category, filename):
-    """Hifz/murajaa export from the canonical ProgressLog (the same table the
-    session reports and StudentAchievement read). The deprecated
-    MemorizationProgress table these exports used to read has no writers, so
-    it only ever showed pre-refactor historical rows."""
+def _scoped_progress_logs(request, start, end, category=None):
+    """The one queryset builder for ProgressLog-based exports. Do not
+    reintroduce reads of the deprecated MemorizationProgress here — canonical
+    progress data lives in ProgressLog (the table session reports and
+    StudentAchievement read). The legacy table still has residual write paths
+    (teacher lesson toggle, /api/v1/memorization-progress/) pending retirement,
+    so rows written there will not — by design — appear in these exports.
+    `start`/`end` are dates; the range is inclusive of both whole days."""
     from apps.memorization.models import ProgressLog
-    qs = ProgressLog.objects.filter(log_category=category)
-    qs = qs.select_related("student", "surah", "session__circle")
+    qs = ProgressLog.objects.select_related("student", "surah", "session__circle")
+    if category is not None:
+        qs = qs.filter(log_category=category)
     if start:
-        qs = qs.filter(created_at__gte=start)
+        qs = qs.filter(created_at__date__gte=start)
     if end:
-        qs = qs.filter(created_at__lte=end)
+        qs = qs.filter(created_at__date__lte=end)
     if not request.user.is_staff:
         qs = qs.filter(session__circle__teacher=request.user)
+    return qs
+
+
+def _export_progress_category(request, start, end, category, filename):
+    qs = _scoped_progress_logs(request, start, end, category)
     keys = thumn_start_keys()
     headers = ["الطالب", "من سورة", "من آية", "إلى سورة", "إلى آية",
                "الثمن", "المقدار (حزب/ثمن)", "النقطة /20", "الدرجة",
@@ -96,7 +116,7 @@ def _export_progress_category(request, start, end, category, filename):
          *_thumn_columns(r.surah_id, r.start_ayah, r.end_ayah, keys),
          r.points if r.points is not None else "",
          r.evaluation_grade,
-         r.session.circle.name if r.session.circle_id else "",
+         r.session.circle.name,
          r.created_at.date())
         for r in qs.iterator(chunk_size=500)
     )
@@ -104,14 +124,7 @@ def _export_progress_category(request, start, end, category, filename):
 
 
 def _export_grades(request, start, end):
-    from apps.memorization.models import ProgressLog
-    qs = ProgressLog.objects.select_related("student", "surah", "session__circle")
-    if start:
-        qs = qs.filter(created_at__gte=start)
-    if end:
-        qs = qs.filter(created_at__lte=end)
-    if not request.user.is_staff:
-        qs = qs.filter(session__circle__teacher=request.user)
+    qs = _scoped_progress_logs(request, start, end)
     keys = thumn_start_keys()
     headers = ["الطالب", "نوع الحصة", "من سورة", "من آية", "إلى سورة", "إلى آية",
                "الثمن", "المقدار (حزب/ثمن)", "الصفحات", "النقطة /20", "الدرجة",
@@ -135,9 +148,9 @@ def _export_tasks(request, start, end):
         "student", "assigned_by", "surah", "circle", "session"
     )
     if start:
-        qs = qs.filter(created_at__gte=start)
+        qs = qs.filter(created_at__date__gte=start)
     if end:
-        qs = qs.filter(created_at__lte=end)
+        qs = qs.filter(created_at__date__lte=end)
     if not request.user.is_staff:
         qs = qs.filter(student__enrollments__circle__teacher=request.user).distinct()
     headers = ["الطالب", "نوع المهمة", "السورة", "من آية", "إلى آية",
@@ -154,3 +167,13 @@ def _export_tasks(request, start, end):
         for t in qs.iterator(chunk_size=500)
     )
     return CSVRenderer("tasks.csv").render(headers, rows)
+
+
+# Resolved at call time, so definition order above doesn't matter.
+_EXPORTS = {
+    "attendance": _export_attendance,
+    "hifz": _export_hifz,
+    "murajaa": _export_murajaa,
+    "grades": _export_grades,
+    "tasks": _export_tasks,
+}
