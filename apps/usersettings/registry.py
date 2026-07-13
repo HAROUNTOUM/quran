@@ -123,29 +123,6 @@ _SPECS = [
     ),
 
     # ── Spaced-repetition (SRS) engine ───────────────────────────────
-    SettingSpec(
-        key="srs_first_interval_days", label="أول فاصل للمراجعة (أيام)",
-        type="int", default=1, min_value=1, max_value=30,
-        scope=SYSTEM_SCOPE, group="المراجعة المتباعدة",
-        help_text="الفاصل الزمني عند أول حفظ للربع قبل أول مراجعة",
-    ),
-    SettingSpec(
-        key="srs_max_interval_days", label="أقصى فاصل للمراجعة (أيام)",
-        type="int", default=365, min_value=30, max_value=1095,
-        scope=SYSTEM_SCOPE, group="المراجعة المتباعدة",
-        help_text="الحد الأعلى للفاصل بين المراجعات",
-    ),
-    SettingSpec(
-        key="srs_weak_overdue_days", label="أيام التأخر لاعتبار الحفظ ضعيفاً",
-        type="int", default=7, min_value=1, max_value=90,
-        scope=SYSTEM_SCOPE, group="المراجعة المتباعدة",
-    ),
-    SettingSpec(
-        key="srs_weak_mistakes_threshold", label="حد الأخطاء لاعتبار الحفظ ضعيفاً",
-        type="int", default=5, min_value=1, max_value=50,
-        scope=SYSTEM_SCOPE, group="المراجعة المتباعدة",
-    ),
-
     # ── Teacher scope ────────────────────────────────────────────────
     SettingSpec(
         key="default_session_duration_minutes", label="مدة الحصة الافتراضية (دقائق)",

@@ -10,7 +10,7 @@
       x-data="{
           step: {% if form.password1.errors or form.password2.errors %}3{% elif form.specialization.errors or form.level.errors or form.memorization_amount.errors %}2{% else %}1{% endif %},
           role: '{{ form.role.value|default:'student' }}',
-          pledge: false,
+          pledge: false, pledgeError: false,
           titles: {1: 'سجّل الآن وابدأ رحلتك مع القرآن الكريم', 2: 'سماعة في العنق وقرآن في القلب', 3: 'مرحبًا بطبيبنا الحافظ'}
       }" novalidate>
     {% csrf_token %}
@@ -149,8 +149,9 @@
             {% if form.password2.errors %}<p class="auth-field-error">{{ form.password2.errors.0 }}</p>{% endif %}
         </div>
 
+        <div class="auth-error-banner" x-show="pledgeError" x-cloak>يجب الموافقة على التعهد قبل التسجيل</div>
         <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;margin-top:4px">
-            <input type="checkbox" x-model="pledge" style="margin-top:4px;width:16px;height:16px;accent-color:#4AA6A6">
+            <input type="checkbox" x-model="pledge" @change="pledgeError = false" style="margin-top:4px;width:16px;height:16px;accent-color:#4AA6A6">
             <span style="color:#EAF3F1;font-size:12px;line-height:1.9"
                   x-text="role === 'teacher'
                     ? 'أتعهد أنا الأستاذ/ة بالالتزام بأداء مهامي التعليمية بكل أمانة وانضباط، والحرص على احترام أوقات الحصص، والتعامل مع الطلاب بما يليق بمقام تعليم كتاب الله، مع الحفاظ على آداب المهنة ومقومات القدوة الحسنة'
@@ -159,7 +160,8 @@
 
         <div class="auth-actions">
             <button type="button" class="auth-btn-outline" @click="step = 2">السابق</button>
-            <button type="submit" id="signup-spinner" class="auth-btn-primary" :disabled="!pledge" :style="!pledge && 'opacity:.55;cursor:not-allowed'">سجل</button>
+            <button type="submit" id="signup-spinner" class="auth-btn-primary"
+                    @click="if (!pledge) { $event.preventDefault(); pledgeError = true }">سجل</button>
         </div>
     </div>
 </form>

@@ -16,8 +16,9 @@ test.describe('Signup wizard', () => {
     await page.locator('.auth-fields:visible button:has-text("التالي")').click()
     await page.fill('#id_password1', 'Test-Pass-2026!')
     await page.fill('#id_password2', 'Test-Pass-2026!')
-    // submit stays disabled until the pledge is accepted
-    await expect(page.locator('button:has-text("سجل")')).toBeDisabled()
+    // clicking without the pledge must give visible feedback, not a dead button
+    await page.locator('button:has-text("سجل")').click()
+    await expect(page.locator('#signup-form-container')).toContainText('يجب الموافقة على التعهد')
     await page.locator('input[type="checkbox"]').check()
     await page.locator('button:has-text("سجل")').click()
     // the signup response must come back promptly with visible feedback
