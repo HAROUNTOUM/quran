@@ -136,6 +136,14 @@ def admin_exam_create(request):
                 "circles": circles, "teachers": teachers, "error": "عنوان الامتحان مطلوب"
             })
         circle_id = request.POST.get("circle") or None
+        # A batch-less (عام) exam is invisible to every sub-admin's scoped list
+        # and its detail page 403s them — including its own creator. Only the
+        # main admin may create one.
+        if circle_id is None and request.user.role == User.Role.SUB_ADMIN:
+            return render(request, "dashboard/exams/create.html", {
+                "circles": circles, "teachers": teachers,
+                "error": "يجب اختيار حلقة — الامتحان العام (بدون حلقة) متاح للمشرف العام فقط",
+            })
         if circle_id and not circles.filter(pk=circle_id).exists():
             return render(request, "dashboard/exams/create.html", {
                 "circles": circles, "teachers": teachers, "error": "الحلقة المختارة خارج نطاق إشرافك",
@@ -179,6 +187,13 @@ def admin_exam_edit(request, pk):
         exam.description = request.POST.get("description", "")
         exam.exam_type = request.POST.get("exam_type", exam.exam_type)
         new_circle_id = request.POST.get("circle") or None
+        # Same self-lockout guard as admin_exam_create: a sub-admin clearing
+        # the circle would 403 themselves on the post-save redirect.
+        if new_circle_id is None and request.user.role == User.Role.SUB_ADMIN:
+            messages.error(request, "يجب اختيار حلقة — الامتحان العام (بدون حلقة) متاح للمشرف العام فقط")
+            return render(request, "dashboard/exams/edit.html", {
+                "exam": exam, "circles": circles, "teachers": teachers,
+            })
         if new_circle_id and not circles.filter(pk=new_circle_id).exists():
             messages.error(request, "الحلقة المختارة خارج نطاق إشرافك")
             return render(request, "dashboard/exams/edit.html", {

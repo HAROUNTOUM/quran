@@ -36,8 +36,10 @@
                     <select name="target" required
                             class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                         <option value="all" {% if form_data.target == 'all' %}selected{% endif %}>جميع المستخدمين</option>
+                        {% if request.user.role == 'admin' %}
                         <option value="admins" {% if form_data.target == 'admins' %}selected{% endif %}>المديرين</option>
                         <option value="supervisors" {% if form_data.target == 'supervisors' %}selected{% endif %}>المشرفين</option>
+                        {% endif %}
                         <option value="teachers" {% if form_data.target == 'teachers' %}selected{% endif %}>المعلمين</option>
                         <option value="students" {% if form_data.target == 'students' %}selected{% endif %}>الطلاب</option>
                     </select>

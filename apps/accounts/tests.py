@@ -908,6 +908,42 @@ class ExamScopingSecurityTests(TestCase):
         r = self.client.get(reverse("accounts:admin_exam_edit", args=[self.exam_foreign.pk]))
         self.assertEqual(r.status_code, 403)
 
+    # ── self-lockout guard: a sub-admin's exam must carry a circle, else the
+    # post-create redirect to the detail page 403s its own creator ─────────
+    def test_sub_admin_cannot_create_batchless_exam(self):
+        self.client.force_login(self.sub)
+        r = self.client.post(reverse("accounts:admin_exam_create"), {
+            "title": "امتحان بلا حلقة جديد", "circle": "",
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("متاح للمشرف العام فقط", r.context["error"])
+        self.assertFalse(self.Exam.objects.filter(title="امتحان بلا حلقة جديد").exists())
+
+    def test_sub_admin_creates_exam_in_own_batch_and_can_open_it(self):
+        self.client.force_login(self.sub)
+        r = self.client.post(reverse("accounts:admin_exam_create"), {
+            "title": "امتحان دفعتي", "circle": self.circle_own.pk,
+        }, follow=True)
+        self.assertEqual(r.status_code, 200)  # detail page renders, no 403
+        self.assertTrue(self.Exam.objects.filter(title="امتحان دفعتي").exists())
+
+    def test_sub_admin_cannot_clear_circle_on_edit(self):
+        self.client.force_login(self.sub)
+        r = self.client.post(reverse("accounts:admin_exam_edit", args=[self.exam_own.pk]), {
+            "title": "امتحاني", "circle": "",
+        })
+        self.assertEqual(r.status_code, 200)
+        self.exam_own.refresh_from_db()
+        self.assertEqual(self.exam_own.circle_id, self.circle_own.pk)
+
+    def test_main_admin_can_create_batchless_exam(self):
+        self.client.force_login(self.main_admin)
+        r = self.client.post(reverse("accounts:admin_exam_create"), {
+            "title": "امتحان عام جديد", "circle": "",
+        }, follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(self.Exam.objects.filter(title="امتحان عام جديد").exists())
+
     def test_sub_admin_cannot_repoint_own_exam_to_foreign_circle(self):
         self.client.force_login(self.sub)
         r = self.client.post(
@@ -1288,6 +1324,37 @@ class CommunicationsScopingTests(TestCase):
         self.assertTrue(
             self.Notification.objects.filter(recipient=self.student_foreign, title="بث٢").exists()
         )
+
+    # ── unreachable/empty broadcast targets fail loudly, never silently ──
+    def test_sub_admin_broadcast_to_admins_rejected(self):
+        # admin/supervisor accounts have no User.batch, so batch scoping would
+        # always empty these targets — the view must refuse, not no-op.
+        self.client.force_login(self.sub)
+        for target in ("admins", "supervisors"):
+            r = self.client.post(reverse("accounts:admin_notification_create"), {
+                "type": "system", "title": "بث٣", "message": "رسالة", "target": target,
+            })
+            self.assertEqual(r.status_code, 200)
+            self.assertIn("نطاق إشرافك", r.context["error"])
+        self.assertFalse(self.Notification.objects.filter(title="بث٣").exists())
+
+    def test_zero_recipient_broadcast_shows_error_not_silent_redirect(self):
+        # No teachers exist in the sub-admin's batch → zero recipients.
+        self.client.force_login(self.sub)
+        r = self.client.post(reverse("accounts:admin_notification_create"), {
+            "type": "system", "title": "بث٤", "message": "رسالة", "target": "teachers",
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("لا يوجد مستلمون", r.context["error"])
+        self.assertFalse(self.Notification.objects.filter(title="بث٤").exists())
+
+    def test_successful_broadcast_reports_recipient_count(self):
+        self.client.force_login(self.sub)
+        r = self.client.post(reverse("accounts:admin_notification_create"), {
+            "type": "system", "title": "بث٥", "message": "رسالة", "target": "students",
+        }, follow=True)
+        msgs = [str(m) for m in r.context["messages"]]
+        self.assertTrue(any("تم إرسال الإشعار إلى 1" in m for m in msgs), msgs)
 
 
 class TeacherExamGradingTests(TestCase):

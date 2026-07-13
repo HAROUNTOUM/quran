@@ -192,6 +192,14 @@ def admin_notification_create(request):
             "teachers": User.Role.TEACHER,
             "students": User.Role.STUDENT,
         }
+        # Admin/supervisor accounts carry no User.batch, so scoped_users()
+        # always empties these targets for a SUB_ADMIN — reject up front
+        # instead of silently broadcasting to nobody.
+        if request.user.role == User.Role.SUB_ADMIN and target in ("admins", "supervisors"):
+            return render(request, "dashboard/notifications/create.html", {
+                "error": "نطاق إشرافك يشمل معلمي وطلاب دفعاتك فقط — لا يمكن مراسلة المديرين أو المشرفين",
+                "form_data": request.POST,
+            })
         if target == "all":
             users = User.objects.filter(
                 is_approved=User.ApprovalStatus.APPROVED, is_active=True
@@ -217,7 +225,13 @@ def admin_notification_create(request):
             Notification(recipient=u, type=notif_type, title=title, message=message, link=link)
             for u in users
         ]
+        if not notifications:
+            return render(request, "dashboard/notifications/create.html", {
+                "error": "لا يوجد مستلمون ضمن نطاق إشرافك لهذا الهدف — لم يُرسل أي إشعار",
+                "form_data": request.POST,
+            })
         Notification.objects.bulk_create(notifications, batch_size=500)
+        messages.success(request, f"تم إرسال الإشعار إلى {len(notifications)} مستخدم")
         return redirect("accounts:admin_notifications")
 
     return render(request, "dashboard/notifications/create.html")
