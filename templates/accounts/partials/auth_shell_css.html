@@ -1,0 +1,30 @@
+{# Shared auth design (claude.ai/design project "الطبيب الحافظ" — Auth.dc.html). #}
+{# Palette: bg #2D72A2, pattern #2A6C99, input cream #F1EEE3, icon mint #9FD0CB, #}
+{# icon stroke #3E8E8F, text #17476B, primary #4AA6A6 (hover #3E9394), error #D8483C. #}
+<style>
+.auth-shell{min-height:100vh;font-family:'Alexandria',sans-serif;background-color:#2D72A2;display:flex;flex-direction:column;padding:26px 40px;box-sizing:border-box;
+    background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2296%22 viewBox=%220 0 96 96%22%3E%3Cg fill=%22none%22 stroke=%22%232A6C99%22 stroke-width=%221.2%22%3E%3Cpath d=%22M48 8l11 29 29 11-29 11-11 29-11-29-29-11 29-11z%22/%3E%3Cpath d=%22M48 30l7 18 18 7-18 7-7 18-7-18-18-7 18-7z%22/%3E%3Ccircle cx=%2248%22 cy=%2248%22 r=%226%22/%3E%3Cpath d=%22M0 0l10 10M96 0L86 10M0 96l10-10M96 96L86 86%22/%3E%3C/g%3E%3C/svg%3E')}
+.auth-logo-row{display:flex;align-items:flex-start}
+.auth-center{flex:1;display:flex;align-items:center;justify-content:center;padding:10px 0}
+.auth-panel{width:520px;max-width:96vw}
+.auth-title{margin:0 0 30px;color:#fff;font-size:26px;font-weight:700;text-align:center;text-shadow:0 2px 10px rgba(0,0,0,.2);line-height:1.8}
+.auth-fields{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:15px}
+.auth-label{color:#fff;font-size:13.5px;font-weight:600;margin-bottom:7px}
+.auth-input-box{display:flex;background:#F1EEE3;border-radius:8px;overflow:hidden;height:50px}
+.auth-input-box .icon{width:50px;background:#9FD0CB;display:flex;align-items:center;justify-content:center;order:2;flex:none}
+.auth-input-box input,.auth-input-box select{flex:1;border:none;outline:none;background:transparent;padding:0 16px;font-size:14px;color:#17476B;font-family:'Alexandria',sans-serif;min-width:0}
+.auth-input-box ::placeholder{color:#A8BCC2}
+select.auth-select{width:100%;height:50px;border:none;outline:none;border-radius:8px;background:#F1EEE3;padding:0 16px;font-size:14px;color:#17476B;box-sizing:border-box;font-family:'Alexandria',sans-serif}
+.auth-btn-primary{height:46px;padding:0 38px;border-radius:8px;border:none;background:#4AA6A6;color:#fff;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 14px rgba(0,0,0,.18);font-family:'Alexandria',sans-serif;transition:background .15s}
+.auth-btn-primary:hover{background:#3E9394}
+.auth-btn-outline{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 30px;border-radius:8px;border:1.5px solid #BFE0DC;background:transparent;color:#EAF6F4;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;font-family:'Alexandria',sans-serif;transition:background .15s}
+.auth-btn-outline:hover{background:rgba(255,255,255,.08)}
+.auth-actions{display:flex;justify-content:center;gap:16px;margin-top:12px}
+.auth-error-banner{max-width:460px;margin:0 auto 16px;background:#D8483C;color:#fff;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;text-align:center}
+.auth-success-banner{max-width:460px;margin:0 auto 16px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;text-align:center}
+.auth-field-error{color:#FFD9D4;font-size:11.5px;margin-top:5px;font-weight:600}
+.auth-hint{color:#CFE4E0;font-size:11px;margin-top:5px}
+.auth-pill-group{display:inline-flex;background:#9FD0CB;border-radius:999px;padding:4px}
+.auth-pill{height:38px;padding:0 28px;border-radius:999px;border:none;background:transparent;color:#2F6B6C;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Alexandria',sans-serif}
+.auth-pill.active{background:#4AA6A6;color:#fff}
+</style>

@@ -1,32 +1,28 @@
 {% extends "base.html" %}
 {% block title %}إنشاء حساب — الطبيب الحافظ{% endblock %}
 {% block content %}
-<div class="min-h-screen flex">
-    <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-700 via-primary-800 to-primary-950 items-center justify-center p-16 relative overflow-hidden">
-        <div class="absolute top-10 right-10 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
-        <div class="absolute bottom-20 left-20 w-80 h-80 bg-primary-500/10 rounded-full blur-3xl"></div>
-        <div class="relative text-center">
-            <div class="w-48 h-48 mx-auto mb-8 bg-white/10 rounded-3xl flex items-center justify-center">
-                <svg class="w-24 h-24 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-            </div>
-            <h3 class="text-2xl font-bold text-white mb-3">انضم إلينا</h3>
-            <p class="text-white/60 max-w-sm">أنشئ حسابك الآن وابدأ رحلتك في حفظ كتاب الله مع أفضل المعلمين</p>
-        </div>
+{% include "accounts/partials/auth_shell_css.html" %}
+
+<div dir="rtl" class="auth-shell">
+    <div class="auth-logo-row">
+        <a href="{% url 'accounts:landing' %}"><img src="/static/img/logo.png" alt="الطبيب الحافظ" style="height:56px"></a>
     </div>
-    <div class="flex-1 flex items-center justify-center px-8 py-16 bg-white overflow-y-auto">
-        <div class="w-full max-w-md">
-            <a href="{% url 'accounts:landing' %}" class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-primary-600 mb-10 transition-colors">
-                <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                الرجوع للرئيسية
-            </a>
-            <h1 class="text-3xl font-black text-gray-800 mb-2">إنشاء حساب جديد</h1>
-            <p class="text-gray-400 mb-8">أملأ بياناتك للتسجيل في المنصة</p>
+
+    <div class="auth-center">
+        <div class="auth-panel">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="{% if message.tags == 'success' %}auth-success-banner{% else %}auth-error-banner{% endif %}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
             <div id="signup-form-container">
                 {% include "accounts/partials/signup_form.html" %}
             </div>
-            <p class="text-center text-sm text-gray-400 mt-8">
+
+            <p style="text-align:center;color:#EAF3F1;font-size:13px;margin-top:22px">
                 لديك حساب بالفعل؟
-                <a href="{% url 'accounts:login' %}" class="text-primary-600 font-bold hover:underline">تسجيل الدخول</a>
+                <a href="{% url 'accounts:login' %}" style="color:#fff;font-weight:700;text-decoration:underline">تسجيل الدخول</a>
             </p>
         </div>
     </div>

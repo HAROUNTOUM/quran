@@ -1,131 +1,165 @@
+{# 3-step signup wizard matching the Auth.dc.html design. One Django form POST; #}
+{# steps are client-side only (Alpine). No `required` attrs — hidden steps would #}
+{# block native submit; SignupForm validates everything server-side. #}
 {% if form.non_field_errors %}
-<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
-    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-</div>
+<div class="auth-error-banner">{% for error in form.non_field_errors %}{{ error }}{% endfor %}</div>
 {% endif %}
 
-<form method="post" hx-post="{% url 'accounts:signup' %}" hx-target="#signup-form-container" hx-swap="innerHTML" hx-indicator="#signup-spinner">
+<form method="post" action="{% url 'accounts:signup' %}"
+      hx-post="{% url 'accounts:signup' %}" hx-target="#signup-form-container" hx-swap="innerHTML" hx-indicator="#signup-spinner"
+      x-data="{
+          step: {% if form.password1.errors or form.password2.errors %}3{% elif form.specialization.errors or form.level.errors or form.memorization_amount.errors %}2{% else %}1{% endif %},
+          role: '{{ form.role.value|default:'student' }}',
+          pledge: false,
+          titles: {1: 'سجّل الآن وابدأ رحلتك مع القرآن الكريم', 2: 'سماعة في العنق وقرآن في القلب', 3: 'مرحبًا بطبيبنا الحافظ'}
+      }" novalidate>
     {% csrf_token %}
-    <div class="space-y-4">
+    <input type="hidden" name="role" :value="role">
+
+    <h1 class="auth-title" x-text="role === 'teacher' && step === 3 ? 'مرحبًا بالأستاذ الطبيب الحافظ' : titles[step]">سجّل الآن وابدأ رحلتك مع القرآن الكريم</h1>
+
+    {# ── STEP 1: الهوية ── #}
+    <div class="auth-fields" x-show="step === 1">
         <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">الاسم الكامل <span class="text-red-500">*</span></label>
-            {{ form.full_name_ar }}
-            {% if form.full_name_ar.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.full_name_ar.errors.0 }}</p>
-            {% endif %}
-            {% if form.full_name_ar.help_text %}
-                <p class="text-gray-400 text-xs mt-1">{{ form.full_name_ar.help_text }}</p>
-            {% endif %}
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">البريد الإلكتروني <span class="text-red-500">*</span></label>
-            {{ form.email }}
-            {% if form.email.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.email.errors.0 }}</p>
-            {% endif %}
-            {% if form.email.help_text %}
-                <p class="text-gray-400 text-xs mt-1">{{ form.email.help_text }}</p>
-            {% endif %}
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-2">الهاتف <span class="text-red-500">*</span></label>
-                {{ form.phone }}
-                {% if form.phone.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ form.phone.errors.0 }}</p>
-                {% endif %}
-                {% if form.phone.help_text %}
-                    <p class="text-gray-400 text-xs mt-1">{{ form.phone.help_text }}</p>
-                {% endif %}
+            <div class="auth-label">الاسم الكامل :</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"/><path d="M5 20c0-3.3 3-5.5 7-5.5s7 2.2 7 5.5"/><path d="M17 6.5h4M19 4.5v4"/></svg></span>
+                <input type="text" name="full_name_ar" id="id_full_name_ar" value="{{ form.full_name_ar.value|default:'' }}" placeholder="مثال: أحمد بن محمد" autocomplete="name">
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-2">الجنس <span class="text-red-500">*</span></label>
-                {{ form.gender }}
-                {% if form.gender.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ form.gender.errors.0 }}</p>
-                {% endif %}
-                {% if form.gender.help_text %}
-                    <p class="text-gray-400 text-xs mt-1">{{ form.gender.help_text }}</p>
-                {% endif %}
-            </div>
+            {% if form.full_name_ar.errors %}<p class="auth-field-error">{{ form.full_name_ar.errors.0 }}</p>{% endif %}
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">الدور <span class="text-red-500">*</span></label>
-            {{ form.role }}
-            {% if form.role.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.role.errors.0 }}</p>
-            {% endif %}
-            {% if form.role.help_text %}
-                <p class="text-gray-400 text-xs mt-1">{{ form.role.help_text }}</p>
-            {% endif %}
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-2">التخصص</label>
-                {{ form.specialization }}
-                {% if form.specialization.help_text %}
-                    <p class="text-gray-400 text-xs mt-1">{{ form.specialization.help_text }}</p>
-                {% endif %}
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-2">الولاية</label>
-                {{ form.state }}
-                {% if form.state.help_text %}
-                    <p class="text-gray-400 text-xs mt-1">{{ form.state.help_text }}</p>
-                {% endif %}
-            </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-2">المستوى</label>
-                {{ form.level }}
-                {% if form.level.help_text %}
-                    <p class="text-gray-400 text-xs mt-1">{{ form.level.help_text }}</p>
-                {% endif %}
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-2">مقدار الحفظ</label>
-                {{ form.memorization_amount }}
-                {% if form.memorization_amount.help_text %}
-                    <p class="text-gray-400 text-xs mt-1">{{ form.memorization_amount.help_text }}</p>
-                {% endif %}
-            </div>
+            <div class="auth-label">الجنس:</div>
+            <select name="gender" id="id_gender" class="auth-select">
+                <option value="">اختر...</option>
+                <option value="male" {% if form.gender.value == 'male' %}selected{% endif %}>ذكر</option>
+                <option value="female" {% if form.gender.value == 'female' %}selected{% endif %}>أنثى</option>
+            </select>
+            {% if form.gender.errors %}<p class="auth-field-error">{{ form.gender.errors.0 }}</p>{% endif %}
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">كلمة المرور <span class="text-red-500">*</span></label>
-            <div class="relative">
-                {{ form.password1 }}
-                <button type="button" onclick="togglePassword(this)" class="absolute inset-y-0 left-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                </button>
+            <div class="auth-label">البريد الإلكتروني :</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5h18v13H3z"/><path d="M3 7l9 6 9-6"/></svg></span>
+                <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" placeholder="doctor@example.com" autocomplete="email">
             </div>
-            {% if form.password1.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.password1.errors.0 }}</p>
-            {% endif %}
-            {% if form.password1.help_text %}
-                <p class="text-gray-400 text-xs mt-1">{{ form.password1.help_text }}</p>
-            {% endif %}
+            {% if form.email.errors %}<p class="auth-field-error">{{ form.email.errors.0 }}</p>{% endif %}
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">تأكيد كلمة المرور <span class="text-red-500">*</span></label>
-            <div class="relative">
-                {{ form.password2 }}
-                <button type="button" onclick="togglePassword(this)" class="absolute inset-y-0 left-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                </button>
+            <div class="auth-label">رقم الهاتف:</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l1.5 4.5L8 10a12 12 0 006 6l1.5-2.5L20 15v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg></span>
+                <input type="text" name="phone" id="id_phone" value="{{ form.phone.value|default:'' }}" placeholder="05XXXXXXXX" autocomplete="tel" dir="ltr">
             </div>
-            {% if form.password2.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.password2.errors.0 }}</p>
-            {% endif %}
-            {% if form.password2.help_text %}
-                <p class="text-gray-400 text-xs mt-1">{{ form.password2.help_text }}</p>
-            {% endif %}
+            {% if form.phone.errors %}<p class="auth-field-error">{{ form.phone.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <div class="auth-label">اختر ولايتك:</div>
+            <select name="state" id="id_state" class="auth-select">
+                <option value="">اختر...</option>
+                <option value="قسنطينة" {% if form.state.value == 'قسنطينة' %}selected{% endif %}>قسنطينة</option>
+                    <option value="سطيف" {% if form.state.value == 'سطيف' %}selected{% endif %}>سطيف</option>
+                    <option value="باتنة" {% if form.state.value == 'باتنة' %}selected{% endif %}>باتنة</option>
+                    <option value="ميلة" {% if form.state.value == 'ميلة' %}selected{% endif %}>ميلة</option>
+                    <option value="عنابة" {% if form.state.value == 'عنابة' %}selected{% endif %}>عنابة</option>
+                    <option value="جيجل" {% if form.state.value == 'جيجل' %}selected{% endif %}>جيجل</option>
+                    <option value="أخرى" {% if form.state.value == 'أخرى' %}selected{% endif %}>أخرى</option>
+            </select>
+            {% if form.state.errors %}<p class="auth-field-error">{{ form.state.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="auth-actions">
+            <a href="{% url 'accounts:landing' %}" class="auth-btn-outline">الرئيسية</a>
+            <button type="button" class="auth-btn-primary" @click="step = 2">التالي</button>
         </div>
     </div>
-    <button type="submit" class="w-full mt-8 py-3.5 bg-gradient-to-l from-primary-600 to-primary-700 text-white font-bold rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-md shadow-primary-500/25 disabled:opacity-50 disabled:cursor-not-allowed" id="signup-spinner">
-        <span class="inline-flex items-center gap-2">
-            <svg class="htmx-indicator w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span>إنشاء الحساب</span>
-        </span>
-    </button>
+
+    {# ── STEP 2: المستوى والدور ── #}
+    <div class="auth-fields" x-show="step === 2" x-cloak>
+        <div>
+            <div class="auth-label">التخصص الدراسي :</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v5a4 4 0 008 0V3"/><path d="M10 12v3a5 5 0 0010 0v-2"/><path d="M20 11a2 2 0 100-4 2 2 0 000 4z"/></svg></span>
+                <select name="specialization" id="id_specialization">
+                    <option value="">اختر...</option>
+                    <option value="طب عام" {% if form.specialization.value == 'طب عام' %}selected{% endif %}>طب عام</option>
+                    <option value="طب أسنان" {% if form.specialization.value == 'طب أسنان' %}selected{% endif %}>طب أسنان</option>
+                    <option value="صيدلة" {% if form.specialization.value == 'صيدلة' %}selected{% endif %}>صيدلة</option>
+                </select>
+            </div>
+            {% if form.specialization.errors %}<p class="auth-field-error">{{ form.specialization.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <div class="auth-label">مستوى الأحكام :</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V9M12 20V4M17 20v-7"/><path d="M5 20h14"/></svg></span>
+                <select name="level" id="id_level">
+                    <option value="">اختر...</option>
+                    <option value="مبتدئ" {% if form.level.value == 'مبتدئ' %}selected{% endif %}>مبتدئ</option>
+                    <option value="متوسط" {% if form.level.value == 'متوسط' %}selected{% endif %}>متوسط</option>
+                    <option value="متقن" {% if form.level.value == 'متقن' %}selected{% endif %}>متقن</option>
+                </select>
+            </div>
+            {% if form.level.errors %}<p class="auth-field-error">{{ form.level.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <div class="auth-label">مقدار الحفظ :</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 012-2h14v16H6a2 2 0 00-2 2z"/><path d="M4 19a2 2 0 012-2h14"/></svg></span>
+                <select name="memorization_amount" id="id_memorization_amount">
+                    <option value="">اختر...</option>
+                    <option value="أقل من 10 أحزاب" {% if form.memorization_amount.value == 'أقل من 10 أحزاب' %}selected{% endif %}>أقل من 10 أحزاب</option>
+                    <option value="10 - 20 حزبا" {% if form.memorization_amount.value == '10 - 20 حزبا' %}selected{% endif %}>10 - 20 حزبا</option>
+                    <option value="20 - 40 حزبا" {% if form.memorization_amount.value == '20 - 40 حزبا' %}selected{% endif %}>20 - 40 حزبا</option>
+                    <option value="فوق 40 حزبا" {% if form.memorization_amount.value == 'فوق 40 حزبا' %}selected{% endif %}>فوق 40 حزبا</option>
+                    <option value="خاتم/ة" {% if form.memorization_amount.value == 'خاتم/ة' %}selected{% endif %}>خاتم/ة</option>
+                </select>
+            </div>
+            {% if form.memorization_amount.errors %}<p class="auth-field-error">{{ form.memorization_amount.errors.0 }}</p>{% endif %}
+        </div>
+        <div style="text-align:center;margin-top:6px">
+            <div class="auth-pill-group">
+                <button type="button" class="auth-pill" :class="role === 'teacher' && 'active'" @click="role = 'teacher'">أستاذ (ة)</button>
+                <button type="button" class="auth-pill" :class="role === 'student' && 'active'" @click="role = 'student'">طالب (ة)</button>
+            </div>
+            {% if form.role.errors %}<p class="auth-field-error">{{ form.role.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="auth-actions">
+            <button type="button" class="auth-btn-outline" @click="step = 1">السابق</button>
+            <button type="button" class="auth-btn-primary" @click="step = 3">التالي</button>
+        </div>
+    </div>
+
+    {# ── STEP 3: كلمة المرور والتعهد ── #}
+    <div class="auth-fields" x-show="step === 3" x-cloak>
+        <div>
+            <div class="auth-label">كلمة المرور:</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v9H5z"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span>
+                <input type="password" name="password1" id="id_password1" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <div class="auth-hint">يجب أن تحتوي على 8 أحرف على الأقل</div>
+            {% if form.password1.errors %}<p class="auth-field-error">{{ form.password1.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <div class="auth-label">تأكيد كلمة المرور:</div>
+            <div class="auth-input-box">
+                <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E8E8F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v9H5z"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span>
+                <input type="password" name="password2" id="id_password2" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            {% if form.password2.errors %}<p class="auth-field-error">{{ form.password2.errors.0 }}</p>{% endif %}
+        </div>
+
+        <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;margin-top:4px">
+            <input type="checkbox" x-model="pledge" style="margin-top:4px;width:16px;height:16px;accent-color:#4AA6A6">
+            <span style="color:#EAF3F1;font-size:12px;line-height:1.9"
+                  x-text="role === 'teacher'
+                    ? 'أتعهد أنا الأستاذ/ة بالالتزام بأداء مهامي التعليمية بكل أمانة وانضباط، والحرص على احترام أوقات الحصص، والتعامل مع الطلاب بما يليق بمقام تعليم كتاب الله، مع الحفاظ على آداب المهنة ومقومات القدوة الحسنة'
+                    : 'أتعهد بالالتزام بالانضباط وحضور الدروس في أوقاتها، واحترام المعلمين والزملاء، وبذل الجهد في التعلم والمراجعة، وأتحمل مسؤولية أي تقصير يصدر مني. كما أتعهد بالمواظبة على حضور حصص الأحكام الشرعية وعدم التغيب عنها إلا بعذر مقبول'"></span>
+        </label>
+
+        <div class="auth-actions">
+            <button type="button" class="auth-btn-outline" @click="step = 2">السابق</button>
+            <button type="submit" id="signup-spinner" class="auth-btn-primary" :disabled="!pledge" :style="!pledge && 'opacity:.55;cursor:not-allowed'">سجل</button>
+        </div>
+    </div>
 </form>
