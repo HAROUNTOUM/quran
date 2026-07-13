@@ -468,6 +468,19 @@ class ProgressLogQuerySet(models.QuerySet):
     def total_pages(self):
         return self.aggregate(total=models.Sum("completed_pages"))["total"] or 0
 
+    def thumn_total(self, _keys=None):
+        """Total thumns for this queryset: distinct covered thumns of
+        range-based rows + the summed amounts of hizb/thumn-only rows."""
+        from apps.references.utils import count_thumns
+        covered = count_thumns(
+            self.filter(surah__isnull=False)
+            .values_list("surah_id", "start_ayah", "end_ayah"),
+            _keys=_keys,
+        )
+        amount = self.filter(surah__isnull=True).aggregate(
+            t=models.Sum("total_thumns"))["t"] or 0
+        return covered + amount
+
     def category_breakdown(self):
         return self.values("log_category").annotate(
             count=models.Count("id"),
@@ -506,7 +519,7 @@ class ProgressLog(models.Model):
 
     session = models.ForeignKey(
         "circles.Session", on_delete=models.CASCADE,
-        related_name="progress_logs",
+        related_name="progress_logs", null=True, blank=True,
     )
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
@@ -515,12 +528,24 @@ class ProgressLog(models.Model):
     log_category = models.CharField(
         max_length=20, choices=Category.choices, verbose_name="نوع التسجيل",
     )
+    # ── Minimal amount-based tracking (the teacher-facing input): how much
+    # was recited, in hizb + thumn (ثمن = 1/8 حزب). total_thumns is derived
+    # on save and is what every aggregate reads. ─────────────────────────
+    hizb = models.PositiveIntegerField("أحزاب", default=0)
+    thumn = models.PositiveIntegerField(
+        "أثمان", default=0, validators=[MaxValueValidator(7)],
+    )
+    total_thumns = models.PositiveIntegerField(
+        "إجمالي الأثمان", default=0, editable=False,
+    )
+    # ── Optional detail: the ayah range, for entries recorded against a
+    # specific passage. Legacy rows always carry it; amount-only rows don't.
     surah = models.ForeignKey(
         "references.Surah", on_delete=models.RESTRICT,
-        verbose_name="السورة",
+        verbose_name="السورة", null=True, blank=True,
     )
-    start_ayah = models.IntegerField("من الآية")
-    end_ayah = models.IntegerField("إلى الآية")
+    start_ayah = models.IntegerField("من الآية", null=True, blank=True)
+    end_ayah = models.IntegerField("إلى الآية", null=True, blank=True)
     completed_pages = models.DecimalField(
         "عدد الصفحات", max_digits=5, decimal_places=2, null=True, blank=True,
     )
@@ -547,6 +572,15 @@ class ProgressLog(models.Model):
         verbose_name = "سجل تقدم"
         verbose_name_plural = "سجلات التقدم"
         ordering = ["-created_at"]
+        indexes = [
+            # Every stats/achievement aggregate filters by (student, category).
+            models.Index(fields=["student", "log_category"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        # total_thumns is always derived — never trusted from the caller.
+        self.total_thumns = (self.hizb or 0) * 8 + (self.thumn or 0)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_log_category_display()} — {self.student.full_name_ar}"
@@ -576,6 +610,18 @@ class StudentAchievement(models.Model):
     class Meta:
         verbose_name = "إنجاز طالب"
         verbose_name_plural = "إنجازات الطلاب"
+
+    @property
+    def hifdh_formatted(self) -> str:
+        """Lifetime hifdh total as 'X حزب وY أثمان' (e.g. 238 → 29 حزب و6 أثمان)."""
+        from apps.references.utils import format_hizb_thumn
+        return format_hizb_thumn(self.total_hifdh_thumns or 0)
+
+    @property
+    def murajaah_formatted(self) -> str:
+        """Lifetime murajaah total as 'X حزب وY أثمان'."""
+        from apps.references.utils import format_hizb_thumn
+        return format_hizb_thumn(self.total_murajaah_thumns or 0)
 
     def __str__(self):
         return f"إنجاز {self.student.full_name_ar}"

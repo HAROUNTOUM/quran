@@ -55,12 +55,53 @@ def create_progress_log(session, student, log_category, surah, start_ayah, end_a
     return log
 
 
+@transaction.atomic
+def log_student_progress(student, category: str, hizb: int, thumn: int,
+                         session=None) -> ProgressLog:
+    """Record a minimal amount-based tracking entry: the teacher submits only
+    the category (حفظ جديد/مراجعة) and the amount in hizb + thumn. Creates the
+    append-only ProgressLog row and incrementally bumps the student's
+    StudentAchievement counters with F() expressions — no cache rebuild.
+
+    `session` is optional: entries made during a live session keep the link
+    so the after-session report includes them."""
+    from django.core.exceptions import ValidationError
+    from django.db.models import F
+    from django.utils import timezone
+
+    if category not in (ProgressLog.Category.HIFDH, ProgressLog.Category.MURAJAAH):
+        raise ValidationError("نوع التسجيل يجب أن يكون حفظاً جديداً أو مراجعة")
+    hizb, thumn = int(hizb or 0), int(thumn or 0)
+    if hizb < 0 or not (0 <= thumn <= 7):
+        raise ValidationError("المقدار غير صالح: الأثمان بين 0 و7 والأحزاب 0 أو أكثر")
+    if hizb == 0 and thumn == 0:
+        raise ValidationError("أدخل مقداراً أكبر من صفر")
+
+    log = ProgressLog.objects.create(
+        student=student, log_category=category,
+        hizb=hizb, thumn=thumn, session=session,
+    )
+
+    achievement, _ = StudentAchievement.objects.get_or_create(student=student)
+    counter = (
+        "total_hifdh_thumns" if category == ProgressLog.Category.HIFDH
+        else "total_murajaah_thumns"
+    )
+    # .update() bypasses auto_now, so stamp last_updated explicitly.
+    StudentAchievement.objects.filter(pk=achievement.pk).update(
+        **{counter: F(counter) + log.total_thumns}, last_updated=timezone.now(),
+    )
+    return log
+
+
 def can_modify_progress_log(user, log) -> bool:
     """Only the session's own teacher (or the main admin) may correct a
     recorded entry — mirrors ReviewRequest.can_be_responded_by."""
     from apps.accounts.models import User
     if user.role == User.Role.MAIN_ADMIN:
         return True
+    if log.session_id is None:  # session-less amount entry: admin only
+        return False
     return user.role == User.Role.TEACHER and log.session.circle.teacher_id == user.id
 
 
@@ -76,6 +117,9 @@ def update_progress_log(log, by, log_category, surah, start_ayah, end_ayah,
 
     if not can_modify_progress_log(by, log):
         raise PermissionDenied("لا تملك صلاحية تعديل هذا التسجيل")
+    if log.surah_id is None:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("هذا تسجيل مقدار (حزب/ثمن) — احذفه وسجّل مقداراً جديداً بدلاً من تعديله")
     surah_pk = getattr(surah, "pk", surah)
     start_ayah, end_ayah = validate_ayah_range(surah_pk, start_ayah, end_ayah)
     if completed_pages is None:
@@ -121,7 +165,9 @@ def session_report_data(session, student=None):
 
     keys = thumn_start_keys()
 
-    def units(surah_id, a_from, a_to):
+    def units(surah_id, a_from, a_to, amount_thumns=0):
+        if not surah_id:  # amount-based entry: hizb/thumn only
+            return format_hizb_thumn(amount_thumns)
         return format_hizb_thumn(count_thumns([(surah_id, a_from, a_to)], _keys=keys))
 
     logs = ProgressLog.objects.filter(session=session).select_related("student", "surah")
@@ -138,10 +184,10 @@ def session_report_data(session, student=None):
         "was_corrected": log.updated_by_id is not None,
         "category": log.get_log_category_display(),
         "category_code": log.log_category,
-        "surah": log.surah.name_ar,
-        "ayah_from": log.start_ayah,
-        "ayah_to": log.end_ayah,
-        "thumn_units": units(log.surah_id, log.start_ayah, log.end_ayah),
+        "surah": log.surah.name_ar if log.surah_id else "—",
+        "ayah_from": log.start_ayah if log.start_ayah is not None else "",
+        "ayah_to": log.end_ayah if log.end_ayah is not None else "",
+        "thumn_units": units(log.surah_id, log.start_ayah, log.end_ayah, log.total_thumns),
         "points": log.points,
         "grade": log.get_evaluation_grade_display() if log.evaluation_grade else "",
         "remark": log.teacher_notes,
@@ -181,15 +227,24 @@ def _update_achievement(student):
     achievement.total_hifdh_pages = hifdh_logs.aggregate(t=Sum("completed_pages"))["t"] or 0
     achievement.total_murajaah_pages = murajaah_logs.aggregate(t=Sum("completed_pages"))["t"] or 0
 
-    # Tracking-unit totals + juz frontier from real thumn coverage.
+    # Tracking-unit totals: distinct covered thumns from range-based rows
+    # PLUS the amount-based rows' total_thumns (the minimal hizb/thumn
+    # entries carry no ayah range). Keeps full rebuilds consistent with the
+    # incremental F() path in log_student_progress.
     keys = thumn_start_keys()
     hifdh_covered = covered_thumns(
-        hifdh_logs.values_list("surah_id", "start_ayah", "end_ayah"), _keys=keys
+        hifdh_logs.filter(surah__isnull=False)
+        .values_list("surah_id", "start_ayah", "end_ayah"), _keys=keys
     )
-    achievement.total_hifdh_thumns = len(hifdh_covered)
+    hifdh_amount = hifdh_logs.filter(surah__isnull=True).aggregate(
+        t=Sum("total_thumns"))["t"] or 0
+    murajaah_amount = murajaah_logs.filter(surah__isnull=True).aggregate(
+        t=Sum("total_thumns"))["t"] or 0
+    achievement.total_hifdh_thumns = len(hifdh_covered) + hifdh_amount
     achievement.total_murajaah_thumns = len(covered_thumns(
-        murajaah_logs.values_list("surah_id", "start_ayah", "end_ayah"), _keys=keys
-    ))
+        murajaah_logs.filter(surah__isnull=False)
+        .values_list("surah_id", "start_ayah", "end_ayah"), _keys=keys
+    )) + murajaah_amount
 
     completed = 0
     current = None  # first juz that is started but not finished

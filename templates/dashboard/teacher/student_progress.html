@@ -137,8 +137,8 @@
                         {{ log.get_log_category_display }}
                     </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-800">{{ log.surah.name_ar }}</td>
-                <td class="px-6 py-4 text-sm text-gray-600">{{ log.start_ayah }}–{{ log.end_ayah }}</td>
+                <td class="px-6 py-4 text-sm text-gray-800">{% if log.surah_id %}{{ log.surah.name_ar }}{% else %}—{% endif %}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{% if log.surah_id %}{{ log.start_ayah }}–{{ log.end_ayah }}{% else %}{{ log.hizb }} حزب و{{ log.thumn }} ثمن{% endif %}</td>
                 <td class="px-6 py-4 text-center text-sm font-bold {% if log.points >= 16 %}text-green-600{% elif log.points >= 10 %}text-amber-600{% elif log.points is not None %}text-red-600{% else %}text-gray-300{% endif %}">
                     {% if log.points is not None %}{{ log.points }}/20{% else %}—{% endif %}
                 </td>

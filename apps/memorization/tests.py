@@ -794,3 +794,60 @@ class CircleReEnrollApiTest(TestCase):
         self.assertEqual(
             CircleEnrollment.objects.get(circle=self.circle, student=self.student).status,
             CircleEnrollment.Status.ACTIVE)
+
+
+class MinimalAmountTrackerTest(TestCase):
+    """The hyper-focused hizb/thumn tracker: teacher submits only category +
+    hizb + thumn; total_thumns derives on save; StudentAchievement counters
+    update incrementally (F expressions) and stay consistent with rebuilds."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.student = User.objects.create_user(
+            username="amt@test.com", email="amt@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+
+    def test_total_thumns_computed_on_save(self):
+        from apps.memorization.engine import log_student_progress
+        log = log_student_progress(self.student, ProgressLog.Category.HIFDH, hizb=2, thumn=3)
+        self.assertEqual(log.total_thumns, 19)  # 2*8 + 3
+        log.refresh_from_db()
+        self.assertEqual(log.total_thumns, 19)
+
+    def test_incremental_achievement_updates(self):
+        from apps.memorization.engine import log_student_progress
+        from apps.memorization.models import StudentAchievement
+        log_student_progress(self.student, ProgressLog.Category.HIFDH, hizb=29, thumn=6)
+        log_student_progress(self.student, ProgressLog.Category.MURAJAAH, hizb=18, thumn=7)
+        log_student_progress(self.student, ProgressLog.Category.HIFDH, hizb=0, thumn=2)
+        ach = StudentAchievement.objects.get(student=self.student)
+        self.assertEqual(ach.total_hifdh_thumns, 238 + 2)
+        self.assertEqual(ach.total_murajaah_thumns, 151)
+        self.assertEqual(ach.murajaah_formatted, "18 حزب و7 أثمان")
+
+    def test_formatted_property_238(self):
+        from apps.memorization.models import StudentAchievement
+        ach = StudentAchievement.objects.create(student=self.student, total_hifdh_thumns=238)
+        self.assertEqual(ach.hifdh_formatted, "29 حزب و6 أثمان")
+
+    def test_invalid_inputs_rejected(self):
+        from apps.memorization.engine import log_student_progress
+        with self.assertRaises(ValidationError):
+            log_student_progress(self.student, "RECITATION", hizb=1, thumn=0)
+        with self.assertRaises(ValidationError):
+            log_student_progress(self.student, ProgressLog.Category.HIFDH, hizb=0, thumn=8)
+        with self.assertRaises(ValidationError):
+            log_student_progress(self.student, ProgressLog.Category.HIFDH, hizb=0, thumn=0)
+
+    def test_rebuild_matches_incremental_totals(self):
+        from apps.memorization.engine import log_student_progress, _update_achievement
+        from apps.memorization.models import StudentAchievement
+        log_student_progress(self.student, ProgressLog.Category.HIFDH, hizb=3, thumn=1)
+        log_student_progress(self.student, ProgressLog.Category.MURAJAAH, hizb=1, thumn=0)
+        incremental = StudentAchievement.objects.get(student=self.student)
+        inc_h, inc_m = incremental.total_hifdh_thumns, incremental.total_murajaah_thumns
+        _update_achievement(self.student)  # full rebuild (correction path)
+        rebuilt = StudentAchievement.objects.get(student=self.student)
+        self.assertEqual((rebuilt.total_hifdh_thumns, rebuilt.total_murajaah_thumns), (inc_h, inc_m))

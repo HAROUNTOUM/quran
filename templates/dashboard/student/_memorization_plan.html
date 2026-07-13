@@ -41,7 +41,7 @@ plan page and the merged الإحصائيات workspace tab.{% endcomment %}
                 <div class="divide-y divide-gray-50">
                     {% for record in data.hifz_records %}
                     <div class="flex items-center justify-between py-2">
-                        <span class="text-sm text-gray-600">{{ record.surah.name_ar }} ({{ record.start_ayah }}-{{ record.end_ayah }})</span>
+                        <span class="text-sm text-gray-600">{% if record.surah_id %}{{ record.surah.name_ar }} ({{ record.start_ayah }}-{{ record.end_ayah }}){% else %}مقدار: {{ record.hizb }} حزب و{{ record.thumn }} ثمن{% endif %}</span>
                         <span class="text-xs text-gray-400">
                             {% if record.points is not None %}<span class="font-bold text-primary-600">{{ record.points }}/20</span> — {% endif %}{{ record.created_at|date:"d/m/Y" }}
                         </span>
@@ -56,7 +56,7 @@ plan page and the merged الإحصائيات workspace tab.{% endcomment %}
                 <div class="divide-y divide-gray-50">
                     {% for record in data.murajaa_records %}
                     <div class="flex items-center justify-between py-2">
-                        <span class="text-sm text-gray-600">{{ record.surah.name_ar }} ({{ record.start_ayah }}-{{ record.end_ayah }})</span>
+                        <span class="text-sm text-gray-600">{% if record.surah_id %}{{ record.surah.name_ar }} ({{ record.start_ayah }}-{{ record.end_ayah }}){% else %}مقدار: {{ record.hizb }} حزب و{{ record.thumn }} ثمن{% endif %}</span>
                         <span class="text-xs text-gray-400">
                             {% if record.points is not None %}<span class="font-bold text-amber-600">{{ record.points }}/20</span> — {% endif %}{{ record.created_at|date:"d/m/Y" }}
                         </span>

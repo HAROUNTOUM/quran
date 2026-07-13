@@ -113,11 +113,13 @@ def _export_progress_category(request, start, end, category, filename):
                "الحلقة", "التاريخ"]
     rows = (
         (r.student.full_name_ar,
-         r.surah.name_ar, r.start_ayah, r.surah.name_ar, r.end_ayah,
-         *_thumn_columns(r.surah_id, r.start_ayah, r.end_ayah, keys),
+         r.surah.name_ar if r.surah_id else "—", r.start_ayah or "",
+         r.surah.name_ar if r.surah_id else "—", r.end_ayah or "",
+         *(_thumn_columns(r.surah_id, r.start_ayah, r.end_ayah, keys)
+           if r.surah_id else ("", format_hizb_thumn(r.total_thumns))),
          r.points if r.points is not None else "",
          r.evaluation_grade,
-         r.session.circle.name,
+         r.session.circle.name if r.session_id else "",
          r.created_at.date())
         for r in qs.iterator(chunk_size=500)
     )
@@ -132,8 +134,10 @@ def _export_grades(request, start, end):
                "ملاحظات", "التاريخ"]
     rows = (
         (r.student.full_name_ar, r.get_log_category_display(),
-         r.surah.name_ar, r.start_ayah, r.surah.name_ar, r.end_ayah,
-         *_thumn_columns(r.surah_id, r.start_ayah, r.end_ayah, keys),
+         r.surah.name_ar if r.surah_id else "—", r.start_ayah or "",
+         r.surah.name_ar if r.surah_id else "—", r.end_ayah or "",
+         *(_thumn_columns(r.surah_id, r.start_ayah, r.end_ayah, keys)
+           if r.surah_id else ("", format_hizb_thumn(r.total_thumns))),
          r.completed_pages or 0,
          r.points if r.points is not None else "",
          r.evaluation_grade, r.teacher_notes[:50] if r.teacher_notes else "",

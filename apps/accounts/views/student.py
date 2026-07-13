@@ -249,12 +249,14 @@ def _memorization_plan_data(user):
 
     progress_data = []
     for en in enrollments:
-        circle_logs = [l for l in logs if l.session.circle_id == en.circle_id]
+        circle_logs = [l for l in logs if l.session_id and l.session.circle_id == en.circle_id]
         hifz_records = [l for l in circle_logs if l.log_category == ProgressLog.Category.HIFDH]
         murajaa_records = [l for l in circle_logs if l.log_category == ProgressLog.Category.MURAJAAH]
 
         def thumns_of(records):
-            return count_thumns((r.surah_id, r.start_ayah, r.end_ayah) for r in records)
+            ranges = [(r.surah_id, r.start_ayah, r.end_ayah) for r in records if r.surah_id]
+            amounts = sum(r.total_thumns for r in records if not r.surah_id)
+            return count_thumns(ranges) + amounts
 
         hifz_total = thumns_of(hifz_records)
         murajaa_total = thumns_of(murajaa_records)
@@ -697,14 +699,8 @@ def student_achievements(request):
     achievement = getattr(request.user, "achievement", None)
     from apps.memorization.models import ProgressLog
     _logs = ProgressLog.objects.filter(student=request.user)
-    hifz_thumns = count_thumns(
-        _logs.filter(log_category=ProgressLog.Category.HIFDH)
-        .values_list('surah_id', 'start_ayah', 'end_ayah')
-    )
-    murajaa_thumns = count_thumns(
-        _logs.filter(log_category=ProgressLog.Category.MURAJAAH)
-        .values_list('surah_id', 'start_ayah', 'end_ayah')
-    )
+    hifz_thumns = _logs.filter(log_category=ProgressLog.Category.HIFDH).thumn_total()
+    murajaa_thumns = _logs.filter(log_category=ProgressLog.Category.MURAJAAH).thumn_total()
     recent_progress = _logs.select_related('surah').order_by('-created_at')[:10]
     return render(request, "dashboard/student/achievements.html", {
         "achievement": achievement,
@@ -818,10 +814,7 @@ def student_stats(request):
     _my_logs = ProgressLog.objects.filter(student=request.user)
 
     def _my_thumns(category):
-        return count_thumns(
-            _my_logs.filter(log_category=category).values_list('surah_id', 'start_ayah', 'end_ayah'),
-            _keys=_keys,
-        )
+        return _my_logs.filter(log_category=category).thumn_total(_keys=_keys)
 
     memo_data = {
         'hifz_thumns': _my_thumns(ProgressLog.Category.HIFDH),
@@ -918,22 +911,27 @@ def _thumn_totals_by_student(log_qs, key=lambda sid: sid):
     from apps.references.utils import thumn_start_keys
 
     keys = thumn_start_keys()
-    buckets = {}  # sid -> {'hifz': [...], 'murajaa': [...]}
+    buckets = {}  # sid -> {'hifz': [...], 'murajaa': [...], 'hifz_amt': 0, 'murajaa_amt': 0}
     rows = log_qs.values_list(
-        'student_id', 'surah_id', 'start_ayah', 'end_ayah', 'log_category'
+        'student_id', 'surah_id', 'start_ayah', 'end_ayah', 'log_category', 'total_thumns'
     )
-    for sid, surah_id, a_from, a_to, category in rows:
-        b = buckets.setdefault(sid, {'hifz': [], 'murajaa': []})
-        rng = (surah_id, a_from, a_to)
+    for sid, surah_id, a_from, a_to, category, amount in rows:
+        b = buckets.setdefault(sid, {'hifz': [], 'murajaa': [], 'hifz_amt': 0, 'murajaa_amt': 0})
         if category == ProgressLog.Category.HIFDH:
-            b['hifz'].append(rng)
+            if surah_id:
+                b['hifz'].append((surah_id, a_from, a_to))
+            else:
+                b['hifz_amt'] += amount
         elif category == ProgressLog.Category.MURAJAAH:
-            b['murajaa'].append(rng)
+            if surah_id:
+                b['murajaa'].append((surah_id, a_from, a_to))
+            else:
+                b['murajaa_amt'] += amount
 
     data = {}
     for sid, b in buckets.items():
-        total = count_thumns(b['hifz'], _keys=keys)
-        murajaa = count_thumns(b['murajaa'], _keys=keys)
+        total = count_thumns(b['hifz'], _keys=keys) + b['hifz_amt']
+        murajaa = count_thumns(b['murajaa'], _keys=keys) + b['murajaa_amt']
         data[key(sid)] = {
             'total_thumns': total,
             'mastered_thumns': total,
