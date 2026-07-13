@@ -1791,7 +1791,7 @@ class ProgressLogViewSet(viewsets.GenericViewSet):
     # ── Corrections: only the session's own teacher (or main admin) may fix
     # or remove a recorded entry; achievement totals are rebuilt (engine) ──
     def partial_update(self, request, *args, **kwargs):
-        from django.core.exceptions import PermissionDenied as DjangoPermissionDenied, ValidationError as DjangoValidationError
+        from django.core.exceptions import ValidationError as DjangoValidationError
         from apps.memorization.engine import update_progress_log, can_modify_progress_log
 
         log = self.get_object()
@@ -1813,7 +1813,10 @@ class ProgressLogViewSet(viewsets.GenericViewSet):
                 teacher_notes=d.get("teacher_notes", log.teacher_notes),
                 completed_pages=d.get("completed_pages"),
             )
-        except (DjangoValidationError, DjangoPermissionDenied) as e:
+        except DjangoValidationError as e:
+            # PermissionDenied is NOT caught: it propagates to DRF's handler
+            # and surfaces as a proper 403 (can_modify is checked above, so
+            # that path is a defense-in-depth backstop only).
             return api_response(
                 message=getattr(e, "message", None) or "قيم غير صالحة",
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY, success=False,

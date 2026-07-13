@@ -752,3 +752,19 @@ class ProgressLogCorrectionAPITest(TestCase):
         r = self.client.delete(f"/api/v1/progress-logs/{self.log.pk}/")
         self.assertEqual(r.status_code, 200)
         self.assertFalse(self.ProgressLog.objects.filter(pk=self.log.pk).exists())
+
+    def test_foreign_teacher_gets_404_on_patch_and_delete(self):
+        foreign = User.objects.create_user(
+            username="plc_t2@test.com", email="plc_t2@test.com", password="x",
+            full_name_ar="معلم آخر", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.client.force_authenticate(user=foreign)
+        # get_queryset scopes teachers to their own circles' logs -> 404
+        r = self.client.patch(
+            f"/api/v1/progress-logs/{self.log.pk}/", {"points": 20}, format="json",
+        )
+        self.assertEqual(r.status_code, 404)
+        r = self.client.delete(f"/api/v1/progress-logs/{self.log.pk}/")
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(self.ProgressLog.objects.filter(pk=self.log.pk).exists())

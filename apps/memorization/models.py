@@ -6,8 +6,11 @@ CANONICAL MODELS (HAF-01) — read/write these:
     derived from the rub, never stored. All new memorization progress flows
     through here (StudyTask.validate() bridges into it).
   • ReviewHistory     — append-only log of every SRS evaluation.
-  • ProgressLog       — append-only per-session recitation log (what happened
-    in a given session); complements, does not duplicate, MemorizationRecord.
+  • ProgressLog       — per-session recitation log (what happened in a given
+    session); complements, does not duplicate, MemorizationRecord. Normally
+    append-only; the session's teacher may correct/delete an entry after the
+    fact via engine.update_progress_log / delete_progress_log (audited by
+    updated_at/updated_by, achievement totals rebuilt).
   • StudyTask         — assigned work; completes *into* a MemorizationRecord.
 
 DEPRECATED — do not add new writers:
