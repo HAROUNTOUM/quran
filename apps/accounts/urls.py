@@ -103,7 +103,6 @@ urlpatterns = [
     path("dashboard/teacher/sessions/<int:pk>/reorder-turns/", views.teacher_session_reorder_turns, name="teacher_session_reorder_turns"),
     path("dashboard/teacher/sessions/<int:pk>/toggle-turns/", views.teacher_session_toggle_turns, name="teacher_session_toggle_turns"),
     path("dashboard/teacher/sessions/<int:pk>/advance-status/", views.teacher_session_advance_status, name="teacher_session_advance_status"),
-    path("dashboard/teacher/lessons/<int:pk>/toggle/", views.teacher_toggle_lesson, name="teacher_toggle_lesson"),
     path("dashboard/teacher/review-requests/", views.teacher_review_requests, name="teacher_review_requests"),
     path("dashboard/teacher/private-sessions/", views.teacher_private_sessions, name="teacher_private_sessions"),
     path("dashboard/teacher/webinars/", views.teacher_webinars, name="teacher_webinars"),

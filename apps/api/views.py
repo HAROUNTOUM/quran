@@ -72,7 +72,6 @@ from .serializers import (
     SessionStudentNoteSerializer,
     SessionStudentNoteCreateSerializer,
     MemorizationProgressSerializer,
-    MemorizationProgressCreateSerializer,
     SurahSerializer,
     EvaluationCriterionSerializer,
     SessionRescheduleRequestSerializer,
@@ -1592,21 +1591,19 @@ class SessionStudentNoteViewSet(viewsets.ModelViewSet):
 
 # ─── MEMORIZATION PROGRESS API ──────────────────
 
-class MemorizationProgressViewSet(viewsets.ModelViewSet):
+class MemorizationProgressViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only. MemorizationProgress is the deprecated legacy tracker kept
+    for historical data; all new progress is written through the session
+    marking flow (ProgressLog) and study-task validation (MemorizationRecord).
+    The former create/partial_update/destroy actions (and the web
+    teacher_toggle_lesson status toggle) were removed so nothing bypasses
+    what the teacher actually records."""
     queryset = MemorizationProgress.objects.select_related(
         "enrollment__circle", "surah"
     ).all()
     filterset_fields = ["enrollment", "type", "status", "surah"]
-
-    def get_serializer_class(self):
-        if self.action == "create":
-            return MemorizationProgressCreateSerializer
-        return MemorizationProgressSerializer
-
-    def get_permissions(self):
-        if self.action in ("create", "destroy", "partial_update"):
-            return [permissions.IsAuthenticated(), IsTeacherOrAbove()]
-        return [permissions.IsAuthenticated()]
+    serializer_class = MemorizationProgressSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         qs = MemorizationProgress.objects.select_related(
@@ -1628,37 +1625,10 @@ class MemorizationProgressViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return api_response(data=serializer.data)
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return api_response(errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST, success=False)
-        progress = serializer.save()
-        return api_response(
-            data=MemorizationProgressSerializer(progress, context={"request": request}).data,
-            message="تم تسجيل التقدم",
-            status=status.HTTP_201_CREATED,
-        )
-
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return api_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        if not serializer.is_valid():
-            return api_response(errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST, success=False)
-        serializer.save()
-        return api_response(
-            data=MemorizationProgressSerializer(instance, context={"request": request}).data,
-            message="تم تحديث التقدم",
-        )
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()
-        return api_response(message="تم حذف التقدم")
 
 
 # ─── REFERENCE DATA API ─────────────────────────

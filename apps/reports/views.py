@@ -87,9 +87,10 @@ def _scoped_progress_logs(request, start, end, category=None):
     """The one queryset builder for ProgressLog-based exports. Do not
     reintroduce reads of the deprecated MemorizationProgress here — canonical
     progress data lives in ProgressLog (the table session reports and
-    StudentAchievement read). The legacy table still has residual write paths
-    (teacher lesson toggle, /api/v1/memorization-progress/) pending retirement,
-    so rows written there will not — by design — appear in these exports.
+    StudentAchievement read). The legacy table is now fully read-only (its
+    last writers — the teacher lesson toggle and the memorization-progress
+    API write actions — were removed); it holds historical rows only, pending
+    the retirement backfill.
     `start`/`end` are dates; the range is inclusive of both whole days."""
     from apps.memorization.models import ProgressLog
     qs = ProgressLog.objects.select_related("student", "surah", "session__circle")

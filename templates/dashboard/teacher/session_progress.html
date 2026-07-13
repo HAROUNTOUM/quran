@@ -117,7 +117,6 @@
                         <th class="px-4 py-3 text-center font-medium">النوع</th>
                         <th class="px-4 py-3 text-center font-medium">السورة</th>
                         <th class="px-4 py-3 text-center font-medium">الحالة</th>
-                        <th class="px-4 py-3 text-center font-medium"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -131,20 +130,16 @@
                         </td>
                         <td class="px-4 py-3 text-center text-gray-600">{{ p.surah.name_ar }}</td>
                         <td class="px-4 py-3 text-center">
-                            <form method="POST" action="{% url 'accounts:teacher_toggle_lesson' p.id %}" class="toggle-form">
-                                {% csrf_token %}
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="status" value="mastered"
-                                           {% if p.status == 'mastered' %}checked{% endif %}
-                                           onchange="this.closest('form').submit()"
-                                           class="sr-only peer">
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
-                                </label>
-                            </form>
+                            <span class="text-xs px-2 py-0.5 rounded-lg
+                                {% if p.status == 'mastered' %}bg-green-50 text-green-700
+                                {% elif p.status == 'reviewed' or p.status == 'tested' %}bg-blue-50 text-blue-700
+                                {% else %}bg-gray-50 text-gray-500{% endif %}">
+                                {{ p.get_status_display }}
+                            </span>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="p-8 text-center text-gray-400">لا توجد تسجيلات</td></tr>
+                    <tr><td colspan="4" class="p-8 text-center text-gray-400">لا توجد تسجيلات</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

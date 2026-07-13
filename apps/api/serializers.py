@@ -853,15 +853,6 @@ class MemorizationProgressSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
-class MemorizationProgressCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MemorizationProgress
-        fields = [
-            "enrollment", "surah", "ayah_from", "ayah_to",
-            "type", "status", "revision_count", "notes",
-        ]
-
-
 # ─── REFERENCE DATA ─────────────────────────────
 
 class SurahSerializer(serializers.ModelSerializer):

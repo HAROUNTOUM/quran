@@ -303,22 +303,6 @@ def teacher_session_progress(request, pk):
     })
 @login_required
 @role_required(User.Role.TEACHER)
-def teacher_toggle_lesson(request, pk):
-    if request.method != "POST":
-        return JsonResponse({"success": False, "error": "طلب غير صالح"}, status=400)
-    progress = get_object_or_404(
-        MemorizationProgress.objects.select_related("enrollment__circle"),
-        pk=pk,
-        enrollment__circle__teacher=request.user,
-    )
-    new_status = request.POST.get("status", "")
-    if new_status in dict(MemorizationProgress.Status.choices):
-        progress.status = new_status
-        progress.save(update_fields=["status", "updated_at"])
-        return JsonResponse({"success": True, "status": progress.status, "label": progress.get_status_display()})
-    return JsonResponse({"success": False, "error": "حالة غير صالحة"}, status=400)
-@login_required
-@role_required(User.Role.TEACHER)
 def teacher_absence_create(request):
     if request.method == "POST":
         from datetime import date
