@@ -1620,3 +1620,75 @@ class TeacherProgressCorrectionTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.context["stats"]["hifz"], 1)
         self.assertContains(r, "سجل الحصص")
+
+
+class SessionLogProgressTests(TestCase):
+    """The minimal tracking input on the teacher session page: student +
+    category + hizb/thumn only."""
+
+    def setUp(self):
+        from datetime import date
+        self.teacher = User.objects.create_user(
+            username="slp_t@test.com", email="slp_t@test.com", password="x",
+            full_name_ar="معلم", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.student = User.objects.create_user(
+            username="slp_s@test.com", email="slp_s@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.outsider = User.objects.create_user(
+            username="slp_o@test.com", email="slp_o@test.com", password="x",
+            full_name_ar="طالب خارجي", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.circle = Circle.objects.create(
+            name="حلقة", teacher=self.teacher, status=Circle.Status.ACTIVE,
+        )
+        CircleEnrollment.objects.create(
+            circle=self.circle, student=self.student,
+            status=CircleEnrollment.Status.ACTIVE,
+        )
+        self.session = Session.objects.create(circle=self.circle, session_date=date.today())
+
+    def _post(self, **data):
+        return self.client.post(
+            reverse("accounts:teacher_session_log_progress", args=[self.session.pk]),
+            {"student": self.student.pk, "category": "HIFDH", "hizb": 2, "thumn": 3, **data},
+        )
+
+    def test_teacher_logs_amount_entry(self):
+        from apps.memorization.models import ProgressLog, StudentAchievement
+        self.client.force_login(self.teacher)
+        r = self._post()
+        self.assertEqual(r.status_code, 302)
+        log = ProgressLog.objects.get(student=self.student)
+        self.assertEqual((log.hizb, log.thumn, log.total_thumns), (2, 3, 19))
+        self.assertEqual(log.session_id, self.session.pk)
+        self.assertIsNone(log.surah_id)
+        ach = StudentAchievement.objects.get(student=self.student)
+        self.assertEqual(ach.total_hifdh_thumns, 19)
+
+    def test_non_enrolled_student_rejected(self):
+        from apps.memorization.models import ProgressLog
+        self.client.force_login(self.teacher)
+        self._post(student=self.outsider.pk)
+        self.assertFalse(ProgressLog.objects.exists())
+
+    def test_invalid_amount_rejected(self):
+        from apps.memorization.models import ProgressLog
+        self.client.force_login(self.teacher)
+        self._post(hizb=0, thumn=0)
+        self._post(thumn=9)
+        self.assertFalse(ProgressLog.objects.exists())
+
+    def test_foreign_teacher_404(self):
+        foreign = User.objects.create_user(
+            username="slp_t2@test.com", email="slp_t2@test.com", password="x",
+            full_name_ar="معلم آخر", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.client.force_login(foreign)
+        r = self._post()
+        self.assertEqual(r.status_code, 404)

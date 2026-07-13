@@ -434,6 +434,49 @@ def teacher_student_progress(request, pk):
 
 @login_required
 @role_required(User.Role.TEACHER)
+def teacher_session_log_progress(request, pk):
+    """The minimal tracking input (design: المتابعة والتسميع): the teacher
+    submits only student + category (حفظ جديد/مراجعة) + hizb + thumn.
+    Everything else (total_thumns, achievement counters) derives in the
+    engine."""
+    from apps.memorization.engine import log_student_progress
+
+    session = get_object_or_404(
+        Session.objects.select_related("circle__teacher"),
+        pk=pk, circle__teacher=request.user,
+    )
+    if request.method != "POST":
+        return redirect("accounts:teacher_session_detail", pk=pk)
+
+    student = get_object_or_404(User, pk=request.POST.get("student", ""), role=User.Role.STUDENT)
+    if not CircleEnrollment.objects.filter(
+        circle=session.circle, student=student, status=CircleEnrollment.Status.ACTIVE,
+    ).exists():
+        messages.error(request, "الطالب غير مسجل تسجيلاً نشطاً في هذه الحلقة")
+        return redirect("accounts:teacher_session_detail", pk=pk)
+
+    try:
+        log = log_student_progress(
+            student=student,
+            category=request.POST.get("category", ""),
+            hizb=int(request.POST.get("hizb") or 0),
+            thumn=int(request.POST.get("thumn") or 0),
+            session=session,
+        )
+    except (ValidationError, ValueError) as e:
+        messages.error(request, getattr(e, "message", None) or "قيم غير صالحة — تحقق من المقدار")
+        return redirect("accounts:teacher_session_detail", pk=pk)
+
+    messages.success(
+        request,
+        f"سُجّل {log.get_log_category_display()} للطالب {student.full_name_ar}: "
+        f"{log.hizb} حزب و{log.thumn} ثمن",
+    )
+    return redirect("accounts:teacher_session_detail", pk=pk)
+
+
+@login_required
+@role_required(User.Role.TEACHER)
 def teacher_progress_log_edit(request, pk):
     """Correct a session entry (category, range, mark, remark) after the fact.
     Only the session's own teacher; achievement totals are rebuilt."""

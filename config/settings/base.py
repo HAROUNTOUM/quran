@@ -202,6 +202,10 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Virtual classrooms / webinars (Section C/D) — override for self-hosted Jitsi
+# A hung SMTP socket must never freeze a request: Django's SMTP backend has
+# NO default timeout, so an unreachable mail server blocked signup forever.
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
+
 JITSI_DOMAIN = os.environ.get("JITSI_DOMAIN", "meet.jit.si")
 # JWT auth for the self-hosted Jitsi (prosody token auth). When JITSI_APP_SECRET
 # is set, Django mints per-user tokens so the Jitsi server enforces room access.

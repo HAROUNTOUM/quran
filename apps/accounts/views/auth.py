@@ -133,14 +133,26 @@ def signup_view(request):
             verification_url = request.build_absolute_uri(
                 reverse("accounts:verify_email", kwargs={"token": user.email_verification_token})
             )
-            email_sent = send_verification_email(user, verification_url)
-            if email_sent:
-                success_message = "تم تسجيل حسابك بنجاح. يرجى التحقق من بريدك الإلكتروني لتأكيد الحساب. حسابك قيد المراجعة وسنرسل لك رسالة عند الاعتماد."
-            else:
-                # Be honest when SMTP failed so the user knows to use
-                # "إعادة إرسال التأكيد" instead of watching an empty inbox.
-                logger.error("Failed to send verification email to %s", user.email)
-                success_message = "تم تسجيل حسابك بنجاح وهو قيد المراجعة، لكن تعذر إرسال رسالة تأكيد البريد حالياً. يمكنك طلب إعادة الإرسال من صفحة تسجيل الدخول."
+            # Send in a background thread: SMTP must never block the signup
+            # response (a hung mail server froze the whole flow — the user saw
+            # a dead button while their account was already created).
+            # EMAIL_TIMEOUT bounds the socket; failures land in the log and
+            # the user is pointed at "إعادة إرسال التأكيد" regardless.
+            import threading
+
+            def _send_async(u=user, url=verification_url):
+                try:
+                    if not send_verification_email(u, url):
+                        logger.error("Failed to send verification email to %s", u.email)
+                except Exception:
+                    logger.exception("Verification email crashed for %s", u.email)
+
+            threading.Thread(target=_send_async, daemon=True).start()
+            success_message = (
+                "تم تسجيل حسابك بنجاح وهو قيد المراجعة. ستصلك رسالة تأكيد على "
+                "بريدك الإلكتروني خلال دقائق — إن لم تصلك، استخدم «إعادة إرسال "
+                "التأكيد» من صفحة تسجيل الدخول."
+            )
 
             is_htmx = getattr(request, "htmx", None)
             if is_htmx:

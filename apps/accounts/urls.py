@@ -82,6 +82,7 @@ urlpatterns = [
     path("dashboard/teacher/tasks/<int:pk>/validate/", views.teacher_task_validate, name="teacher_task_validate"),
     path("dashboard/teacher/tasks/<int:pk>/edit/", views.teacher_task_edit, name="teacher_task_edit"),
     path("dashboard/teacher/tasks/<int:pk>/delete/", views.teacher_task_delete, name="teacher_task_delete"),
+    path("dashboard/teacher/sessions/<int:pk>/log-progress/", views.teacher_session_log_progress, name="teacher_session_log_progress"),
     path("dashboard/teacher/progress-logs/<int:pk>/edit/", views.teacher_progress_log_edit, name="teacher_progress_log_edit"),
     path("dashboard/teacher/progress-logs/<int:pk>/delete/", views.teacher_progress_log_delete, name="teacher_progress_log_delete"),
     path("dashboard/teacher/students/<uuid:student_id>/records/add/", views.teacher_record_add, name="teacher_record_add"),

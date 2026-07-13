@@ -269,6 +269,55 @@
     </table>
 </div>
 
+{# ── تسجيل التقدم (المدخل المصغّر): الطالب + النوع + المقدار حزب/ثمن فقط ── #}
+<div class="rounded-2xl mt-6 overflow-hidden" style="background:#FCFAF3;box-shadow:0 10px 24px rgba(23,71,107,.06)">
+    <div class="px-6 py-4" style="border-bottom:2px solid #E4EBE9">
+        <span style="color:#3E9B9D;font-size:17px;font-weight:800">تسجيل التقدم</span>
+        <span style="color:#8FB9C4;font-size:13px;font-weight:600;margin-right:10px">الطالب والنوع والمقدار (حزب/ثمن) فقط</span>
+    </div>
+    <form method="POST" action="{% url 'accounts:teacher_session_log_progress' session.pk %}"
+          class="p-6 flex flex-wrap items-end gap-4" x-data="{ category: 'HIFDH' }">
+        {% csrf_token %}
+        <input type="hidden" name="category" :value="category">
+        <div class="flex-1 min-w-[180px]">
+            <label class="block text-xs font-bold mb-1.5" style="color:#17476B">الطالب</label>
+            <select name="student" required
+                    class="w-full h-11 px-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    style="background:#fff;border:1.5px solid #DCE7E5;color:#17476B">
+                <option value="">اختر الطالب…</option>
+                {% for s in students %}<option value="{{ s.pk }}">{{ s.full_name_ar }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold mb-1.5" style="color:#17476B">النوع</label>
+            <div class="inline-flex rounded-full p-1" style="background:#9FD0CB">
+                <button type="button" @click="category = 'HIFDH'"
+                        :style="category === 'HIFDH' ? 'background:#4AA6A6;color:#fff' : 'color:#2F6B6C'"
+                        class="h-9 px-5 rounded-full text-xs font-bold transition-colors">حفظ جديد</button>
+                <button type="button" @click="category = 'MURAJAAH'"
+                        :style="category === 'MURAJAAH' ? 'background:#4AA6A6;color:#fff' : 'color:#2F6B6C'"
+                        class="h-9 px-5 rounded-full text-xs font-bold transition-colors">مراجعة</button>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-bold mb-1.5" style="color:#17476B">حزب</label>
+            <input type="number" name="hizb" min="0" max="60" value="0" required
+                   class="w-20 h-11 px-3 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500"
+                   style="background:#fff;border:1.5px solid #DCE7E5;color:#17476B">
+        </div>
+        <div>
+            <label class="block text-xs font-bold mb-1.5" style="color:#17476B">ثمن <span style="color:#8FA9B4">(0–7)</span></label>
+            <input type="number" name="thumn" min="0" max="7" value="0" required
+                   class="w-20 h-11 px-3 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500"
+                   style="background:#fff;border:1.5px solid #DCE7E5;color:#17476B">
+        </div>
+        <button type="submit"
+                class="h-11 px-8 rounded-xl text-sm font-bold text-white transition-colors"
+                style="background:#4AA6A6;box-shadow:0 6px 14px rgba(23,71,107,.15)"
+                onmouseover="this.style.background='#3E9394'" onmouseout="this.style.background='#4AA6A6'">تسجيل</button>
+    </form>
+</div>
+
 {# ── تقرير الحصة: ما سُجّل لكل طالب (النوع، السورة والآيات، المقدار بالأثمان، النقطة/20، الملاحظة) ── #}
 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
     <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
