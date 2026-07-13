@@ -6,10 +6,9 @@ from typing import Any, Dict, Optional
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
-from weasyprint import HTML
-
-
 def generate_exam_pdf(export_data: Dict[str, Any], template: str = "exams/pdf/result_sheet.html") -> bytes:
+    from weasyprint import HTML
+
     html_str = render_to_string(template, {"data": export_data})
     pdf_bytes = HTML(string=html_str).write_pdf()
     return pdf_bytes

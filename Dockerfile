@@ -23,6 +23,13 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    libglib2.0-0t64 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libcairo2 \
+    libgirepository-1.0-1 \
+    shared-mime-info \
     fonts-dejavu-core \
     fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
