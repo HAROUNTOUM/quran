@@ -926,9 +926,13 @@ class SessionLessonToggleBatchSerializer(serializers.Serializer):
 
 class ProgressLogListSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.full_name_ar", read_only=True)
-    surah_name = serializers.CharField(source="surah.name_ar", read_only=True)
+    # SerializerMethodField: amount-based entries carry no surah (null FK).
+    surah_name = serializers.SerializerMethodField()
     log_category_display = serializers.CharField(source="get_log_category_display", read_only=True)
     evaluation_grade_display = serializers.CharField(source="get_evaluation_grade_display", read_only=True)
+
+    def get_surah_name(self, obj):
+        return obj.surah.name_ar if obj.surah_id else None
 
     class Meta:
         model = ProgressLog
@@ -937,6 +941,7 @@ class ProgressLogListSerializer(serializers.ModelSerializer):
             "log_category", "log_category_display",
             "surah", "surah_name",
             "start_ayah", "end_ayah",
+            "hizb", "thumn", "total_thumns",
             "completed_pages", "evaluation_grade", "evaluation_grade_display",
             "points", "teacher_notes", "created_at",
         ]
