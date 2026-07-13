@@ -54,11 +54,12 @@ def student_dashboard(request):
         ])),
     )
 
-    memo_counts = MemorizationProgress.objects.filter(
-        enrollment__student=request.user
-    ).values('type').annotate(cnt=Count('id'))
-    hifz_count = next((m['cnt'] for m in memo_counts if m['type'] == 'hifz'), 0)
-    murajaa_count = next((m['cnt'] for m in memo_counts if m['type'] == 'murajaa'), 0)
+    from apps.memorization.models import ProgressLog
+    memo_counts = ProgressLog.objects.filter(
+        student=request.user
+    ).values('log_category').annotate(cnt=Count('id'))
+    hifz_count = next((m['cnt'] for m in memo_counts if m['log_category'] == ProgressLog.Category.HIFDH), 0)
+    murajaa_count = next((m['cnt'] for m in memo_counts if m['log_category'] == ProgressLog.Category.MURAJAAH), 0)
 
     recent_announcements = Announcement.objects.all().order_by('-created_at')[:5]
 
@@ -230,30 +231,33 @@ def student_enroll_circle(request, pk):
 
     return redirect('accounts:student_circles')
 def _memorization_plan_data(user):
-    """Per-circle hifz/murajaa plan breakdown. Shared by the standalone plan page
-    and the merged الإحصائيات workspace tab. Returns (progress_data, json)."""
+    """Per-circle hifz/murajaa breakdown built exclusively from what the
+    teacher recorded in sessions (ProgressLog) — no status-derived stats.
+    Shared by the standalone plan page and the merged الإحصائيات workspace
+    tab. Returns (progress_data, json)."""
+    from apps.memorization.models import ProgressLog
+
     enrollments = CircleEnrollment.objects.filter(
         student=user, status=CircleEnrollment.Status.ACTIVE
-    ).select_related('circle', 'current_surah').prefetch_related(
-        Prefetch(
-            'memorization_progress',
-            queryset=MemorizationProgress.objects.select_related('surah'),
-        )
+    ).select_related('circle', 'current_surah')
+
+    logs = list(
+        ProgressLog.objects.filter(student=user)
+        .select_related('surah', 'session')
+        .order_by('-created_at')
     )
 
     progress_data = []
     for en in enrollments:
-        all_records = list(en.memorization_progress.all())
-        hifz_records = [r for r in all_records if r.type == 'hifz']
-        murajaa_records = [r for r in all_records if r.type == 'murajaa']
+        circle_logs = [l for l in logs if l.session.circle_id == en.circle_id]
+        hifz_records = [l for l in circle_logs if l.log_category == ProgressLog.Category.HIFDH]
+        murajaa_records = [l for l in circle_logs if l.log_category == ProgressLog.Category.MURAJAAH]
 
         def thumns_of(records):
-            return count_thumns((r.surah_id, r.ayah_from, r.ayah_to) for r in records)
+            return count_thumns((r.surah_id, r.start_ayah, r.end_ayah) for r in records)
 
         hifz_total = thumns_of(hifz_records)
-        hifz_mastered = thumns_of(r for r in hifz_records if r.status == 'mastered')
         murajaa_total = thumns_of(murajaa_records)
-        murajaa_mastered = thumns_of(r for r in murajaa_records if r.status == 'mastered')
 
         progress_data.append({
             'enrollment': en,
@@ -263,23 +267,15 @@ def _memorization_plan_data(user):
             'murajaa_records': murajaa_records,
             # All totals are thumn counts (the platform tracking unit).
             'hifz_total': hifz_total,
-            'hifz_mastered': hifz_mastered,
-            'hifz_progress': round(hifz_mastered / hifz_total * 100) if hifz_total else 0,
             'hifz_units': format_hizb_thumn(hifz_total),
-            'hifz_mas_units': format_hizb_thumn(hifz_mastered),
             'murajaa_total': murajaa_total,
-            'murajaa_mastered': murajaa_mastered,
-            'murajaa_progress': round(murajaa_mastered / murajaa_total * 100) if murajaa_total else 0,
             'muj_units': format_hizb_thumn(murajaa_total),
-            'muj_mas_units': format_hizb_thumn(murajaa_mastered),
         })
 
     import json
     progress_data_json = json.dumps([{
         'hifz_total': d['hifz_total'],
-        'hifz_mastered': d['hifz_mastered'],
         'murajaa_total': d['murajaa_total'],
-        'murajaa_mastered': d['murajaa_mastered'],
     } for d in progress_data])
     return progress_data, progress_data_json
 
@@ -699,19 +695,17 @@ def student_exam_results(request):
 @role_required(User.Role.STUDENT)
 def student_achievements(request):
     achievement = getattr(request.user, "achievement", None)
+    from apps.memorization.models import ProgressLog
+    _logs = ProgressLog.objects.filter(student=request.user)
     hifz_thumns = count_thumns(
-        MemorizationProgress.objects.filter(
-            enrollment__student=request.user, type='hifz', status='mastered'
-        ).values_list('surah_id', 'ayah_from', 'ayah_to')
+        _logs.filter(log_category=ProgressLog.Category.HIFDH)
+        .values_list('surah_id', 'start_ayah', 'end_ayah')
     )
     murajaa_thumns = count_thumns(
-        MemorizationProgress.objects.filter(
-            enrollment__student=request.user, type='murajaa', status='mastered'
-        ).values_list('surah_id', 'ayah_from', 'ayah_to')
+        _logs.filter(log_category=ProgressLog.Category.MURAJAAH)
+        .values_list('surah_id', 'start_ayah', 'end_ayah')
     )
-    recent_progress = MemorizationProgress.objects.filter(
-        enrollment__student=request.user
-    ).select_related('surah').order_by('-created_at')[:10]
+    recent_progress = _logs.select_related('surah').order_by('-created_at')[:10]
     return render(request, "dashboard/student/achievements.html", {
         "achievement": achievement,
         "hifz_thumns": hifz_thumns,
@@ -815,21 +809,23 @@ def student_stats(request):
     total_att = att_counts['total'] or 0
     attendance_rate = round(present_count / total_att * 100, 1) if total_att else 0
 
+    # Totals come exclusively from what the teacher recorded in sessions
+    # (ProgressLog) — the deprecated MemorizationProgress tracker and its
+    # mastered/memorizing statuses are no longer surfaced here.
     from apps.references.utils import thumn_start_keys
+    from apps.memorization.models import ProgressLog
     _keys = thumn_start_keys()
-    _my_progress = MemorizationProgress.objects.filter(enrollment__student=request.user)
+    _my_logs = ProgressLog.objects.filter(student=request.user)
 
-    def _my_thumns(**filters):
+    def _my_thumns(category):
         return count_thumns(
-            _my_progress.filter(**filters).values_list('surah_id', 'ayah_from', 'ayah_to'),
+            _my_logs.filter(log_category=category).values_list('surah_id', 'start_ayah', 'end_ayah'),
             _keys=_keys,
         )
 
     memo_data = {
-        'hifz_thumns': _my_thumns(type='hifz'),
-        'murajaa_thumns': _my_thumns(type='murajaa'),
-        'mastered_thumns': _my_thumns(status='mastered'),
-        'memorizing_thumns': _my_thumns(status='memorizing'),
+        'hifz_thumns': _my_thumns(ProgressLog.Category.HIFDH),
+        'murajaa_thumns': _my_thumns(ProgressLog.Category.MURAJAAH),
     }
 
     grade_avg = RecitationGrade.objects.filter(student=request.user).aggregate(
@@ -845,8 +841,8 @@ def student_stats(request):
         cid = enr.circle_id
         circle_students = CircleEnrollment.objects.filter(circle_id=cid, status='active').values_list('student_id', flat=True)
         c_hifz = _thumn_totals_by_student(
-            MemorizationProgress.objects.filter(
-                enrollment__circle_id=cid, enrollment__status='active'
+            ProgressLog.objects.filter(
+                session__circle_id=cid, student_id__in=list(circle_students)
             ),
             key=lambda sid: str(sid),
         )
@@ -899,8 +895,6 @@ def student_stats(request):
         'total_attendance': total_att,
         'hifz_units': format_hizb_thumn(memo_data['hifz_thumns']),
         'murajaa_units': format_hizb_thumn(memo_data['murajaa_thumns']),
-        'mastered_units': format_hizb_thumn(memo_data['mastered_thumns']),
-        'memorizing_units': format_hizb_thumn(memo_data['memorizing_thumns']),
         'avg_grade': round(grade_avg, 1),
         'achievement': achievement,
         'rankings': rankings,
@@ -913,36 +907,39 @@ def student_stats(request):
         **_estimator_context(request.user),
     })
 
-def _thumn_totals_by_student(progress_qs, key=lambda sid: sid):
+def _thumn_totals_by_student(log_qs, key=lambda sid: sid):
     """Per-student memorization totals in thumns (the tracking unit) from a
-    MemorizationProgress queryset. Returns {key(student_id): {'total_thumns',
-    'mastered_thumns', 'total_units', 'mastered_units'}}."""
+    ProgressLog queryset — i.e. exclusively what teachers recorded in
+    sessions. `mastered_thumns` (kept for the shared scoring formula:
+    hifdh thumn = 20 pts) now equals the distinct hifdh thumns covered.
+    Returns {key(student_id): {'total_thumns', 'mastered_thumns',
+    'murajaa_thumns', 'total_units', 'mastered_units', 'murajaa_units'}}."""
+    from apps.memorization.models import ProgressLog
     from apps.references.utils import thumn_start_keys
 
     keys = thumn_start_keys()
-    buckets = {}  # sid -> {'hifz': [...], 'hifz_mastered': [...], 'murajaa': [...]}
-    rows = progress_qs.values_list(
-        'enrollment__student_id', 'surah_id', 'ayah_from', 'ayah_to', 'status', 'type'
+    buckets = {}  # sid -> {'hifz': [...], 'murajaa': [...]}
+    rows = log_qs.values_list(
+        'student_id', 'surah_id', 'start_ayah', 'end_ayah', 'log_category'
     )
-    for sid, surah_id, a_from, a_to, status, ptype in rows:
-        b = buckets.setdefault(sid, {'hifz': [], 'hifz_mastered': [], 'murajaa': []})
+    for sid, surah_id, a_from, a_to, category in rows:
+        b = buckets.setdefault(sid, {'hifz': [], 'murajaa': []})
         rng = (surah_id, a_from, a_to)
-        bucket = 'hifz' if ptype == 'hifz' else 'murajaa'
-        b[bucket].append(rng)
-        if ptype == 'hifz' and status == 'mastered':
-            b['hifz_mastered'].append(rng)
+        if category == ProgressLog.Category.HIFDH:
+            b['hifz'].append(rng)
+        elif category == ProgressLog.Category.MURAJAAH:
+            b['murajaa'].append(rng)
 
     data = {}
     for sid, b in buckets.items():
         total = count_thumns(b['hifz'], _keys=keys)
-        mastered = count_thumns(b['hifz_mastered'], _keys=keys)
         murajaa = count_thumns(b['murajaa'], _keys=keys)
         data[key(sid)] = {
             'total_thumns': total,
-            'mastered_thumns': mastered,
+            'mastered_thumns': total,
             'murajaa_thumns': murajaa,
             'total_units': format_hizb_thumn(total),
-            'mastered_units': format_hizb_thumn(mastered),
+            'mastered_units': format_hizb_thumn(total),
             'murajaa_units': format_hizb_thumn(murajaa),
         }
     return data
@@ -960,9 +957,10 @@ def student_circle_leaderboard(request, pk):
     enrollments = CircleEnrollment.objects.filter(circle=circle, status='active').select_related('student', 'current_surah')
     student_ids = [e.student_id for e in enrollments]
 
+    from apps.memorization.models import ProgressLog
     hifz_data = _thumn_totals_by_student(
-        MemorizationProgress.objects.filter(
-            enrollment__circle=circle, enrollment__status='active'
+        ProgressLog.objects.filter(
+            session__circle=circle, student_id__in=student_ids
         ),
         key=lambda sid: str(sid),
     )
@@ -1037,10 +1035,9 @@ def student_leaderboard(request):
 
     student_ids = list(active_enrollments.values_list('student_id', flat=True))
 
+    from apps.memorization.models import ProgressLog
     hifz_data = _thumn_totals_by_student(
-        MemorizationProgress.objects.filter(
-            enrollment__student_id__in=student_ids
-        ),
+        ProgressLog.objects.filter(student_id__in=student_ids),
     )
 
     att_counts = Attendance.objects.filter(

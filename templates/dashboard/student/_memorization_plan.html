@@ -1,6 +1,7 @@
 {% comment %}Detailed per-circle hifz/murajaa plan. Needs progress_data +
-progress_data_json in context. Shared by the standalone plan page and the merged
-الإحصائيات workspace tab.{% endcomment %}
+progress_data_json in context. Totals and record lists come exclusively from
+what the teacher recorded in sessions (ProgressLog). Shared by the standalone
+plan page and the merged الإحصائيات workspace tab.{% endcomment %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% for data in progress_data %}
 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-8">
@@ -15,47 +16,21 @@ progress_data_json in context. Shared by the standalone plan page and the merged
                 <h4 class="text-xs font-bold text-gray-500 mb-3 text-center">توزيع الحفظ والمراجعة</h4>
                 <canvas id="progressChart-{{ forloop.counter }}" width="200" height="200"></canvas>
             </div>
-            <div class="space-y-4">
+            <div class="space-y-6">
                 <div>
-                    <h4 class="text-sm font-bold text-gray-700 mb-4">الحفظ الجديد</h4>
-                    <div class="flex items-center gap-4 mb-4">
-                        <div class="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                            <div class="bg-primary-600 h-3 rounded-full transition-all" style="width: {{ data.hifz_progress }}%"></div>
-                        </div>
-                        <span class="text-sm font-bold text-gray-600">{{ data.hifz_progress }}%</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 text-sm mb-4">
-                        <div class="bg-gray-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-gray-400">الإجمالي</p>
-                            <p class="text-lg font-bold text-gray-800">{{ data.hifz_units }}</p>
-                            <p class="text-[10px] text-gray-400">{{ data.hifz_total }} ثمن</p>
-                        </div>
-                        <div class="bg-green-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-green-600">المتقن</p>
-                            <p class="text-lg font-bold text-green-700">{{ data.hifz_mas_units }}</p>
-                            <p class="text-[10px] text-green-500">{{ data.hifz_mastered }} ثمن</p>
-                        </div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3">الحفظ الجديد</h4>
+                    <div class="bg-primary-50 rounded-lg p-4 text-center">
+                        <p class="text-xs text-primary-600">الإجمالي (حزب/ثمن)</p>
+                        <p class="text-xl font-bold text-primary-800">{{ data.hifz_units }}</p>
+                        <p class="text-[10px] text-primary-400">{{ data.hifz_total }} ثمن</p>
                     </div>
                 </div>
                 <div>
-                    <h4 class="text-sm font-bold text-gray-700 mb-4">المراجعة</h4>
-                    <div class="flex items-center gap-4 mb-4">
-                        <div class="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                            <div class="bg-amber-500 h-3 rounded-full transition-all" style="width: {{ data.murajaa_progress }}%"></div>
-                        </div>
-                        <span class="text-sm font-bold text-gray-600">{{ data.murajaa_progress }}%</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 text-sm mb-4">
-                        <div class="bg-gray-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-gray-400">الإجمالي</p>
-                            <p class="text-lg font-bold text-gray-800">{{ data.muj_units }}</p>
-                            <p class="text-[10px] text-gray-400">{{ data.murajaa_total }} ثمن</p>
-                        </div>
-                        <div class="bg-green-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-green-600">المتقن</p>
-                            <p class="text-lg font-bold text-green-700">{{ data.muj_mas_units }}</p>
-                            <p class="text-[10px] text-green-500">{{ data.murajaa_mastered }} ثمن</p>
-                        </div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3">المراجعة</h4>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center">
+                        <p class="text-xs text-amber-600">الإجمالي (حزب/ثمن)</p>
+                        <p class="text-xl font-bold text-amber-800">{{ data.muj_units }}</p>
+                        <p class="text-[10px] text-amber-500">{{ data.murajaa_total }} ثمن</p>
                     </div>
                 </div>
             </div>
@@ -66,12 +41,9 @@ progress_data_json in context. Shared by the standalone plan page and the merged
                 <div class="divide-y divide-gray-50">
                     {% for record in data.hifz_records %}
                     <div class="flex items-center justify-between py-2">
-                        <span class="text-sm text-gray-600">{{ record.surah.name_ar }} ({{ record.ayah_from }}-{{ record.ayah_to }})</span>
-                        <span class="text-xs font-medium px-2 py-1 rounded-lg
-                            {% if record.status == 'mastered' %}bg-green-50 text-green-700
-                            {% elif record.status == 'memorizing' %}bg-amber-50 text-amber-700
-                            {% else %}bg-blue-50 text-blue-700{% endif %}">
-                            {{ record.get_status_display }}
+                        <span class="text-sm text-gray-600">{{ record.surah.name_ar }} ({{ record.start_ayah }}-{{ record.end_ayah }})</span>
+                        <span class="text-xs text-gray-400">
+                            {% if record.points is not None %}<span class="font-bold text-primary-600">{{ record.points }}/20</span> — {% endif %}{{ record.created_at|date:"d/m/Y" }}
                         </span>
                     </div>
                     {% empty %}
@@ -84,12 +56,9 @@ progress_data_json in context. Shared by the standalone plan page and the merged
                 <div class="divide-y divide-gray-50">
                     {% for record in data.murajaa_records %}
                     <div class="flex items-center justify-between py-2">
-                        <span class="text-sm text-gray-600">{{ record.surah.name_ar }} ({{ record.ayah_from }}-{{ record.ayah_to }})</span>
-                        <span class="text-xs font-medium px-2 py-1 rounded-lg
-                            {% if record.status == 'mastered' %}bg-green-50 text-green-700
-                            {% elif record.status == 'weak' %}bg-red-50 text-red-700
-                            {% else %}bg-amber-50 text-amber-700{% endif %}">
-                            {{ record.get_status_display }}
+                        <span class="text-sm text-gray-600">{{ record.surah.name_ar }} ({{ record.start_ayah }}-{{ record.end_ayah }})</span>
+                        <span class="text-xs text-gray-400">
+                            {% if record.points is not None %}<span class="font-bold text-amber-600">{{ record.points }}/20</span> — {% endif %}{{ record.created_at|date:"d/m/Y" }}
                         </span>
                     </div>
                     {% empty %}
@@ -116,10 +85,10 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(canvas, {
             type: 'doughnut',
             data: {
-                labels: ['الحفظ متقن', 'الحفظ قيد المراجعة', 'المراجعة متقنة', 'المراجعة قيد المراجعة'],
+                labels: ['حفظ جديد', 'مراجعة'],
                 datasets: [{
-                    data: [data.hifz_mastered, data.hifz_total - data.hifz_mastered, data.murajaa_mastered, data.murajaa_total - data.murajaa_mastered],
-                    backgroundColor: ['#10b981', '#d1d5db', '#f59e0b', '#e5e7eb'],
+                    data: [data.hifz_total, data.murajaa_total],
+                    backgroundColor: ['#2563eb', '#f59e0b'],
                     borderWidth: 0,
                 }]
             },

@@ -76,22 +76,12 @@
         <div class="p-6">
             <div class="space-y-4">
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-500">المتقن</span>
-                    <span class="text-sm font-bold text-green-600">{{ mastered_units }}</span>
+                    <span class="text-sm text-gray-500">حفظ جديد</span>
+                    <span class="text-sm font-bold text-primary-600">{{ hifz_units }}</span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-500">قيد الحفظ</span>
-                    <span class="text-sm font-bold text-amber-600">{{ memorizing_units }}</span>
-                </div>
-                <div class="pt-3 border-t border-gray-50">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm text-gray-500">حفظ جديد</span>
-                        <span class="text-sm font-bold text-primary-600">{{ hifz_units }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-500">مراجعة</span>
-                        <span class="text-sm font-bold text-amber-600">{{ murajaa_units }}</span>
-                    </div>
+                    <span class="text-sm text-gray-500">مراجعة</span>
+                    <span class="text-sm font-bold text-amber-600">{{ murajaa_units }}</span>
                 </div>
                 {% if achievement %}
                 <div class="pt-3 border-t border-gray-50">
