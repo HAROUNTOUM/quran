@@ -1,6 +1,7 @@
 {# 3-step signup wizard matching the Auth.dc.html design. One Django form POST; #}
 {# steps are client-side only (Alpine). No `required` attrs — hidden steps would #}
-{# block native submit; SignupForm validates everything server-side. #}
+{# block native submit; SignupForm validates everything server-side, including #}
+{# the pledge checkbox (posted as name="pledge"; Alpine only improves feedback). #}
 {% if form.non_field_errors %}
 <div class="auth-error-banner">{% for error in form.non_field_errors %}{{ error }}{% endfor %}</div>
 {% endif %}
@@ -151,7 +152,7 @@
 
         <div class="auth-error-banner" x-show="pledgeError" x-cloak>يجب الموافقة على التعهد قبل التسجيل</div>
         <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;margin-top:4px">
-            <input type="checkbox" x-model="pledge" @change="pledgeError = false" style="margin-top:4px;width:16px;height:16px;accent-color:#4AA6A6">
+            <input type="checkbox" name="pledge" x-model="pledge" @change="pledgeError = false" style="margin-top:4px;width:16px;height:16px;accent-color:#4AA6A6">
             <span style="color:#EAF3F1;font-size:12px;line-height:1.9"
                   x-text="role === 'teacher'
                     ? 'أتعهد أنا الأستاذ/ة بالالتزام بأداء مهامي التعليمية بكل أمانة وانضباط، والحرص على احترام أوقات الحصص، والتعامل مع الطلاب بما يليق بمقام تعليم كتاب الله، مع الحفاظ على آداب المهنة ومقومات القدوة الحسنة'

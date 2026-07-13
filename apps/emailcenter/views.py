@@ -6,12 +6,16 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+import logging
+
+logger = logging.getLogger(__name__)
 
 from apps.accounts.decorators import role_required
 from apps.accounts.models import User
 from apps.circles.models import Circle
 from apps.emailcenter import services
-from apps.emailcenter.models import Audience, EmailCampaign, EmailCategory, EmailLog
+from apps.emailcenter.models import Audience, EmailCampaign, EmailCategory, EmailLog, GmailAccount
+from apps.emailcenter import gmail as gmail_svc
 from apps.usersettings.models import SystemSettings
 
 _AUTOMAIL_KEYS = (
@@ -38,7 +42,6 @@ def email_compose(request):
             subject=subject, body=body, audience=audience, created_by=request.user,
         )
         if request.POST.get("sender") == "gmail":
-            from .models import GmailAccount
             gmail_account = GmailAccount.objects.filter(
                 user=request.user, is_active=True
             ).first()
@@ -78,7 +81,6 @@ def email_compose(request):
 
 
 def _compose_context(form_data=None, user=None):
-    from .models import GmailAccount
     connected_gmail = None
     if user is not None:
         connected_gmail = GmailAccount.objects.filter(user=user, is_active=True).first()
@@ -166,9 +168,6 @@ _AUTOMAIL_LABELS = {
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def gmail_settings(request):
-    from .models import GmailAccount
-    from . import gmail as gmail_svc
-
     account = GmailAccount.objects.filter(user=request.user).first()
     return render(request, "dashboard/emailcenter/gmail_settings.html", {
         "account": account,
@@ -179,8 +178,6 @@ def gmail_settings(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def gmail_connect(request):
-    from . import gmail as gmail_svc
-
     if not gmail_svc.oauth_enabled():
         messages.error(request, "ربط Gmail غير مهيّأ بعد — أضف GOOGLE_OAUTH_CLIENT_ID/SECRET في إعدادات الخادم")
         return redirect("emailcenter:gmail_settings")
@@ -191,9 +188,6 @@ def gmail_connect(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def gmail_callback(request):
-    from .models import GmailAccount
-    from . import gmail as gmail_svc
-
     state = request.GET.get("state", "")
     if not state or state != request.session.pop(gmail_svc.STATE_SESSION_KEY, None):
         messages.error(request, "جلسة الربط غير صالحة — أعد المحاولة")
@@ -214,17 +208,19 @@ def gmail_callback(request):
             raise ValueError("no refresh token")
         email = gmail_svc.fetch_email(tokens["access_token"])
     except Exception:
+        logger.exception("Gmail OAuth callback failed for %s", request.user.email)
         messages.error(request, "تعذر إتمام الربط مع Google — أعد المحاولة")
         return redirect("emailcenter:gmail_settings")
 
-    account, _ = GmailAccount.objects.update_or_create(
-        user=request.user,
-        defaults={"email": email, "is_active": True, "access_token": tokens["access_token"]},
-    )
-    account.set_refresh_token(refresh_token)
-    from django.utils import timezone as tz
     from datetime import timedelta
+    from django.utils import timezone as tz
+
+    account = GmailAccount.objects.filter(user=request.user).first() or GmailAccount(user=request.user)
+    account.email = email
+    account.is_active = True
+    account.access_token = tokens["access_token"]
     account.access_token_expires_at = tz.now() + timedelta(seconds=int(tokens.get("expires_in", 3600)))
+    account.set_refresh_token(refresh_token)
     account.save()
     messages.success(request, f"تم ربط {email} — يمكن الآن الإرسال باسمه من مركز البريد")
     return redirect("emailcenter:gmail_settings")
@@ -233,8 +229,6 @@ def gmail_callback(request):
 @login_required
 @role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def gmail_disconnect(request):
-    from .models import GmailAccount
-
     if request.method == "POST":
         deleted, _ = GmailAccount.objects.filter(user=request.user).delete()
         if deleted:

@@ -49,6 +49,10 @@ class SignupForm(forms.ModelForm):
             "autocomplete": "new-password",
         })
     )
+    pledge = forms.BooleanField(
+        label="التعهد", required=True,
+        error_messages={"required": "يجب الموافقة على التعهد قبل التسجيل"},
+    )
     password2 = forms.CharField(
         label="تأكيد كلمة المرور",
         help_text="أعد كتابة كلمة المرور للتأكد.",
@@ -115,7 +119,7 @@ class SignupForm(forms.ModelForm):
         self.fields["role"].choices = [("", "اختر الدور")] + [
             c for c in User.Role.choices if c[0] not in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
         ]
-        for field_name in ("full_name_ar", "email", "phone", "gender", "role", "password1", "password2"):
+        for field_name in ("full_name_ar", "email", "phone", "gender", "role", "password1", "password2", "pledge"):
             self.fields[field_name].required = True
         for field_name, field in self.fields.items():
             if field.required:

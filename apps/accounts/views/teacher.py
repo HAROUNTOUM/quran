@@ -448,7 +448,11 @@ def teacher_session_log_progress(request, pk):
     if request.method != "POST":
         return redirect("accounts:teacher_session_detail", pk=pk)
 
-    student = get_object_or_404(User, pk=request.POST.get("student", ""), role=User.Role.STUDENT)
+    try:
+        student = get_object_or_404(User, pk=request.POST.get("student", ""), role=User.Role.STUDENT)
+    except (ValidationError, ValueError):  # non-UUID/empty student id must not 500
+        messages.error(request, "اختر طالباً من القائمة")
+        return redirect("accounts:teacher_session_detail", pk=pk)
     if not CircleEnrollment.objects.filter(
         circle=session.circle, student=student, status=CircleEnrollment.Status.ACTIVE,
     ).exists():

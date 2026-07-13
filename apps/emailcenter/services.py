@@ -53,6 +53,12 @@ def deliver(category, subject, template_name, context, recipients, *, campaign=N
     sent = failed = skipped = 0
     logs = []
 
+    rendered_html = None
+    if sender is not None and enabled:
+        from django.template.loader import render_to_string
+        from .gmail import send_gmail
+        rendered_html = render_to_string(template_name, context)
+
     for user in recipients:
         email = getattr(user, "email", None) or (user if isinstance(user, str) else None)
         if not email:
@@ -64,9 +70,7 @@ def deliver(category, subject, template_name, context, recipients, *, campaign=N
             error = "الفئة معطّلة من إعدادات النظام"
         else:
             if sender is not None:
-                from django.template.loader import render_to_string
-                from .gmail import send_gmail
-                ok = send_gmail(sender, subject, render_to_string(template_name, context), email)
+                ok = send_gmail(sender, subject, rendered_html, email)
             else:
                 ok = send_html_email(subject, template_name, context, [email])
             if ok:
@@ -127,9 +131,39 @@ def send_campaign(campaign_id: int):
     recipients = list(resolve_recipients(campaign))
     context = {"subject": campaign.subject, "body": campaign.body,
                "site_name": "الطبيب الحافظ"}
-    sender = campaign.sender_account if (
-        campaign.sender_account_id and campaign.sender_account.is_active
-    ) else None
+    # The admin explicitly chose a sender: never silently substitute another.
+    # A missing/inactive/revoked Gmail account fails the campaign loudly, and
+    # the auth pre-flight avoids one refresh attempt per recipient.
+    sender = None
+    if campaign.sender_account_id:
+        sender = campaign.sender_account
+        auth_error = None
+        if not sender.is_active:
+            auth_error = "حساب Gmail المرسل معطّل"
+        else:
+            from .gmail import ensure_access_token
+            try:
+                ensure_access_token(sender)
+            except Exception:
+                auth_error = "تعذر تفويض حساب Gmail المرسل — أعد ربطه من صفحة حساب المرسل"
+        if auth_error:
+            recipients = list(resolve_recipients(campaign))
+            EmailLog.objects.bulk_create([
+                EmailLog(
+                    campaign=campaign, category=EmailCategory.BROADCAST,
+                    recipient=u, to_email=u.email, subject=campaign.subject,
+                    status=EmailLog.Status.FAILED, error=auth_error,
+                ) for u in recipients if u.email
+            ])
+            campaign.total_recipients = len(recipients)
+            campaign.failed_count = len(recipients)
+            campaign.sent_at = timezone.now()
+            campaign.status = EmailCampaign.Status.FAILED
+            campaign.save(update_fields=[
+                "total_recipients", "sent_count", "failed_count", "sent_at", "status",
+            ])
+            return campaign
+
     sent, failed, _ = deliver(
         EmailCategory.BROADCAST, campaign.subject,
         "emails/broadcast.html", context, recipients, campaign=campaign,

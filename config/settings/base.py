@@ -201,7 +201,6 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# Virtual classrooms / webinars (Section C/D) — override for self-hosted Jitsi
 # Google OAuth (admins connect their Gmail as a sender for the email center).
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
@@ -210,6 +209,7 @@ GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
 # NO default timeout, so an unreachable mail server blocked signup forever.
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 
+# Virtual classrooms / webinars (Section C/D) — override for self-hosted Jitsi
 JITSI_DOMAIN = os.environ.get("JITSI_DOMAIN", "meet.jit.si")
 # JWT auth for the self-hosted Jitsi (prosody token auth). When JITSI_APP_SECRET
 # is set, Django mints per-user tokens so the Jitsi server enforces room access.

@@ -233,10 +233,97 @@ class GmailSenderTests(TestCase):
             subject="اختبار", body="مرحبا", audience=Audience.USER,
             audience_user=self.student, created_by=self.admin, sender_account=acc,
         )
-        with patch("apps.emailcenter.gmail.send_gmail", return_value=True) as mock_send:
+        with patch("apps.emailcenter.gmail.send_gmail", return_value=True) as mock_send, \
+             patch("apps.emailcenter.gmail.ensure_access_token", return_value="tok"):
             services.send_campaign(campaign.pk)
         campaign.refresh_from_db()
         self.assertEqual(campaign.status, EmailCampaign.Status.SENT)
         self.assertEqual(mock_send.call_count, 1)
         self.assertEqual(mock_send.call_args[0][0], acc)  # sent AS the Gmail account
         self.assertEqual(EmailLog.objects.filter(status=EmailLog.Status.SENT).count(), 1)
+
+    def test_campaign_fails_loudly_when_gmail_auth_broken(self):
+        """A chosen sender is never silently replaced: auth failure at send
+        time fails the whole campaign with a clear per-recipient error."""
+        from unittest.mock import patch
+        import requests as _requests
+        from apps.emailcenter import services
+        from apps.emailcenter.models import EmailCampaign, EmailLog, GmailAccount, Audience
+        acc = GmailAccount(user=self.admin, email="a@gmail.com")
+        acc.set_refresh_token("rt")
+        acc.save()
+        campaign = EmailCampaign.objects.create(
+            subject="اختبار", body="مرحبا", audience=Audience.USER,
+            audience_user=self.student, created_by=self.admin, sender_account=acc,
+        )
+        with patch("apps.emailcenter.gmail.ensure_access_token",
+                   side_effect=_requests.HTTPError("invalid_grant")):
+            services.send_campaign(campaign.pk)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, EmailCampaign.Status.FAILED)
+        log = EmailLog.objects.get()
+        self.assertEqual(log.status, EmailLog.Status.FAILED)
+        self.assertIn("Gmail", log.error)
+
+    def test_compose_gmail_sender_without_account_shows_error(self):
+        from apps.emailcenter.models import EmailCampaign
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("emailcenter:compose"), {
+            "subject": "س", "body": "ن", "audience": "all", "sender": "gmail",
+        })
+        self.assertEqual(r.status_code, 200)  # re-rendered with error
+        self.assertFalse(EmailCampaign.objects.exists())
+
+    def test_disconnect_deletes_account_and_requires_post(self):
+        from apps.emailcenter.models import GmailAccount
+        acc = GmailAccount(user=self.sub, email="s@gmail.com")
+        acc.set_refresh_token("rt")
+        acc.save()
+        self.client.force_login(self.sub)
+        self.client.get(reverse("emailcenter:gmail_disconnect"))
+        self.assertTrue(GmailAccount.objects.exists())  # GET is a no-op
+        self.client.post(reverse("emailcenter:gmail_disconnect"))
+        self.assertFalse(GmailAccount.objects.exists())
+
+    def test_ensure_access_token_refresh_and_cache(self):
+        from unittest.mock import patch, MagicMock
+        from django.utils import timezone
+        from datetime import timedelta
+        from apps.emailcenter import gmail as gmail_svc
+        from apps.emailcenter.models import GmailAccount
+        acc = GmailAccount(user=self.admin, email="a@gmail.com")
+        acc.set_refresh_token("rt")
+        acc.save()
+        # expired -> refresh call persists a new token
+        ok = MagicMock(status_code=200)
+        ok.json.return_value = {"access_token": "fresh", "expires_in": 3600}
+        with patch("apps.emailcenter.gmail.requests.post", return_value=ok) as mock_post:
+            token = gmail_svc.ensure_access_token(acc)
+        self.assertEqual(token, "fresh")
+        self.assertEqual(mock_post.call_count, 1)
+        acc.refresh_from_db()
+        self.assertEqual(acc.access_token, "fresh")
+        self.assertGreater(acc.access_token_expires_at, timezone.now() + timedelta(minutes=30))
+        # still valid -> no HTTP call
+        with patch("apps.emailcenter.gmail.requests.post") as mock_post:
+            token = gmail_svc.ensure_access_token(acc)
+        self.assertEqual(token, "fresh")
+        mock_post.assert_not_called()
+
+    def test_send_gmail_returns_false_and_logs_on_http_error(self):
+        from unittest.mock import patch, MagicMock
+        import requests as _requests
+        from apps.emailcenter import gmail as gmail_svc
+        from apps.emailcenter.models import GmailAccount
+        from django.utils import timezone
+        from datetime import timedelta
+        acc = GmailAccount(user=self.admin, email="a@gmail.com",
+                           access_token="tok")
+        acc.set_refresh_token("rt")
+        acc.access_token_expires_at = timezone.now() + timedelta(hours=1)
+        acc.save()
+        bad = MagicMock(status_code=403, text='{"error":"forbidden"}')
+        bad.raise_for_status.side_effect = _requests.HTTPError("403")
+        with patch("apps.emailcenter.gmail.requests.post", return_value=bad):
+            with self.assertLogs("apps.emailcenter.gmail", level="ERROR"):
+                self.assertFalse(gmail_svc.send_gmail(acc, "س", "<b>ن</b>", "x@y.com"))

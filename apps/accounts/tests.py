@@ -38,42 +38,43 @@ class SignupFormTests(TestCase):
             "role": "student",
             "password1": "testpass123",
             "password2": "testpass123",
+            "pledge": "on",
         }
         form = SignupForm(data)
         self.assertTrue(form.is_valid(), msg=dict(form.errors))
 
     def test_signup_empty_full_name(self):
-        form = SignupForm(data={"full_name_ar": "", "email": "a@b.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123"})
+        form = SignupForm(data={"full_name_ar": "", "email": "a@b.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123", "pledge": "on"})
         self.assertFalse(form.is_valid())
 
     def test_signup_duplicate_email(self):
         User.objects.create_user(username="existing@test.com", email="existing@test.com", password="test1234", full_name_ar="موجود")
-        form = SignupForm(data={"full_name_ar": "جديد", "email": "existing@test.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123"})
+        form = SignupForm(data={"full_name_ar": "جديد", "email": "existing@test.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123", "pledge": "on"})
         self.assertFalse(form.is_valid())
         self.assertIn("مسجل مسبقاً", str(form.errors))
 
     def test_signup_short_password(self):
-        form = SignupForm(data={"full_name_ar": "أحمد", "email": "a@b.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "short", "password2": "short"})
+        form = SignupForm(data={"full_name_ar": "أحمد", "email": "a@b.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "short", "password2": "short", "pledge": "on"})
         self.assertFalse(form.is_valid())
         self.assertIn("8 أحرف", str(form.errors))
 
     def test_signup_mismatched_passwords(self):
-        form = SignupForm(data={"full_name_ar": "أحمد", "email": "a@b.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "different"})
+        form = SignupForm(data={"full_name_ar": "أحمد", "email": "a@b.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "different", "pledge": "on"})
         self.assertFalse(form.is_valid())
         self.assertIn("غير متطابقتين", str(form.errors))
 
     def test_signup_short_phone(self):
-        form = SignupForm(data={"full_name_ar": "أحمد", "email": "a@b.com", "phone": "123", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123"})
+        form = SignupForm(data={"full_name_ar": "أحمد", "email": "a@b.com", "phone": "123", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123", "pledge": "on"})
         self.assertFalse(form.is_valid())
         self.assertIn("هاتف", str(form.errors))
 
     def test_signup_email_normalized(self):
-        form = SignupForm(data={"full_name_ar": "أحمد", "email": "Test@Example.COM", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123"})
+        form = SignupForm(data={"full_name_ar": "أحمد", "email": "Test@Example.COM", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123", "pledge": "on"})
         self.assertTrue(form.is_valid())
         self.assertEqual(form.cleaned_data["email"], "test@example.com")
 
     def test_signup_saves_user(self):
-        form = SignupForm(data={"full_name_ar": "أحمد بن محمد", "email": "ahmed@test.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123"})
+        form = SignupForm(data={"full_name_ar": "أحمد بن محمد", "email": "ahmed@test.com", "phone": "0555123456", "gender": "male", "role": "student", "password1": "testpass123", "password2": "testpass123", "pledge": "on"})
         self.assertTrue(form.is_valid())
         user = form.save()
         self.assertEqual(user.username, "ahmed@test.com")
@@ -1692,3 +1693,55 @@ class SessionLogProgressTests(TestCase):
         self.client.force_login(foreign)
         r = self._post()
         self.assertEqual(r.status_code, 404)
+
+
+class SignupServerSideGuardTests(TestCase):
+    """Signup guards that must hold even with JavaScript bypassed."""
+
+    def _data(self, **over):
+        base = {
+            "full_name_ar": "طالب", "email": "guard@test.com",
+            "phone": "0555123456", "gender": "male", "role": "student",
+            "password1": "testpass123", "password2": "testpass123",
+            "pledge": "on",
+        }
+        base.update(over)
+        return {k: v for k, v in base.items() if v is not None}
+
+    def test_signup_without_pledge_rejected_server_side(self):
+        from apps.accounts.forms import SignupForm
+        form = SignupForm(self._data(pledge=None))
+        self.assertFalse(form.is_valid())
+        self.assertIn("التعهد", str(form.errors))
+
+    def test_signup_view_post_creates_pending_user_promptly(self):
+        from unittest.mock import patch
+        # run the "async" email inline so the test is deterministic
+        class InlineThread:
+            def __init__(self, target=None, daemon=None):
+                self.target = target
+            def start(self):
+                self.target()
+        with patch("apps.accounts.views.auth.send_verification_email", return_value=True) as m, \
+             patch("threading.Thread", InlineThread):
+            r = self.client.post(reverse("accounts:signup"), self._data())
+        self.assertEqual(r.status_code, 302)
+        user = User.objects.get(email="guard@test.com")
+        self.assertEqual(user.is_approved, User.ApprovalStatus.PENDING)
+        self.assertEqual(m.call_count, 1)
+
+    def test_malformed_student_id_on_log_progress_is_400_not_500(self):
+        from datetime import date
+        teacher = User.objects.create_user(
+            username="gt@test.com", email="gt@test.com", password="x",
+            full_name_ar="معلم", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        circle = Circle.objects.create(name="حلقة", teacher=teacher, status=Circle.Status.ACTIVE)
+        session = Session.objects.create(circle=circle, session_date=date.today())
+        self.client.force_login(teacher)
+        r = self.client.post(
+            reverse("accounts:teacher_session_log_progress", args=[session.pk]),
+            {"student": "not-a-uuid", "category": "HIFDH", "hizb": 1, "thumn": 0},
+        )
+        self.assertEqual(r.status_code, 302)  # graceful redirect, not 500
