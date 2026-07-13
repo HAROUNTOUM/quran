@@ -46,49 +46,114 @@
     </div>
 </div>
 
+{# ── حالة الحفظ بالربع (SRS): تقييم المراجعة يغيّر الحالة ويعيد الجدولة ── #}
+<div class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <h3 class="font-bold text-gray-800">حالة الحفظ بالربع</h3>
+        <form method="POST" action="{% url 'accounts:teacher_record_add' student.pk %}" class="flex items-center gap-2">
+            {% csrf_token %}
+            <input type="number" name="rub_number" min="1" max="240" placeholder="رقم الربع" required
+                   class="w-28 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <button type="submit" class="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">تسجيل حفظ ربع</button>
+        </form>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full">
+        <thead class="bg-gray-50 text-sm text-gray-500">
+            <tr>
+                <th class="px-4 py-3 text-right font-medium">الربع</th>
+                <th class="px-4 py-3 text-center font-medium">الحالة</th>
+                <th class="px-4 py-3 text-center font-medium">المراجعات</th>
+                <th class="px-4 py-3 text-center font-medium">المراجعة القادمة</th>
+                <th class="px-4 py-3 text-right font-medium">تقييم المراجعة</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for rec in records %}
+            <tr class="hover:bg-gray-50 transition-colors {% if rec.is_due %}bg-amber-50/50{% endif %}">
+                <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ rec.rub.label }}</td>
+                <td class="px-4 py-3 text-center">
+                    <span class="text-xs font-medium px-2 py-1 rounded-lg
+                        {% if rec.status == 'MASTERED' %}bg-green-50 text-green-700
+                        {% elif rec.status == 'MEMORIZED' %}bg-blue-50 text-blue-700
+                        {% elif rec.status == 'NEEDS_REVIEW' %}bg-amber-50 text-amber-700
+                        {% elif rec.status == 'WEAK' %}bg-red-50 text-red-700
+                        {% else %}bg-gray-50 text-gray-500{% endif %}">
+                        {{ rec.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-center text-sm text-gray-600">{{ rec.review_count }}</td>
+                <td class="px-4 py-3 text-center text-sm {% if rec.is_due %}font-bold text-amber-600{% else %}text-gray-500{% endif %}">
+                    {{ rec.next_review_date|date:"d/m/Y"|default:"—" }}
+                </td>
+                <td class="px-4 py-3">
+                    <form method="POST" action="{% url 'accounts:teacher_record_evaluate' student.pk rec.pk %}" class="flex items-center gap-2">
+                        {% csrf_token %}
+                        <select name="evaluation" required class="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500">
+                            <option value="">التقييم…</option>
+                            {% for ev in evaluations %}<option value="{{ ev }}">{{ ev }}</option>{% endfor %}
+                        </select>
+                        <input type="number" name="mistakes_count" min="0" value="0" title="عدد الأخطاء"
+                               class="w-16 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500">
+                        <button type="submit" class="px-2.5 py-1.5 text-xs bg-primary-50 hover:bg-primary-100 text-primary-700 font-medium rounded-lg transition-colors">اعتماد</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">{% include "dashboard/partials/empty_state.html" with message="لا توجد أرباع مسجّلة — سجّل حفظ ربع أعلاه أو اعتمد مهمة حفظ" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+{# ── سجل الحصص (ProgressLog): كل ما سُجّل للطالب في الحصص ── #}
 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-        <h3 class="font-bold text-gray-800">سجل الحفظ والمراجعة</h3>
-        <span class="text-xs text-gray-400">{{ progress|length }} تسجيلاً</span>
+        <h3 class="font-bold text-gray-800">سجل الحصص — التسميع والتقييم</h3>
+        <span class="text-xs text-gray-400">{{ logs|length }} تسجيلاً</span>
     </div>
+    <div class="overflow-x-auto">
     <table class="w-full">
         <thead class="bg-gray-50 text-sm text-gray-500">
             <tr>
                 <th class="px-6 py-4 text-right font-medium">النوع</th>
                 <th class="px-6 py-4 text-right font-medium">السورة</th>
                 <th class="px-6 py-4 text-right font-medium">الآيات</th>
-                <th class="px-6 py-4 text-right font-medium">الحالة</th>
+                <th class="px-6 py-4 text-center font-medium">النقطة /20</th>
                 <th class="px-6 py-4 text-right font-medium">الحلقة</th>
                 <th class="px-6 py-4 text-center font-medium">التاريخ</th>
+                <th class="px-6 py-4 text-center font-medium">تصحيح</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
-            {% for p in progress %}
+            {% for log in logs %}
             <tr class="hover:bg-gray-50 transition-colors">
                 <td class="px-6 py-4">
-                    <span class="text-xs font-medium px-2 py-1 rounded-lg {% if p.type == 'hifz' %}bg-blue-50 text-blue-700{% else %}bg-amber-50 text-amber-700{% endif %}">
-                        {{ p.get_type_display }}
-                    </span>
-                </td>
-                <td class="px-6 py-4 text-sm text-gray-800">{{ p.surah.name_ar }}</td>
-                <td class="px-6 py-4 text-sm text-gray-600">{{ p.ayah_from }}–{{ p.ayah_to }}</td>
-                <td class="px-6 py-4">
                     <span class="text-xs font-medium px-2 py-1 rounded-lg
-                        {% if p.status == 'mastered' %}bg-green-50 text-green-700
-                        {% elif p.status == 'tested' %}bg-indigo-50 text-indigo-700
-                        {% elif p.status == 'reviewed' %}bg-blue-50 text-blue-700
-                        {% elif p.status == 'memorizing' %}bg-amber-50 text-amber-700
-                        {% else %}bg-gray-50 text-gray-500{% endif %}">
-                        {{ p.get_status_display }}
+                        {% if log.log_category == 'HIFDH' %}bg-blue-50 text-blue-700
+                        {% elif log.log_category == 'MURAJAAH' %}bg-amber-50 text-amber-700
+                        {% else %}bg-purple-50 text-purple-700{% endif %}">
+                        {{ log.get_log_category_display }}
                     </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-600">{{ p.enrollment.circle.name }}</td>
-                <td class="px-6 py-4 text-center text-sm text-gray-400">{{ p.created_at|date:"d/m/Y" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-800">{{ log.surah.name_ar }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ log.start_ayah }}–{{ log.end_ayah }}</td>
+                <td class="px-6 py-4 text-center text-sm font-bold {% if log.points >= 16 %}text-green-600{% elif log.points >= 10 %}text-amber-600{% elif log.points is not None %}text-red-600{% else %}text-gray-300{% endif %}">
+                    {% if log.points is not None %}{{ log.points }}/20{% else %}—{% endif %}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ log.session.circle.name }}</td>
+                <td class="px-6 py-4 text-center text-sm text-gray-400">{{ log.created_at|date:"d/m/Y" }}{% if log.updated_by_id %} <span class="text-[10px] text-amber-500">(معدّل)</span>{% endif %}</td>
+                <td class="px-6 py-4 text-center">
+                    <a href="{% url 'accounts:teacher_progress_log_edit' log.pk %}"
+                       class="text-xs font-medium text-primary-600 hover:text-primary-800">تعديل</a>
+                </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6">{% include "dashboard/partials/empty_state.html" with message="لا توجد تسجيلات حفظ بعد" %}</td></tr>
+            <tr><td colspan="7">{% include "dashboard/partials/empty_state.html" with message="لا توجد تسجيلات حصص بعد" %}</td></tr>
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 {% endblock %}

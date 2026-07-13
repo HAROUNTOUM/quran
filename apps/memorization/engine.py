@@ -55,6 +55,59 @@ def create_progress_log(session, student, log_category, surah, start_ayah, end_a
     return log
 
 
+def can_modify_progress_log(user, log) -> bool:
+    """Only the session's own teacher (or the main admin) may correct a
+    recorded entry — mirrors ReviewRequest.can_be_responded_by."""
+    from apps.accounts.models import User
+    if user.role == User.Role.MAIN_ADMIN:
+        return True
+    return user.role == User.Role.TEACHER and log.session.circle.teacher_id == user.id
+
+
+@transaction.atomic
+def update_progress_log(log, by, log_category, surah, start_ayah, end_ayah,
+                        points=None, evaluation_grade="", teacher_notes="",
+                        completed_pages=None):
+    """Correct a recorded session entry. Validates the ayah range, stamps the
+    correction audit trail, and rebuilds the student's achievement totals."""
+    from django.core.exceptions import PermissionDenied
+    from django.utils import timezone
+    from apps.references.utils import validate_ayah_range
+
+    if not can_modify_progress_log(by, log):
+        raise PermissionDenied("لا تملك صلاحية تعديل هذا التسجيل")
+    surah_pk = getattr(surah, "pk", surah)
+    start_ayah, end_ayah = validate_ayah_range(surah_pk, start_ayah, end_ayah)
+    if completed_pages is None:
+        completed_pages = compute_completed_pages(start_ayah, end_ayah)
+
+    log.log_category = log_category
+    log.surah_id = surah_pk
+    log.start_ayah = start_ayah
+    log.end_ayah = end_ayah
+    log.points = points
+    log.evaluation_grade = evaluation_grade or ""
+    log.teacher_notes = teacher_notes or ""
+    log.completed_pages = completed_pages
+    log.updated_at = timezone.now()
+    log.updated_by = by
+    log.save()
+    _update_achievement(log.student)
+    return log
+
+
+@transaction.atomic
+def delete_progress_log(log, by):
+    """Remove a mistakenly recorded entry and rebuild achievement totals."""
+    from django.core.exceptions import PermissionDenied
+
+    if not can_modify_progress_log(by, log):
+        raise PermissionDenied("لا تملك صلاحية حذف هذا التسجيل")
+    student = log.student
+    log.delete()
+    _update_achievement(student)
+
+
 THUMNS_PER_JUZ = 16  # 2 hizb × 8 athman
 
 
@@ -80,7 +133,9 @@ def session_report_data(session, student=None):
         todos = todos.filter(student=student)
 
     report_rows = [{
+        "id": log.pk,
         "student": log.student,
+        "was_corrected": log.updated_by_id is not None,
         "category": log.get_log_category_display(),
         "category_code": log.log_category,
         "surah": log.surah.name_ar,

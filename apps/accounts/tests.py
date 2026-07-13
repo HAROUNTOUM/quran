@@ -11,7 +11,7 @@ from django.urls import reverse
 from apps.accounts.models import Batch, User
 from apps.accounts.views import admin_dashboard, profile_edit_view, teacher_session_attendance
 from apps.accounts.forms import LoginForm, SignupForm, ApprovalForm
-from apps.circles.models import Circle, Session
+from apps.circles.models import Circle, CircleEnrollment, Session
 from apps.references.models import EvaluationCriterion
 
 
@@ -1480,3 +1480,143 @@ class NotificationRedirectSafetyTests(TestCase):
         self.client.get(reverse("accounts:notification_mark_read", args=[n.pk]))
         n.refresh_from_db()
         self.assertTrue(n.is_read)
+
+
+class TeacherProgressCorrectionTests(TestCase):
+    """Teachers can now correct session entries after the fact (edit/delete a
+    ProgressLog) and drive the SRS layer (evaluate a rub, record a memorized
+    rub). Both must rebuild StudentAchievement and stay teacher-scoped."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.core.management import call_command
+        call_command("seed_quran")
+
+    def setUp(self):
+        from apps.circles.models import Session
+        from apps.memorization.engine import create_progress_log
+        from apps.memorization.models import ProgressLog, StudentAchievement
+        from apps.references.models import Surah
+
+        self.ProgressLog = ProgressLog
+        self.StudentAchievement = StudentAchievement
+        self.teacher = User.objects.create_user(
+            username="pc_t@test.com", email="pc_t@test.com", password="x",
+            full_name_ar="معلم", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.other_teacher = User.objects.create_user(
+            username="pc_t2@test.com", email="pc_t2@test.com", password="x",
+            full_name_ar="معلم آخر", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.student = User.objects.create_user(
+            username="pc_s@test.com", email="pc_s@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.circle = Circle.objects.create(
+            name="حلقة", teacher=self.teacher, status=Circle.Status.ACTIVE,
+        )
+        CircleEnrollment.objects.create(
+            circle=self.circle, student=self.student,
+            status=CircleEnrollment.Status.ACTIVE,
+        )
+        from datetime import date
+        self.session = Session.objects.create(
+            circle=self.circle, session_date=date.today(),
+        )
+        self.log = create_progress_log(
+            session=self.session, student=self.student,
+            log_category=ProgressLog.Category.HIFDH,
+            surah=Surah.objects.get(pk=2), start_ayah=1, end_ayah=25,
+            points=12,
+        )
+
+    def _achievement(self):
+        return self.StudentAchievement.objects.get(student=self.student)
+
+    def test_teacher_edits_log_and_achievement_recomputed(self):
+        self.assertEqual(self._achievement().total_hifdh_ayahs, 25)
+        self.client.force_login(self.teacher)
+        r = self.client.post(
+            reverse("accounts:teacher_progress_log_edit", args=[self.log.pk]),
+            {"log_category": "HIFDH", "surah": 2, "start_ayah": 1,
+             "end_ayah": 10, "points": "18", "teacher_notes": "تصحيح"},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.log.refresh_from_db()
+        self.assertEqual(self.log.end_ayah, 10)
+        self.assertEqual(float(self.log.points), 18.0)
+        self.assertEqual(self.log.updated_by, self.teacher)
+        self.assertIsNotNone(self.log.updated_at)
+        self.assertEqual(self._achievement().total_hifdh_ayahs, 10)
+
+    def test_foreign_teacher_cannot_edit_or_delete(self):
+        self.client.force_login(self.other_teacher)
+        r = self.client.get(reverse("accounts:teacher_progress_log_edit", args=[self.log.pk]))
+        self.assertEqual(r.status_code, 404)
+        r = self.client.post(reverse("accounts:teacher_progress_log_delete", args=[self.log.pk]))
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(self.ProgressLog.objects.filter(pk=self.log.pk).exists())
+
+    def test_teacher_deletes_log_and_achievement_recomputed(self):
+        self.client.force_login(self.teacher)
+        r = self.client.post(reverse("accounts:teacher_progress_log_delete", args=[self.log.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(self.ProgressLog.objects.filter(pk=self.log.pk).exists())
+        self.assertEqual(self._achievement().total_hifdh_ayahs, 0)
+
+    def test_invalid_ayah_range_rerenders_with_error(self):
+        self.client.force_login(self.teacher)
+        r = self.client.post(
+            reverse("accounts:teacher_progress_log_edit", args=[self.log.pk]),
+            {"log_category": "HIFDH", "surah": 2, "start_ayah": 1,
+             "end_ayah": 999, "points": ""},
+        )
+        self.assertEqual(r.status_code, 200)  # re-rendered form, no crash
+        self.log.refresh_from_db()
+        self.assertEqual(self.log.end_ayah, 25)  # unchanged
+
+    def test_teacher_records_memorized_rub_then_evaluates(self):
+        from apps.memorization.models import MemorizationRecord, ReviewHistory
+
+        self.client.force_login(self.teacher)
+        r = self.client.post(
+            reverse("accounts:teacher_record_add", args=[self.student.pk]),
+            {"rub_number": 1},
+        )
+        self.assertEqual(r.status_code, 302)
+        record = MemorizationRecord.objects.get(student=self.student, rub__number=1)
+        self.assertEqual(record.status, MemorizationRecord.Status.MEMORIZED)
+        self.assertIsNotNone(record.next_review_date)
+
+        r = self.client.post(
+            reverse("accounts:teacher_record_evaluate", args=[self.student.pk, record.pk]),
+            {"evaluation": "ضعيف", "mistakes_count": 4},
+        )
+        self.assertEqual(r.status_code, 302)
+        record.refresh_from_db()
+        self.assertEqual(record.status, MemorizationRecord.Status.WEAK)
+        self.assertEqual(record.review_count, 1)
+        self.assertEqual(ReviewHistory.objects.filter(record=record).count(), 1)
+
+    def test_foreign_teacher_cannot_evaluate(self):
+        from apps.memorization.models import MemorizationRecord
+
+        record = MemorizationRecord.record_for(self.student, 1, circle=self.circle)
+        record.mark_memorized(by=self.teacher)
+        self.client.force_login(self.other_teacher)
+        self.client.post(
+            reverse("accounts:teacher_record_evaluate", args=[self.student.pk, record.pk]),
+            {"evaluation": "ممتاز"},
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.review_count, 0)  # evaluation rejected
+
+    def test_student_progress_page_shows_live_data(self):
+        self.client.force_login(self.teacher)
+        r = self.client.get(reverse("accounts:teacher_student_progress", args=[self.student.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context["stats"]["hifz"], 1)
+        self.assertContains(r, "سجل الحصص")

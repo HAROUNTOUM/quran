@@ -287,6 +287,7 @@
                 <th class="px-4 py-3 text-center font-medium">المقدار (حزب/ثمن)</th>
                 <th class="px-4 py-3 text-center font-medium">النقطة /20</th>
                 <th class="px-4 py-3 text-right font-medium">الملاحظة</th>
+                <th class="px-4 py-3 text-center font-medium">تصحيح</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
@@ -315,10 +316,19 @@
                     <span class="text-xs text-gray-300">—</span>
                     {% endif %}
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-500">{{ r.remark|default:"—" }}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">{{ r.remark|default:"—" }}{% if r.was_corrected %} <span class="text-[10px] text-amber-500">(معدّل)</span>{% endif %}</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">
+                    <a href="{% url 'accounts:teacher_progress_log_edit' r.id %}"
+                       class="text-xs font-medium text-primary-600 hover:text-primary-800">تعديل</a>
+                    <form method="POST" action="{% url 'accounts:teacher_progress_log_delete' r.id %}" class="inline mr-2"
+                          onsubmit="return confirm('حذف هذا التسجيل نهائياً؟ سيُعاد احتساب إنجاز الطالب.')">
+                        {% csrf_token %}
+                        <button type="submit" class="text-xs font-medium text-red-500 hover:text-red-700">حذف</button>
+                    </form>
+                </td>
             </tr>
             {% empty %}
-            <tr><td colspan="8" class="p-8 text-center text-sm text-gray-400">لم يُسجَّل أي تسميع أو تقييم في هذه الحصة بعد</td></tr>
+            <tr><td colspan="9" class="p-8 text-center text-sm text-gray-400">لم يُسجَّل أي تسميع أو تقييم في هذه الحصة بعد</td></tr>
             {% endfor %}
         </tbody>
     </table>

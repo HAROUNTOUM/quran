@@ -530,6 +530,13 @@ class ProgressLog(models.Model):
     )
     teacher_notes = models.TextField("ملاحظات المعلم", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Correction audit trail: entries are normally append-only; when the
+    # session's teacher fixes a mistake, who/when is recorded here.
+    updated_at = models.DateTimeField(null=True, blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="corrected_progress_logs", verbose_name="عُدّل بواسطة",
+    )
 
     objects = ProgressLogQuerySet.as_manager()
 

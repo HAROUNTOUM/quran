@@ -1029,6 +1029,26 @@ class ProgressLogCreateSerializer(serializers.Serializer):
         return log
 
 
+class ProgressLogUpdateSerializer(serializers.Serializer):
+    """Correction payload — a subset of the create fields; student/session
+    are immutable (delete + re-create to move an entry)."""
+    log_category = serializers.ChoiceField(choices=ProgressLog.Category.choices, required=False)
+    surah_number = serializers.IntegerField(min_value=1, max_value=114, required=False)
+    start_ayah = serializers.IntegerField(min_value=1, required=False)
+    end_ayah = serializers.IntegerField(min_value=1, required=False)
+    completed_pages = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, allow_null=True,
+    )
+    evaluation_grade = serializers.ChoiceField(
+        choices=ProgressLog.Grade.choices, required=False, allow_blank=True,
+    )
+    points = serializers.DecimalField(
+        max_digits=4, decimal_places=1, required=False, allow_null=True,
+        min_value=0, max_value=20,
+    )
+    teacher_notes = serializers.CharField(required=False, allow_blank=True)
+
+
 # ─── STUDY TASKS (Todos) ────────────────────────
 
 class StudyTaskSerializer(serializers.ModelSerializer):

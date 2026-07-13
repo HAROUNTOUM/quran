@@ -81,6 +81,7 @@ from .serializers import (
     SessionLessonToggleBatchSerializer,
     ProgressLogListSerializer,
     ProgressLogCreateSerializer,
+    ProgressLogUpdateSerializer,
     SessionTurnSerializer,
     CertificateSerializer,
 )
@@ -1786,6 +1787,50 @@ class ProgressLogViewSet(viewsets.GenericViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return api_response(data=serializer.data)
+
+    # ── Corrections: only the session's own teacher (or main admin) may fix
+    # or remove a recorded entry; achievement totals are rebuilt (engine) ──
+    def partial_update(self, request, *args, **kwargs):
+        from django.core.exceptions import PermissionDenied as DjangoPermissionDenied, ValidationError as DjangoValidationError
+        from apps.memorization.engine import update_progress_log, can_modify_progress_log
+
+        log = self.get_object()
+        if not can_modify_progress_log(request.user, log):
+            return api_response(message="ليس لديك صلاحية", status=status.HTTP_403_FORBIDDEN, success=False)
+        serializer = ProgressLogUpdateSerializer(data=request.data, partial=True)
+        if not serializer.is_valid():
+            return api_response(errors=serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY, success=False)
+        d = serializer.validated_data
+        try:
+            log = update_progress_log(
+                log, request.user,
+                log_category=d.get("log_category", log.log_category),
+                surah=d.get("surah_number", log.surah_id),
+                start_ayah=d.get("start_ayah", log.start_ayah),
+                end_ayah=d.get("end_ayah", log.end_ayah),
+                points=d.get("points", log.points),
+                evaluation_grade=d.get("evaluation_grade", log.evaluation_grade),
+                teacher_notes=d.get("teacher_notes", log.teacher_notes),
+                completed_pages=d.get("completed_pages"),
+            )
+        except (DjangoValidationError, DjangoPermissionDenied) as e:
+            return api_response(
+                message=getattr(e, "message", None) or "قيم غير صالحة",
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY, success=False,
+            )
+        return api_response(
+            data=ProgressLogListSerializer(log, context={"request": request}).data,
+            message="تم تعديل التسجيل",
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        from apps.memorization.engine import delete_progress_log, can_modify_progress_log
+
+        log = self.get_object()
+        if not can_modify_progress_log(request.user, log):
+            return api_response(message="ليس لديك صلاحية", status=status.HTTP_403_FORBIDDEN, success=False)
+        delete_progress_log(log, request.user)
+        return api_response(message="تم حذف التسجيل", status=status.HTTP_200_OK)
 
 
 # ─── STUDY TASKS (Todos) API ───────────────────

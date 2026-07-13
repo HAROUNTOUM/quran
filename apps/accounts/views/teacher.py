@@ -420,23 +420,150 @@ def teacher_student_progress(request, pk):
         student=student, circle__in=circles, status=CircleEnrollment.Status.ACTIVE
     ).exists():
         raise PermissionDenied
-    progress = MemorizationProgress.objects.filter(
-        enrollment__student=student,
-        enrollment__circle__in=circles,
-    ).select_related("surah", "enrollment__circle").order_by("-created_at")
-    stats = progress.aggregate(
+    # Live data: ProgressLog (session entries) + MemorizationRecord (per-rub
+    # hifz status / SRS) — not the deprecated MemorizationProgress tracker.
+    from apps.memorization.models import ProgressLog, MemorizationRecord
+    from apps.memorization import review_engine
+
+    logs = ProgressLog.objects.filter(
+        student=student, session__circle__in=circles,
+    ).select_related("surah", "session__circle").order_by("-created_at")
+    stats = logs.aggregate(
         total=Count("id"),
-        hifz=Count("id", filter=Q(type=MemorizationProgress.Type.HIFZ)),
-        murajaa=Count("id", filter=Q(type=MemorizationProgress.Type.MURAJAA)),
-        mastered=Count("id", filter=Q(status=MemorizationProgress.Status.MASTERED)),
+        hifz=Count("id", filter=Q(log_category=ProgressLog.Category.HIFDH)),
+        murajaa=Count("id", filter=Q(log_category=ProgressLog.Category.MURAJAAH)),
     )
+    records = MemorizationRecord.objects.filter(student=student).exclude(
+        status=MemorizationRecord.Status.NOT_MEMORIZED
+    ).select_related("rub__hizb__juz").order_by("rub__number")
+    stats["mastered"] = records.filter(status=MemorizationRecord.Status.MASTERED).count()
     achievement, _ = StudentAchievement.objects.get_or_create(student=student)
     return render(request, "dashboard/teacher/student_progress.html", {
         "student": student,
-        "progress": progress,
+        "logs": logs,
+        "records": records,
+        "evaluations": list(review_engine.EVALUATION_MULTIPLIERS.keys()),
         "stats": stats,
         "achievement": achievement,
     })
+
+
+@login_required
+@role_required(User.Role.TEACHER)
+def teacher_progress_log_edit(request, pk):
+    """Correct a session entry (category, range, mark, remark) after the fact.
+    Only the session's own teacher; achievement totals are rebuilt."""
+    from apps.memorization.models import ProgressLog
+    from apps.memorization import engine
+
+    log = get_object_or_404(
+        ProgressLog.objects.select_related("session__circle", "student", "surah"),
+        pk=pk, session__circle__teacher=request.user,
+    )
+    surahs = Surah.objects.order_by("id")
+    if request.method == "POST":
+        try:
+            points_raw = request.POST.get("points", "").strip()
+            engine.update_progress_log(
+                log, request.user,
+                log_category=request.POST.get("log_category", log.log_category),
+                surah=int(request.POST.get("surah", log.surah_id)),
+                start_ayah=int(request.POST.get("start_ayah", log.start_ayah)),
+                end_ayah=int(request.POST.get("end_ayah", log.end_ayah)),
+                points=float(points_raw) if points_raw else None,
+                evaluation_grade=request.POST.get("evaluation_grade", ""),
+                teacher_notes=request.POST.get("teacher_notes", ""),
+            )
+        except (ValidationError, ValueError) as e:
+            messages.error(request, getattr(e, "message", None) or "قيم غير صالحة — تحقق من الآيات والنقطة")
+            return render(request, "dashboard/teacher/progress_log_edit.html", {
+                "log": log, "surahs": surahs,
+                "grades": ProgressLog.Grade.choices,
+                "categories": ProgressLog.Category.choices,
+            })
+        messages.success(request, "تم تعديل التسجيل وإعادة احتساب الإنجاز")
+        return redirect("accounts:teacher_session_detail", pk=log.session_id)
+    return render(request, "dashboard/teacher/progress_log_edit.html", {
+        "log": log, "surahs": surahs,
+        "grades": ProgressLog.Grade.choices,
+        "categories": ProgressLog.Category.choices,
+    })
+
+
+@login_required
+@role_required(User.Role.TEACHER)
+def teacher_progress_log_delete(request, pk):
+    from apps.memorization.models import ProgressLog
+    from apps.memorization import engine
+
+    log = get_object_or_404(
+        ProgressLog.objects.select_related("session__circle", "student"),
+        pk=pk, session__circle__teacher=request.user,
+    )
+    session_id = log.session_id
+    if request.method != "POST":
+        return redirect("accounts:teacher_session_detail", pk=session_id)
+    engine.delete_progress_log(log, request.user)
+    messages.success(request, "تم حذف التسجيل وإعادة احتساب الإنجاز")
+    return redirect("accounts:teacher_session_detail", pk=session_id)
+
+
+@login_required
+@role_required(User.Role.TEACHER)
+def teacher_record_evaluate(request, student_id, record_pk):
+    """Teacher evaluates a memorized rub: updates status (محفوظ/يحتاج مراجعة/
+    ضعيف/متقن), reschedules the next review, and appends ReviewHistory."""
+    from apps.memorization.models import MemorizationRecord
+
+    student = get_object_or_404(User, pk=student_id, role=User.Role.STUDENT)
+    record = get_object_or_404(MemorizationRecord, pk=record_pk, student=student)
+    if request.method == "POST":
+        try:
+            record.evaluate(
+                by=request.user,
+                evaluation=request.POST.get("evaluation", ""),
+                mistakes_count=int(request.POST.get("mistakes_count") or 0),
+                notes=request.POST.get("notes", ""),
+            )
+            messages.success(request, f"تم تقييم {record.rub.label()} — الحالة: {record.get_status_display()}")
+        except (ValidationError, ValueError) as e:
+            messages.error(request, getattr(e, "message", None) or "تقييم غير صالح")
+    return redirect("accounts:teacher_student_progress", pk=student_id)
+
+
+@login_required
+@role_required(User.Role.TEACHER)
+def teacher_record_add(request, student_id):
+    """Teacher records that a student has memorized a rub directly (outside
+    the study-task flow) — creates/updates the MemorizationRecord and
+    schedules its first review."""
+    from apps.memorization.models import MemorizationRecord
+    from apps.references.models import Rub
+
+    student = get_object_or_404(User, pk=student_id, role=User.Role.STUDENT)
+    if not request.user.teaches_student(student):
+        raise PermissionDenied
+    if request.method == "POST":
+        try:
+            rub_number = int(request.POST.get("rub_number", ""))
+            rub = Rub.objects.get(number=rub_number)
+        except (ValueError, Rub.DoesNotExist):
+            messages.error(request, "رقم ربع غير صالح (1–240)")
+            return redirect("accounts:teacher_student_progress", pk=student_id)
+        circle = Circle.objects.filter(
+            teacher=request.user, status=Circle.Status.ACTIVE,
+            enrollments__student=student,
+            enrollments__status=CircleEnrollment.Status.ACTIVE,
+        ).first()
+        record = MemorizationRecord.record_for(student, rub, circle=circle)
+        if record.status == MemorizationRecord.Status.NOT_MEMORIZED:
+            record.mark_memorized(by=request.user)
+            messages.success(request, f"تم تسجيل حفظ {rub.label()} وجدولة أول مراجعة")
+        else:
+            messages.info(request, f"{rub.label()} مسجّل مسبقاً — الحالة: {record.get_status_display()}")
+    return redirect("accounts:teacher_student_progress", pk=student_id)
+
+
 @login_required
 @role_required(User.Role.TEACHER, User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
 def teacher_announcements(request):

@@ -678,3 +678,77 @@ class StudentHomeAPITest(APITestBase):
         self.assertIsInstance(data["certificates_count"], int)
         self.assertIsInstance(data["pending_requests_count"], int)
         self.assertIsInstance(data["pending_justifications_count"], int)
+
+
+class ProgressLogCorrectionAPITest(TestCase):
+    """PATCH/DELETE /api/v1/progress-logs/<id>/ — session teacher only."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.core.management import call_command
+        call_command("seed_quran")
+
+    def setUp(self):
+        from datetime import date
+        from apps.circles.models import Circle, CircleEnrollment, Session
+        from apps.memorization.engine import create_progress_log
+        from apps.memorization.models import ProgressLog, StudentAchievement
+        from apps.references.models import Surah
+
+        self.ProgressLog = ProgressLog
+        self.StudentAchievement = StudentAchievement
+        self.teacher = User.objects.create_user(
+            username="plc_t@test.com", email="plc_t@test.com", password="x",
+            full_name_ar="معلم", role=User.Role.TEACHER,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.student = User.objects.create_user(
+            username="plc_s@test.com", email="plc_s@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.circle = Circle.objects.create(
+            name="حلقة", teacher=self.teacher, status=Circle.Status.ACTIVE,
+        )
+        CircleEnrollment.objects.create(
+            circle=self.circle, student=self.student,
+            status=CircleEnrollment.Status.ACTIVE,
+        )
+        self.session = Session.objects.create(circle=self.circle, session_date=date.today())
+        self.log = create_progress_log(
+            session=self.session, student=self.student,
+            log_category=ProgressLog.Category.HIFDH,
+            surah=Surah.objects.get(pk=2), start_ayah=1, end_ayah=25, points=12,
+        )
+        self.client = APIClient()
+
+    def test_teacher_patches_own_session_log(self):
+        self.client.force_authenticate(user=self.teacher)
+        r = self.client.patch(
+            f"/api/v1/progress-logs/{self.log.pk}/",
+            {"end_ayah": 10, "points": 18},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200)
+        self.log.refresh_from_db()
+        self.assertEqual(self.log.end_ayah, 10)
+        self.assertEqual(float(self.log.points), 18.0)
+        self.assertEqual(
+            self.StudentAchievement.objects.get(student=self.student).total_hifdh_ayahs, 10
+        )
+
+    def test_student_cannot_patch_or_delete(self):
+        self.client.force_authenticate(user=self.student)
+        r = self.client.patch(
+            f"/api/v1/progress-logs/{self.log.pk}/", {"points": 20}, format="json",
+        )
+        self.assertEqual(r.status_code, 403)
+        r = self.client.delete(f"/api/v1/progress-logs/{self.log.pk}/")
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(self.ProgressLog.objects.filter(pk=self.log.pk).exists())
+
+    def test_teacher_deletes_own_session_log(self):
+        self.client.force_authenticate(user=self.teacher)
+        r = self.client.delete(f"/api/v1/progress-logs/{self.log.pk}/")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(self.ProgressLog.objects.filter(pk=self.log.pk).exists())
