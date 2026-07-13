@@ -202,6 +202,10 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Virtual classrooms / webinars (Section C/D) — override for self-hosted Jitsi
+# Google OAuth (admins connect their Gmail as a sender for the email center).
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+
 # A hung SMTP socket must never freeze a request: Django's SMTP backend has
 # NO default timeout, so an unreachable mail server blocked signup forever.
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))

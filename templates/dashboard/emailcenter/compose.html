@@ -27,6 +27,19 @@
     </div>
 
     <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1.5">المرسل</label>
+        <select name="sender" class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="platform">بريد المنصة (الافتراضي)</option>
+            {% if connected_gmail %}
+            <option value="gmail" {% if form_data.sender == 'gmail' %}selected{% endif %}>{{ connected_gmail.email }} (Gmail المرتبط)</option>
+            {% endif %}
+        </select>
+        {% if not connected_gmail %}
+        <p class="text-xs text-gray-400 mt-1">لإرسال الرسائل من بريدك الشخصي، <a href="{% url 'emailcenter:gmail_settings' %}" class="text-primary-600 hover:underline">اربط حساب Gmail</a> أولاً.</p>
+        {% endif %}
+    </div>
+
+    <div>
         <label class="block text-sm font-bold text-gray-700 mb-1.5">الجمهور المستهدف</label>
         <select name="audience" x-model="audience"
                 class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500">

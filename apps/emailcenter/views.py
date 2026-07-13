@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from apps.accounts.decorators import role_required
 from apps.accounts.models import User
@@ -36,6 +37,14 @@ def email_compose(request):
         campaign = EmailCampaign(
             subject=subject, body=body, audience=audience, created_by=request.user,
         )
+        if request.POST.get("sender") == "gmail":
+            from .models import GmailAccount
+            gmail_account = GmailAccount.objects.filter(
+                user=request.user, is_active=True
+            ).first()
+            if gmail_account is None:
+                errors.append("لا يوجد حساب Gmail مرتبط بحسابك — اربطه من صفحة حساب المرسل.")
+            campaign.sender_account = gmail_account
         if audience == Audience.ROLE:
             role = request.POST.get("audience_role", "").strip()
             if role not in User.Role.values:
@@ -58,22 +67,27 @@ def email_compose(request):
             for e in errors:
                 messages.error(request, e)
             return render(request, "dashboard/emailcenter/compose.html",
-                          _compose_context(form_data=request.POST))
+                          _compose_context(form_data=request.POST, user=request.user))
 
         campaign.save()
         services.queue_campaign(campaign)
         messages.success(request, "تم جدولة الرسالة للإرسال.")
         return redirect("emailcenter:campaigns")
 
-    return render(request, "dashboard/emailcenter/compose.html", _compose_context())
+    return render(request, "dashboard/emailcenter/compose.html", _compose_context(user=request.user))
 
 
-def _compose_context(form_data=None):
+def _compose_context(form_data=None, user=None):
+    from .models import GmailAccount
+    connected_gmail = None
+    if user is not None:
+        connected_gmail = GmailAccount.objects.filter(user=user, is_active=True).first()
     return {
         "roles": User.Role.choices,
         "circles": Circle.objects.order_by("name").only("id", "name"),
         "audiences": Audience.choices,
         "form_data": form_data or {},
+        "connected_gmail": connected_gmail,
     }
 
 
@@ -143,3 +157,86 @@ _AUTOMAIL_LABELS = {
     "automail_updates": "بريد التحديثات والإعلانات",
     "automail_certificates": "بريد الشهادات",
 }
+
+
+# ── Gmail sender accounts (admins + sub-admins) ─────────────────────────
+# Any admin connects their own Gmail via OAuth; the email center can then
+# send campaigns *as* that address (gmail.send scope, no password stored).
+
+@login_required
+@role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
+def gmail_settings(request):
+    from .models import GmailAccount
+    from . import gmail as gmail_svc
+
+    account = GmailAccount.objects.filter(user=request.user).first()
+    return render(request, "dashboard/emailcenter/gmail_settings.html", {
+        "account": account,
+        "oauth_enabled": gmail_svc.oauth_enabled(),
+    })
+
+
+@login_required
+@role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
+def gmail_connect(request):
+    from . import gmail as gmail_svc
+
+    if not gmail_svc.oauth_enabled():
+        messages.error(request, "ربط Gmail غير مهيّأ بعد — أضف GOOGLE_OAUTH_CLIENT_ID/SECRET في إعدادات الخادم")
+        return redirect("emailcenter:gmail_settings")
+    redirect_uri = request.build_absolute_uri(reverse("emailcenter:gmail_callback"))
+    return redirect(gmail_svc.build_authorize_url(request, redirect_uri))
+
+
+@login_required
+@role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
+def gmail_callback(request):
+    from .models import GmailAccount
+    from . import gmail as gmail_svc
+
+    state = request.GET.get("state", "")
+    if not state or state != request.session.pop(gmail_svc.STATE_SESSION_KEY, None):
+        messages.error(request, "جلسة الربط غير صالحة — أعد المحاولة")
+        return redirect("emailcenter:gmail_settings")
+    if request.GET.get("error"):
+        messages.error(request, "أُلغي الربط من صفحة Google")
+        return redirect("emailcenter:gmail_settings")
+    code = request.GET.get("code", "")
+    if not code:
+        messages.error(request, "لم يصل رمز التفويض من Google")
+        return redirect("emailcenter:gmail_settings")
+
+    redirect_uri = request.build_absolute_uri(reverse("emailcenter:gmail_callback"))
+    try:
+        tokens = gmail_svc.exchange_code(code, redirect_uri)
+        refresh_token = tokens.get("refresh_token", "")
+        if not refresh_token:
+            raise ValueError("no refresh token")
+        email = gmail_svc.fetch_email(tokens["access_token"])
+    except Exception:
+        messages.error(request, "تعذر إتمام الربط مع Google — أعد المحاولة")
+        return redirect("emailcenter:gmail_settings")
+
+    account, _ = GmailAccount.objects.update_or_create(
+        user=request.user,
+        defaults={"email": email, "is_active": True, "access_token": tokens["access_token"]},
+    )
+    account.set_refresh_token(refresh_token)
+    from django.utils import timezone as tz
+    from datetime import timedelta
+    account.access_token_expires_at = tz.now() + timedelta(seconds=int(tokens.get("expires_in", 3600)))
+    account.save()
+    messages.success(request, f"تم ربط {email} — يمكن الآن الإرسال باسمه من مركز البريد")
+    return redirect("emailcenter:gmail_settings")
+
+
+@login_required
+@role_required(User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN)
+def gmail_disconnect(request):
+    from .models import GmailAccount
+
+    if request.method == "POST":
+        deleted, _ = GmailAccount.objects.filter(user=request.user).delete()
+        if deleted:
+            messages.success(request, "تم فصل حساب Gmail")
+    return redirect("emailcenter:gmail_settings")

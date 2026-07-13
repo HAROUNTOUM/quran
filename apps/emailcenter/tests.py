@@ -147,3 +147,96 @@ class CampaignViewTests(TestCase):
         self.assertTrue(store.get("automail_enabled"))
         self.assertTrue(store.get("automail_approvals"))
         self.assertFalse(store.get("automail_updates"))
+
+
+class GmailSenderTests(TestCase):
+    """Admins/sub-admins connect their Gmail via OAuth; campaigns can send
+    through it as the from-address."""
+
+    def setUp(self):
+        from apps.accounts.models import User
+        self.admin = User.objects.create_user(
+            username="gm_admin@test.com", email="gm_admin@test.com", password="x",
+            full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED, is_staff=True,
+        )
+        self.sub = User.objects.create_user(
+            username="gm_sub@test.com", email="gm_sub@test.com", password="x",
+            full_name_ar="مشرف", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.student = User.objects.create_user(
+            username="gm_st@test.com", email="gm_st@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+
+    def test_refresh_token_signing_roundtrip(self):
+        from apps.emailcenter.models import GmailAccount
+        acc = GmailAccount(user=self.admin, email="a@gmail.com")
+        acc.set_refresh_token("1//secret-token")
+        acc.save()
+        acc.refresh_from_db()
+        self.assertEqual(acc.get_refresh_token(), "1//secret-token")
+        self.assertNotIn("secret-token", acc.refresh_token_signed.split(":")[0])
+
+    def test_students_cannot_access_gmail_pages(self):
+        self.client.force_login(self.student)
+        r = self.client.get(reverse("emailcenter:gmail_settings"))
+        self.assertEqual(r.status_code, 403)
+
+    def test_sub_admin_can_open_settings_and_connect_redirects_to_google(self):
+        from unittest.mock import patch
+        self.client.force_login(self.sub)
+        self.assertEqual(self.client.get(reverse("emailcenter:gmail_settings")).status_code, 200)
+        with patch("django.conf.settings.GOOGLE_OAUTH_CLIENT_ID", "cid"), \
+             patch("django.conf.settings.GOOGLE_OAUTH_CLIENT_SECRET", "sec"):
+            r = self.client.get(reverse("emailcenter:gmail_connect"))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("accounts.google.com", r["Location"])
+        self.assertIn("gmail.send", r["Location"])
+
+    def test_callback_creates_account(self):
+        from unittest.mock import patch
+        from apps.emailcenter import gmail as gmail_svc
+        from apps.emailcenter.models import GmailAccount
+        self.client.force_login(self.sub)
+        session = self.client.session
+        session[gmail_svc.STATE_SESSION_KEY] = "st4te"
+        session.save()
+        with patch.object(gmail_svc, "exchange_code", return_value={
+                "access_token": "at", "refresh_token": "rt", "expires_in": 3600}), \
+             patch.object(gmail_svc, "fetch_email", return_value="sub@gmail.com"):
+            r = self.client.get(
+                reverse("emailcenter:gmail_callback"), {"code": "c0de", "state": "st4te"}
+            )
+        self.assertEqual(r.status_code, 302)
+        acc = GmailAccount.objects.get(user=self.sub)
+        self.assertEqual(acc.email, "sub@gmail.com")
+        self.assertEqual(acc.get_refresh_token(), "rt")
+
+    def test_callback_rejects_bad_state(self):
+        from apps.emailcenter.models import GmailAccount
+        self.client.force_login(self.sub)
+        r = self.client.get(reverse("emailcenter:gmail_callback"), {"code": "x", "state": "wrong"})
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(GmailAccount.objects.exists())
+
+    def test_campaign_sends_via_connected_gmail(self):
+        from unittest.mock import patch
+        from apps.emailcenter import services
+        from apps.emailcenter.models import EmailCampaign, EmailLog, GmailAccount, Audience
+        acc = GmailAccount(user=self.admin, email="a@gmail.com")
+        acc.set_refresh_token("rt")
+        acc.save()
+        campaign = EmailCampaign.objects.create(
+            subject="اختبار", body="مرحبا", audience=Audience.USER,
+            audience_user=self.student, created_by=self.admin, sender_account=acc,
+        )
+        with patch("apps.emailcenter.gmail.send_gmail", return_value=True) as mock_send:
+            services.send_campaign(campaign.pk)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, EmailCampaign.Status.SENT)
+        self.assertEqual(mock_send.call_count, 1)
+        self.assertEqual(mock_send.call_args[0][0], acc)  # sent AS the Gmail account
+        self.assertEqual(EmailLog.objects.filter(status=EmailLog.Status.SENT).count(), 1)

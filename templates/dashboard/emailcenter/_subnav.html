@@ -9,5 +9,7 @@
        class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'emailcenter:log' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">سجل البريد</a>
     <a href="{% url 'emailcenter:controls' %}"
        class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'emailcenter:controls' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">التحكم التلقائي</a>
+    <a href="{% url 'emailcenter:gmail_settings' %}"
+       class="whitespace-nowrap px-1 py-3 text-[15px] font-bold border-b-[3px] -mb-[2px] transition-colors {% if vn == 'emailcenter:gmail_settings' %}border-accent-500 text-navy-600{% else %}border-transparent text-[#9AB4BC] hover:text-navy-500{% endif %}">حساب المرسل</a>
 </div>
 {% endwith %}

@@ -42,7 +42,7 @@ def category_enabled(category) -> bool:
         return True
 
 
-def deliver(category, subject, template_name, context, recipients, *, campaign=None):
+def deliver(category, subject, template_name, context, recipients, *, campaign=None, sender=None):
     """Send one categorised email to each recipient and log every attempt.
 
     ``recipients`` is an iterable of ``User`` (must have ``.email``). Returns a
@@ -63,7 +63,12 @@ def deliver(category, subject, template_name, context, recipients, *, campaign=N
             status = EmailLog.Status.SKIPPED
             error = "الفئة معطّلة من إعدادات النظام"
         else:
-            ok = send_html_email(subject, template_name, context, [email])
+            if sender is not None:
+                from django.template.loader import render_to_string
+                from .gmail import send_gmail
+                ok = send_gmail(sender, subject, render_to_string(template_name, context), email)
+            else:
+                ok = send_html_email(subject, template_name, context, [email])
             if ok:
                 sent += 1
                 status = EmailLog.Status.SENT
@@ -71,7 +76,9 @@ def deliver(category, subject, template_name, context, recipients, *, campaign=N
             else:
                 failed += 1
                 status = EmailLog.Status.FAILED
-                error = "فشل الإرسال — راجع سجل الخادم أو إعداد Brevo"
+                error = ("فشل الإرسال عبر Gmail — أعد ربط الحساب أو راجع سجل الخادم"
+                         if sender is not None else
+                         "فشل الإرسال — راجع سجل الخادم أو إعداد Brevo")
 
         logs.append(EmailLog(
             campaign=campaign,
@@ -120,9 +127,13 @@ def send_campaign(campaign_id: int):
     recipients = list(resolve_recipients(campaign))
     context = {"subject": campaign.subject, "body": campaign.body,
                "site_name": "الطبيب الحافظ"}
+    sender = campaign.sender_account if (
+        campaign.sender_account_id and campaign.sender_account.is_active
+    ) else None
     sent, failed, _ = deliver(
         EmailCategory.BROADCAST, campaign.subject,
         "emails/broadcast.html", context, recipients, campaign=campaign,
+        sender=sender,
     )
 
     campaign.total_recipients = len(recipients)
