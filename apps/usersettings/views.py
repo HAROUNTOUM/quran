@@ -65,8 +65,21 @@ def settings_home(request):
         return redirect("usersettings:home")
 
     store = SystemSettings.load()
+
+    # Connected-Gmail card (sender identity) — admins and sub-admins only.
+    gmail_account = None
+    gmail_oauth_enabled = False
+    if user.role in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN):
+        from apps.emailcenter.models import GmailAccount
+        from apps.emailcenter import gmail as gmail_svc
+        gmail_account = GmailAccount.objects.filter(user=user).first()
+        gmail_oauth_enabled = gmail_svc.oauth_enabled()
+
     return render(request, "dashboard/settings/index.html", {
         "base_template": _base_template(user.role),
         "user_groups": _grouped(user_specs, us.data),
         "system_groups": _grouped(system_specs, store.data) if system_specs else [],
+        "gmail_account": gmail_account,
+        "gmail_oauth_enabled": gmail_oauth_enabled,
+        "show_gmail_card": user.role in (User.Role.MAIN_ADMIN, User.Role.SUB_ADMIN),
     })

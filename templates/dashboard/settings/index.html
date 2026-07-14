@@ -37,6 +37,11 @@ Reusable field renderer (HAF-06): renders one setting input by its registry type
   </form>
   {% endif %}
 
+  {# ── Connected accounts (admins + sub-admins): Gmail sender ───────── #}
+  {% if show_gmail_card %}
+    {% include "dashboard/emailcenter/_gmail_account_card.html" with account=gmail_account oauth_enabled=gmail_oauth_enabled %}
+  {% endif %}
+
   {# ── System settings (admin only) ─────────────────────────────────── #}
   {% if system_groups %}
   <form method="post" class="bg-white rounded-2xl border border-amber-100 overflow-hidden">

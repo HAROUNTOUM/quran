@@ -152,3 +152,31 @@ class SystemSettingsTests(TestCase):
         self.teacher.settings.set("default_grading_scale", "percent", changed_by=self.teacher)
         self.teacher.refresh_from_db()
         self.assertEqual(get_user_setting(self.teacher, "default_grading_scale"), "percent")
+
+
+class SettingsGmailCardTests(TestCase):
+    """The الإعدادات page offers the Google connection to admins/sub-admins."""
+
+    def test_sub_admin_sees_google_connect_card(self):
+        from django.urls import reverse
+        from apps.accounts.models import User
+        sub = User.objects.create_user(
+            username="set_sub@test.com", email="set_sub@test.com", password="x",
+            full_name_ar="مشرف", role=User.Role.SUB_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.client.force_login(sub)
+        r = self.client.get(reverse("usersettings:home"))
+        self.assertContains(r, "الحسابات المرتبطة")
+
+    def test_student_does_not_see_google_card(self):
+        from django.urls import reverse
+        from apps.accounts.models import User
+        student = User.objects.create_user(
+            username="set_st@test.com", email="set_st@test.com", password="x",
+            full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.client.force_login(student)
+        r = self.client.get(reverse("usersettings:home"))
+        self.assertNotContains(r, "الحسابات المرتبطة")

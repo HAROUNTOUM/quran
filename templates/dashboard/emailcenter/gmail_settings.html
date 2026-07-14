@@ -10,42 +10,7 @@
     <p class="text-gray-400 mt-1">اربط حساب Gmail الخاص بك ليصبح عنوان المرسل في رسائل مركز البريد — عبر تفويض Google الرسمي، دون حفظ كلمة مرورك.</p>
 </div>
 
-<div class="bg-white rounded-2xl border border-gray-100 p-6 max-w-2xl">
-    {% if account %}
-    <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center">
-                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            </div>
-            <div>
-                <p class="font-bold text-gray-800" dir="ltr">{{ account.email }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">مرتبط منذ {{ account.connected_at|date:"d/m/Y" }} — صلاحية الإرسال فقط (gmail.send)</p>
-            </div>
-        </div>
-        <form method="POST" action="{% url 'emailcenter:gmail_disconnect' %}"
-              onsubmit="return confirm('فصل حساب Gmail؟ ستعود الرسائل للإرسال عبر بريد المنصة.')">
-            {% csrf_token %}
-            <button type="submit" class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">فصل الحساب</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="text-center py-6">
-        <div class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
-            <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        </div>
-        <p class="text-gray-500 text-sm mb-6">لا يوجد حساب Gmail مرتبط بحسابك بعد</p>
-        {% if oauth_enabled %}
-        <a href="{% url 'emailcenter:gmail_connect' %}"
-           class="inline-flex items-center gap-3 px-6 py-3 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-sm font-bold text-gray-700 shadow-sm transition-colors">
-            <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.2 6 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.2 6 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
-            الربط عبر حساب Google
-        </a>
-        {% else %}
-        <p class="text-xs text-amber-600 bg-amber-50 rounded-xl px-4 py-3 inline-block">
-            لم يُهيّأ ربط Google بعد على هذا الخادم — أضف GOOGLE_OAUTH_CLIENT_ID وGOOGLE_OAUTH_CLIENT_SECRET
-        </p>
-        {% endif %}
-    </div>
-    {% endif %}
+<div class="max-w-2xl">
+    {% include "dashboard/emailcenter/_gmail_account_card.html" with account=account oauth_enabled=oauth_enabled %}
 </div>
 {% endblock %}
