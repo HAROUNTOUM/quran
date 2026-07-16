@@ -118,11 +118,22 @@ class CampaignViewTests(TestCase):
         self.client.force_login(self.supervisor)
         self.assertEqual(self.client.get(reverse("emailcenter:compose")).status_code, 403)
 
-    def test_compose_sends_campaign_inline(self):
+    def test_compose_sends_campaign(self):
+        # queue_campaign sends on a daemon thread; run it inline so the
+        # assertions below are deterministic (no worker needed in prod).
+        from unittest.mock import patch
+
+        class InlineThread:
+            def __init__(self, target=None, daemon=None):
+                self._target = target
+            def start(self):
+                self._target()
+
         self.client.force_login(self.admin)
-        resp = self.client.post(reverse("emailcenter:compose"), {
-            "subject": "مرحبا", "body": "نص الرسالة", "audience": Audience.ALL,
-        })
+        with patch("apps.emailcenter.services.threading.Thread", InlineThread):
+            resp = self.client.post(reverse("emailcenter:compose"), {
+                "subject": "مرحبا", "body": "نص الرسالة", "audience": Audience.ALL,
+            })
         self.assertRedirects(resp, reverse("emailcenter:campaigns"))
         campaign = EmailCampaign.objects.get()
         self.assertEqual(campaign.status, EmailCampaign.Status.SENT)

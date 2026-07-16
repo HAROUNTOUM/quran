@@ -5,6 +5,7 @@ Both admin broadcasts and automatic mails (approval, reminders, …) go through
 view or app should call ``send_html_email`` directly for categorised mail.
 """
 import logging
+import threading
 
 from django.utils import timezone
 
@@ -184,12 +185,23 @@ def send_campaign(campaign_id: int):
 
 
 def queue_campaign(campaign: EmailCampaign):
-    """Dispatch async when a Celery broker is configured, else send inline so
-    the feature works in local dev without a running worker."""
-    from django.conf import settings as dj_settings
+    """Send off the request thread without needing a separate worker.
 
-    if getattr(dj_settings, "CELERY_BROKER_URL", None):
-        from apps.emailcenter.tasks import send_campaign_task
-        send_campaign_task.delay(campaign.id)
-    else:
-        send_campaign(campaign.id)
+    Production runs a single web service with no Celery worker, so dispatching
+    to Celery left every campaign stuck in QUEUED forever (the task was
+    published but nothing consumed it). A daemon thread + the per-send
+    EMAIL_TIMEOUT delivers reliably at the platform's scale. The thread closes
+    its own DB connection so it doesn't leak one per campaign."""
+    from django.db import connection
+
+    campaign_id = campaign.id
+
+    def _run():
+        try:
+            send_campaign(campaign_id)
+        except Exception:
+            logger.exception("Campaign %s send crashed", campaign_id)
+        finally:
+            connection.close()
+
+    threading.Thread(target=_run, daemon=True).start()
