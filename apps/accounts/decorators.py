@@ -2,9 +2,9 @@ from functools import wraps
 
 from django.conf import settings
 from django.contrib import messages
-from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
+from django_ratelimit.core import is_ratelimited
 
 from apps.accounts.models import User
 
@@ -12,24 +12,29 @@ from apps.accounts.models import User
 def auth_rate_limit(action, limit, window_seconds):
     """Per-IP POST throttle for the public auth endpoints (audit item A04).
 
-    Fixed window in the shared cache (Redis in production). Fails open when
-    the cache is unavailable — throttling must never take down login. Gated
-    by AUTH_RATE_LIMIT_ENABLED so dev and the test suite are unaffected.
+    Backed by django-ratelimit over the shared cache (Redis in production).
+    Fails open when the cache is unavailable — throttling must never take down
+    login. Gated by RATELIMIT_ENABLE so dev and the test suite are unaffected.
     """
+    rate = f"{limit}/{window_seconds}s"
+
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped(request, *args, **kwargs):
-            if request.method != "POST" or not getattr(settings, "AUTH_RATE_LIMIT_ENABLED", True):
+            if request.method != "POST" or not getattr(settings, "RATELIMIT_ENABLE", True):
                 return view_func(request, *args, **kwargs)
-            ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-                  or request.META.get("REMOTE_ADDR", "unknown"))
-            key = f"auth-rl:{action}:{ip}"
             try:
-                cache.add(key, 0, timeout=window_seconds)
-                count = cache.incr(key)
+                limited = is_ratelimited(
+                    request,
+                    group=f"auth:{action}",
+                    key="ip",
+                    rate=rate,
+                    method="POST",
+                    increment=True,
+                )
             except Exception:
                 return view_func(request, *args, **kwargs)
-            if count > limit:
+            if limited:
                 message = "محاولات كثيرة. يرجى الانتظار قليلاً ثم إعادة المحاولة."
                 if getattr(request, "htmx", None):
                     return render(request, "accounts/partials/auth_message.html", {

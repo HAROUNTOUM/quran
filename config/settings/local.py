@@ -25,10 +25,14 @@ SECURE_HSTS_ENABLED = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
-# Disable API throttling in development/tests (prod keeps base's rates).
-REST_FRAMEWORK = {**REST_FRAMEWORK}  # noqa: F405
-REST_FRAMEWORK.pop("DEFAULT_THROTTLE_CLASSES", None)
-REST_FRAMEWORK.pop("DEFAULT_THROTTLE_RATES", None)
+# Disable all rate limiting (django-ratelimit) in development and the test
+# suite; production keeps base's RATELIMIT_ENABLE = True. Tests that exercise a
+# limiter re-enable it via @override_settings(RATELIMIT_ENABLE=True).
+RATELIMIT_ENABLE = False
+# Dev/tests use the default LocMemCache, which works in-process but trips
+# django-ratelimit's shared-cache error (E003). Add it to base's silenced list
+# (which already covers W001) so `manage.py check`/`test` stay green locally.
+SILENCED_SYSTEM_CHECKS = [*SILENCED_SYSTEM_CHECKS, "django_ratelimit.E003"]  # noqa: F405
 
 # Email — SMTP (Gmail / any) or Brevo API (the same logic as production.py).
 # Render's free tier blocks outbound SMTP, so on Render you must set BREVO_API_KEY.
@@ -48,8 +52,3 @@ BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 if BREVO_API_KEY:
     EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
     ANYMAIL = {"BREVO_API_KEY": BREVO_API_KEY}
-
-# Auth throttling off in dev and the test suite (production default is on;
-# see apps.accounts.decorators.auth_rate_limit). Tests that exercise the
-# throttle re-enable it via override_settings.
-AUTH_RATE_LIMIT_ENABLED = False
