@@ -54,6 +54,12 @@ services:
           name: hafez-redis
           property: connectionString
 
+      # ── Rate limiting (django-ratelimit) ────────────────────────────
+      # Per user/IP budget for the whole /api/ surface. Raise if legitimate
+      # clients hit 429; counting is Redis-backed via the default cache.
+      - key: API_RATELIMIT
+        value: 2000/h
+
       # ── Celery ──────────────────────────────────────────────────────
       - key: CELERY_BROKER_URL
         fromDatabase:

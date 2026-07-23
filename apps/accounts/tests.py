@@ -514,7 +514,7 @@ class PasswordResetFlowTests(TestCase):
 
 
 @override_settings(
-    AUTH_RATE_LIMIT_ENABLED=True,
+    RATELIMIT_ENABLE=True,
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache",
                         "LOCATION": "auth-rl-tests"}},
 )

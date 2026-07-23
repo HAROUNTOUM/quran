@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -768,3 +768,39 @@ class ProgressLogCorrectionAPITest(TestCase):
         r = self.client.delete(f"/api/v1/progress-logs/{self.log.pk}/")
         self.assertEqual(r.status_code, 404)
         self.assertTrue(self.ProgressLog.objects.filter(pk=self.log.pk).exists())
+
+
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    API_RATELIMIT="2/m",
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                        "LOCATION": "api-rl-tests"}},
+)
+class ApiRateLimitTests(TestCase):
+    """ApiRateLimitMiddleware throttles the /api/ surface (django-ratelimit)."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="rl@test.com", email="rl@test.com",
+            password="test1234", full_name_ar="مستخدم",
+            role=User.Role.STUDENT, is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_throttles_after_limit_with_standard_envelope(self):
+        for _ in range(2):
+            self.assertEqual(self.client.get("/api/v1/auth/me/").status_code, 200)
+        resp = self.client.get("/api/v1/auth/me/")
+        self.assertEqual(resp.status_code, 429)
+        body = resp.json()
+        self.assertFalse(body["success"])
+        self.assertIsNone(body["data"])
+        self.assertIn("errors", body)
+
+    @override_settings(RATELIMIT_ENABLE=False)
+    def test_disabled_never_throttles(self):
+        for _ in range(5):
+            self.assertEqual(self.client.get("/api/v1/auth/me/").status_code, 200)

@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "django_filters",
+    "django_ratelimit",
     "channels",
     "apps.core",
     "apps.accounts",
@@ -65,6 +66,7 @@ MIDDLEWARE = [
     "apps.core.middleware.FeatureFlagMiddleware",
     "apps.core.middleware.SecurityHeadersMiddleware",
     "apps.core.middleware.UserProfileMiddleware",
+    "apps.api.middleware.ApiRateLimitMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -168,15 +170,24 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.api.utils.custom_exception_handler",
     "UNAUTHENTICATED_USER": None,
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "20/hour",
-        "user": "200/hour",
-    },
 }
+
+# Rate limiting (django-ratelimit) — replaces DRF's built-in throttling and the
+# old hand-rolled auth decorator. Counting is backed by the default cache
+# (Redis in production; see config/settings/production.py). Both the API
+# middleware (apps.api.middleware.ApiRateLimitMiddleware) and the auth-endpoint
+# decorator (apps.accounts.decorators.auth_rate_limit) honor RATELIMIT_ENABLE,
+# so dev/tests turn it off in one place (config/settings/local.py).
+RATELIMIT_ENABLE = True
+# Per user (or IP for anonymous) budget for the whole /api/ surface. Tunable on
+# Render via the API_RATELIMIT env var without a code deploy.
+API_RATELIMIT = os.environ.get("API_RATELIMIT", "2000/h")
+# django-ratelimit only "officially" supports memcached and warns (W001) for
+# every other backend. Production uses Django's RedisCache, which does provide
+# the atomic incr() the library needs, so the warning is a false positive for
+# our setup — silence it to keep `manage.py check` clean. (E003, the shared-cache
+# error, correctly passes for Redis and is left active as a real guard.)
+SILENCED_SYSTEM_CHECKS = ["django_ratelimit.W001"]
 
 from datetime import timedelta
 SIMPLE_JWT = {
