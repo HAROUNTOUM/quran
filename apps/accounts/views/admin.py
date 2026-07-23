@@ -29,7 +29,7 @@ from apps.circles.models import Circle, CircleEnrollment, Session
 from apps.attendance.models import Attendance
 from apps.requests.models import SupportRequest
 from apps.notifications.models import Notification
-from apps.memorization.models import MemorizationProgress, RecitationGrade
+from apps.memorization.models import MemorizationProgress, ProgressLog, RecitationGrade
 from apps.exams.models import Exam
 from apps.certificates.models import Certificate
 from apps.references.models import Surah, EvaluationCriterion
@@ -588,16 +588,14 @@ def admin_student_detail(request, pk):
     ).count()
     attendance_rate = round(present_count / total_sessions * 100) if total_sessions else 0
 
-    hifz_total = count_thumns(
-        MemorizationProgress.objects.filter(
-            enrollment__student=student, type="hifz"
-        ).values_list("surah_id", "ayah_from", "ayah_to")
-    )
-    mastered = count_thumns(
-        MemorizationProgress.objects.filter(
-            enrollment__student=student, type="hifz", status="mastered"
-        ).values_list("surah_id", "ayah_from", "ayah_to")
-    )
+    # Teacher-written session records (ProgressLog) are the source of truth for
+    # what a student has memorized (حفظ) and reviewed (مراجعة). The deprecated
+    # MemorizationProgress table is no longer canonical, and the old
+    # status="mastered"/mastery-rate breakdown is no longer tracked. Mirrors the
+    # student dashboard (apps/accounts/views/student.py).
+    _logs = ProgressLog.objects.filter(student=student)
+    hifz_total = _logs.filter(log_category=ProgressLog.Category.HIFDH).thumn_total()
+    murajaa_total = _logs.filter(log_category=ProgressLog.Category.MURAJAAH).thumn_total()
 
     recent_attendance = Attendance.objects.filter(student=student).select_related(
         "session__circle"
@@ -625,8 +623,8 @@ def admin_student_detail(request, pk):
         "absence_breakdown": absence_breakdown,
         "hifz_total": hifz_total,
         "hifz_units": format_hizb_thumn(hifz_total),
-        "mastered": mastered,
-        "mastered_units": format_hizb_thumn(mastered),
+        "murajaa_total": murajaa_total,
+        "murajaa_units": format_hizb_thumn(murajaa_total),
         "recent_attendance": recent_attendance,
     })
 @login_required

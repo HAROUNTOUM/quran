@@ -147,24 +147,18 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 p-6">
-            <h3 class="font-bold text-gray-800 mb-4">إحصاءات الحفظ</h3>
+            <h3 class="font-bold text-gray-800 mb-4">إحصاءات الحفظ والمراجعة</h3>
             <div class="space-y-4">
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <span class="text-sm text-gray-600">إجمالي المحفوظ</span>
+                    <span class="text-sm text-gray-600">إجمالي الحفظ</span>
                     <span class="font-bold text-gray-800">{{ hifz_units }}</span>
                     <span class="text-xs text-gray-400 mr-2">({{ hifz_total }} ثمن)</span>
                 </div>
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <span class="text-sm text-gray-600">المُتقن</span>
-                    <span class="font-bold text-green-600">{{ mastered_units }}</span>
-                    <span class="text-xs text-gray-400 mr-2">({{ mastered }} ثمن)</span>
+                    <span class="text-sm text-gray-600">إجمالي المراجعة</span>
+                    <span class="font-bold text-primary-600">{{ murajaa_units }}</span>
+                    <span class="text-xs text-gray-400 mr-2">({{ murajaa_total }} ثمن)</span>
                 </div>
-                {% if hifz_total %}
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <span class="text-sm text-gray-600">نسبة الإتقان</span>
-                    <span class="font-bold text-primary-600">{% widthratio mastered hifz_total 100 %}%</span>
-                </div>
-                {% endif %}
             </div>
         </div>
 
