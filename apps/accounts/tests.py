@@ -1745,3 +1745,51 @@ class SignupServerSideGuardTests(TestCase):
             {"student": "not-a-uuid", "category": "HIFDH", "hizb": 1, "thumn": 0},
         )
         self.assertEqual(r.status_code, 302)  # graceful redirect, not 500
+
+
+class StudentDetailStatsTests(TestCase):
+    """The admin student-detail 'إحصاءات الحفظ والمراجعة' card reports the
+    teacher-written ProgressLog totals for memorization (حفظ) and review
+    (مراجعة), and no longer surfaces the retired mastery breakdown."""
+
+    def setUp(self):
+        from apps.memorization.models import ProgressLog
+
+        self.admin = User.objects.create_user(
+            username="stat_admin@test.com", email="stat_admin@test.com",
+            password="x", full_name_ar="مدير", role=User.Role.MAIN_ADMIN,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        self.student = User.objects.create_user(
+            username="stat_student@test.com", email="stat_student@test.com",
+            password="x", full_name_ar="طالب", role=User.Role.STUDENT,
+            is_approved=User.ApprovalStatus.APPROVED,
+        )
+        # 16 thumns memorized (2 hizb), 8 thumns reviewed (1 hizb). surah left
+        # null so thumn_total() sums total_thumns directly — deterministic
+        # without a seeded Thumn table. total_thumns is derived from hizb/thumn
+        # in ProgressLog.save(), so set hizb (16 = 2×8, 8 = 1×8).
+        ProgressLog.objects.create(
+            student=self.student, log_category=ProgressLog.Category.HIFDH,
+            hizb=2,
+        )
+        ProgressLog.objects.create(
+            student=self.student, log_category=ProgressLog.Category.MURAJAAH,
+            hizb=1,
+        )
+
+    def test_card_shows_hifz_and_murajaa_totals_not_mastery(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(
+            reverse("accounts:admin_student_detail", args=[self.student.pk])
+        )
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn("إحصاءات الحفظ والمراجعة", html)
+        self.assertIn("إجمالي الحفظ", html)
+        self.assertIn("إجمالي المراجعة", html)
+        self.assertIn("(16 ثمن)", html)  # hifdh total
+        self.assertIn("(8 ثمن)", html)   # murajaah total
+        # Retired mastery stats must be gone.
+        self.assertNotIn("المُتقن", html)
+        self.assertNotIn("نسبة الإتقان", html)
